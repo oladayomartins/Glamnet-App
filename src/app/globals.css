@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/*
+ * GLAMNET design tokens.
+ *
+ * ---------------------------------------------------------------------------
+ * PLACEHOLDER VALUES — pending the official "GlamNet Brand Guide".
+ * ---------------------------------------------------------------------------
+ * The brand guide lives in a Claude Design project that this build could not
+ * read (design-system authorisation is unavailable in a non-interactive
+ * session). Every colour, font, radius and shadow used anywhere in the app is
+ * defined ONCE here, so adopting the real brand guide is a single-file edit —
+ * no component needs to change.
+ *
+ * The palette below is a neutral luxury-beauty scheme (deep plum + warm gold on
+ * soft ivory) chosen so the UI reads correctly until the real values land.
+ */
+
+:root {
+  /* --- Brand ---------------------------------------------------------- */
+  --glam-plum-50: #f8f4f8;
+  --glam-plum-100: #efe3ee;
+  --glam-plum-200: #dcc4da;
+  --glam-plum-400: #a36a9d;
+  --glam-plum-600: #6b3566;
+  --glam-plum-700: #542a50;
+  --glam-plum-900: #2e162c;
+
+  --glam-gold-100: #fbf1dd;
+  --glam-gold-300: #e8c88a;
+  --glam-gold-500: #c9a24a;
+  --glam-gold-700: #94742f;
+
+  /* --- Surfaces ------------------------------------------------------- */
+  --glam-ivory: #fdfbf9;
+  --glam-surface: #ffffff;
+  --glam-surface-sunken: #f4f0ee;
+  --glam-border: #e6dfdb;
+
+  /* --- Text ----------------------------------------------------------- */
+  --glam-ink: #1d1a1e;
+  --glam-ink-muted: #6b6369;
+
+  /* --- Status --------------------------------------------------------- */
+  /* EMERGENCY is a deliberately loud, non-brand alert colour: the spec
+     requires the customer and provider to notice it before payment. */
+  --glam-emergency: #c0341d;
+  --glam-emergency-soft: #fdecea;
+  --glam-normal: #2f6f4f;
+  --glam-normal-soft: #e8f3ed;
+  --glam-warning: #a76a12;
+
+  /* --- Shape & elevation ---------------------------------------------- */
+  --glam-radius: 0.875rem;
+  --glam-radius-sm: 0.5rem;
+  --glam-radius-lg: 1.5rem;
+  --glam-shadow-card: 0 1px 2px rgb(29 26 30 / 0.04), 0 8px 24px rgb(29 26 30 / 0.06);
+  --glam-shadow-raised: 0 2px 4px rgb(29 26 30 / 0.06), 0 16px 40px rgb(29 26 30 / 0.10);
+}
+
+@theme inline {
+  --color-brand-50: var(--glam-plum-50);
+  --color-brand-100: var(--glam-plum-100);
+  --color-brand-200: var(--glam-plum-200);
+  --color-brand-400: var(--glam-plum-400);
+  --color-brand-600: var(--glam-plum-600);
+  --color-brand-700: var(--glam-plum-700);
+  --color-brand-900: var(--glam-plum-900);
+
+  --color-accent-100: var(--glam-gold-100);
+  --color-accent-300: var(--glam-gold-300);
+  --color-accent-500: var(--glam-gold-500);
+  --color-accent-700: var(--glam-gold-700);
+
+  --color-canvas: var(--glam-ivory);
+  --color-surface: var(--glam-surface);
+  --color-sunken: var(--glam-surface-sunken);
+  --color-line: var(--glam-border);
+
+  --color-ink: var(--glam-ink);
+  --color-ink-muted: var(--glam-ink-muted);
+
+  --color-emergency: var(--glam-emergency);
+  --color-emergency-soft: var(--glam-emergency-soft);
+  --color-normal: var(--glam-normal);
+  --color-normal-soft: var(--glam-normal-soft);
+  --color-warning: var(--glam-warning);
+
+  --radius-glam: var(--glam-radius);
+  --radius-glam-sm: var(--glam-radius-sm);
+  --radius-glam-lg: var(--glam-radius-lg);
+
+  --shadow-card: var(--glam-shadow-card);
+  --shadow-raised: var(--glam-shadow-raised);
+
+  --font-sans: var(--font-brand-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-brand-display), Georgia, serif;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--glam-ivory);
+  color: var(--glam-ink);
+}
+
+/* Respect the PWA safe area on notched devices. */
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}

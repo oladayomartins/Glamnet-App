@@ -1,0 +1,275 @@
+// GLAMNET data model.
+//
+// SQLite is used so the app runs with no external services; the schema avoids
+// SQLite-only constructs (enums are modelled as checked strings, money as
+// integer pence) so it ports to Postgres by changing the datasource alone.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A geographic Beauty Hub. Providers cover one or more sectors within a hub.
+model Hub {
+  id             String   @id @default(cuid())
+  name           String
+  /// Sector code shown on the provider broadcast, e.g. "S11".
+  sector         String   @unique
+  city           String
+  /// Fixed travel fee for bookings in this sector, in pence.
+  travelFeeMinor Int      @default(500)
+  createdAt      DateTime @default(now())
+
+  providers Provider[]
+  bookings  Booking[]
+}
+
+/// A bookable base service or premium add-on.
+model Service {
+  id              String  @id @default(cuid())
+  name            String
+  description     String  @default("")
+  /// Price in pence.
+  priceMinor      Int
+  durationMinutes Int
+  /// "SERVICE" (base) or "ADDON" (premium add-on).
+  kind            String  @default("SERVICE")
+  category        String  @default("Hair")
+  isActive        Boolean @default(true)
+
+  providers    ProviderService[]
+  bookingItems BookingItem[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String   @default("")
+  createdAt DateTime @default(now())
+
+  bookings Booking[]
+}
+
+model Provider {
+  id                String   @id @default(cuid())
+  name              String
+  email             String   @unique
+  bio               String   @default("")
+  rating            Float    @default(5)
+  completedBookings Int      @default(0)
+  isAcceptingWork   Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  hubId String
+  hub   Hub    @relation(fields: [hubId], references: [id])
+
+  services     ProviderService[]
+  availability ProviderAvailability[]
+  timeOff      ProviderTimeOff[]
+  bookings     Booking[]
+  broadcasts   BookingBroadcast[]
+
+  @@index([hubId])
+}
+
+/// Which services a provider is qualified to deliver.
+model ProviderService {
+  providerId String
+  serviceId  String
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([providerId, serviceId])
+  @@index([serviceId])
+}
+
+/// A recurring weekly working window, in local wall-clock minutes from midnight.
+model ProviderAvailability {
+  id          String @id @default(cuid())
+  providerId  String
+  /// 0 = Sunday … 6 = Saturday, matching JavaScript's `Date#getDay`.
+  dayOfWeek   Int
+  startMinute Int
+  endMinute   Int
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+}
+
+/// A one-off blocked period (holiday, personal time, admin block).
+model ProviderTimeOff {
+  id         String   @id @default(cuid())
+  providerId String
+  startAt    DateTime
+  endAt      DateTime
+  reason     String   @default("Unavailable")
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, startAt])
+}
+
+/// Admin-configurable emergency commercial parameters (spec §5).
+///
+/// Rows are never edited in place: saving new settings inserts a new row with a
+/// new `effectiveFrom`, so historic bookings remain explainable against the
+/// config that priced them.
+model EmergencyPricingConfig {
+  id               String   @id @default(cuid())
+  /// Notice period at or below which a booking is EMERGENCY. Default 720 (12h).
+  thresholdMinutes Int      @default(720)
+  /// "PERCENTAGE" or "FIXED".
+  surchargeType    String   @default("PERCENTAGE")
+  /// Basis points when PERCENTAGE, pence when FIXED.
+  surchargeValue   Int      @default(2500)
+  effectiveFrom    DateTime @default(now())
+  isActive         Boolean  @default(true)
+  note             String   @default("")
+  createdAt        DateTime @default(now())
+
+  @@index([isActive, effectiveFrom])
+}
+
+model Booking {
+  id String @id @default(cuid())
+
+  // --- Emergency classification (spec §9) ---------------------------------
+  /// "NORMAL" or "EMERGENCY". Calculated server-side, stored permanently.
+  bookingType          String   @default("NORMAL")
+  bookingCreatedAt     DateTime @default(now())
+  appointmentStartAt   DateTime
+  /// appointmentStartAt - bookingCreatedAt, in whole minutes.
+  noticePeriodMinutes  Int
+  /// Threshold in force when this booking was classified, kept for audit.
+  thresholdMinutesUsed Int      @default(720)
+
+  // --- Duration -----------------------------------------------------------
+  /// Billable service duration of the basket.
+  serviceDurationMinutes  Int
+  /// serviceDurationMinutes + the 15-minute transition period.
+  reservedDurationMinutes Int
+  /// appointmentStartAt + reservedDurationMinutes — the calendar lock (spec §2).
+  reservedUntilAt         DateTime
+
+  // --- Money, all in pence (spec §5) --------------------------------------
+  subtotalMinor                  Int
+  travelFeeMinor                 Int
+  emergencySurchargeMinor        Int @default(0)
+  otherSurchargesMinor           Int @default(0)
+  trustFeeMinor                  Int @default(50)
+  totalInvoicePriceMinor         Int
+  providerEarningsMinor          Int @default(0)
+  providerEmergencyEarningsMinor Int @default(0)
+
+  // --- Lifecycle (spec §8) ------------------------------------------------
+  status            String  @default("REQUESTED")
+  sector            String
+  referenceImageUrl String  @default("")
+  notes             String  @default("")
+  addressLine       String  @default("")
+  /// Revealed to the provider only at ADDRESS_UNLOCKED.
+  addressUnlocked   Boolean @default(false)
+  rating            Int?
+  cancelledReason   String  @default("")
+
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  hubId      String
+  hub        Hub       @relation(fields: [hubId], references: [id])
+  /// Set when a provider accepts the broadcast.
+  providerId String?
+  provider   Provider? @relation(fields: [providerId], references: [id])
+
+  items         BookingItem[]
+  broadcasts    BookingBroadcast[]
+  events        BookingStatusEvent[]
+  notifications Notification[]
+
+  @@index([status])
+  @@index([bookingType])
+  @@index([providerId, appointmentStartAt])
+  @@index([appointmentStartAt])
+}
+
+/// A basket line, snapshotted at booking time so later price changes to the
+/// Service catalogue never rewrite a historic invoice.
+model BookingItem {
+  id              String @id @default(cuid())
+  bookingId       String
+  serviceId       String
+  name            String
+  priceMinor      Int
+  durationMinutes Int
+  kind            String @default("SERVICE")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([bookingId])
+}
+
+/// One provider's invitation to accept a broadcast request (spec §6).
+model BookingBroadcast {
+  id                     String    @id @default(cuid())
+  bookingId              String
+  providerId             String
+  sentAt                 DateTime  @default(now())
+  expiresAt              DateTime
+  /// "PENDING" | "ACCEPTED" | "DECLINED" | "LOST" | "EXPIRED".
+  status                 String    @default("PENDING")
+  respondedAt            DateTime?
+  /// Earnings quoted to this provider, in pence.
+  earningsMinor          Int       @default(0)
+  emergencyEarningsMinor Int       @default(0)
+
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, providerId])
+  @@index([providerId, status])
+}
+
+/// Append-only lifecycle audit trail (spec §8).
+model BookingStatusEvent {
+  id         String   @id @default(cuid())
+  bookingId  String
+  fromStatus String?
+  toStatus   String
+  actor      String   @default("SYSTEM")
+  note       String   @default("")
+  createdAt  DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+}
+
+/// Outbound message record (spec §11). Persisted rather than pushed so the
+/// emergency tag can be verified consistently across every channel.
+model Notification {
+  id          String    @id @default(cuid())
+  bookingId   String
+  /// "PROVIDER" | "CUSTOMER" | "ADMIN".
+  audience    String
+  /// Set when the notification targets one specific provider.
+  providerId  String?
+  /// "PUSH" | "EMAIL" | "IN_APP".
+  channel     String    @default("PUSH")
+  title       String
+  body        String
+  /// Mirrors the booking's classification so the tag is consistent everywhere.
+  bookingType String    @default("NORMAL")
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([audience, createdAt])
+  @@index([providerId, createdAt])
+}
