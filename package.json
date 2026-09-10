@@ -13,7 +13,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "vercel-build": "DATABASE_URL=file:./demo.db prisma migrate deploy && DATABASE_URL=file:./demo.db prisma db seed && DATABASE_URL=file:./demo.db next build"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
