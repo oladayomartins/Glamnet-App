@@ -150,20 +150,48 @@ export async function GET() {
         : { hint: "Connected, but the schema has no seed data." }),
     });
   } catch (error) {
-    // Report the code only — the message embeds host and port.
+    const name = error instanceof Error ? error.name : "UnknownError";
+    const raw = error instanceof Error ? error.message : "";
+
+    // Classify rather than echo. Prisma distinguishes "cannot reach the host"
+    // from "the credentials were rejected", and that is exactly the fork
+    // between a wrong pooler hostname and a wrong password — but the raw text
+    // is long and quotes the connection target, so it is reduced to a verdict.
+    const reason =
+      /can'?t reach|could not connect|timed out|ECONNREFUSED|ENOTFOUND/i.test(raw)
+        ? "HOST_UNREACHABLE"
+        : /authentication failed|password authentication|role .* does not exist/i.test(raw)
+          ? "AUTH_FAILED"
+          : /database .* does not exist/i.test(raw)
+            ? "DATABASE_NOT_FOUND"
+            : /Tenant or user not found/i.test(raw)
+              ? "POOLER_REJECTED_USER"
+              : "UNKNOWN";
+
+    const guidance = {
+      HOST_UNREACHABLE:
+        "The hostname does not answer on that port. Try the other pooler prefix (aws-0 <-> aws-1), or copy the host from the Supabase Connect panel.",
+      AUTH_FAILED:
+        "The host answered and rejected the credentials. The password is wrong, or the username is missing the project ref (it must be postgres.<ref> on the pooler).",
+      DATABASE_NOT_FOUND:
+        "Connected, but that database name does not exist. It should be 'postgres'.",
+      POOLER_REJECTED_USER:
+        "The pooler did not recognise the user. This is usually the wrong pooler hostname for this project, or a username without the project ref.",
+      UNKNOWN: "Unrecognised connection failure.",
+    }[reason];
+
     const code =
       typeof error === "object" && error !== null && "errorCode" in error
         ? String((error as { errorCode?: unknown }).errorCode ?? "")
         : "";
-    const name = error instanceof Error ? error.name : "UnknownError";
 
     return NextResponse.json(
       {
         ...base,
         status: "unreachable",
         canQuery: false,
-        error: { name, code: code || null },
-        hint: "DATABASE_URL is set but the database did not answer. Check the host, port and password, and that the pooler hostname matches the one in the Supabase Connect panel.",
+        error: { name, code: code || null, reason },
+        hint: guidance,
       },
       { status: 503 },
     );
