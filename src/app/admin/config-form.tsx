@@ -161,7 +161,7 @@ export function EmergencyConfigForm({
           </span>
         ) : null}
         {status.kind === "error" ? (
-          <span className="text-sm text-emergency-ink" role="alert">
+          <span className="text-sm text-warning" role="alert">
             {status.message}
           </span>
         ) : null}

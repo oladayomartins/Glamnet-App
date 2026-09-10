@@ -79,10 +79,19 @@ export function BookingTypeTag({
   );
 }
 
+/**
+ * The operational lifecycle chip.
+ *
+ * Deliberately never uses the emergency colour. Brand guide: signal red is
+ * reserved for the EMERGENCY booking *type*, and type and operational status
+ * are two separate fields — an EMERGENCY booking keeps its red tag through
+ * every lifecycle state while this chip changes independently. A cancelled
+ * booking rendered in red would read as an emergency one.
+ */
 export function StatusPill({ status }: { status: string }) {
   const tone =
     status === "CANCELLED" || status === "DISPUTED"
-      ? "bg-emergency-soft text-emergency-ink"
+      ? "bg-sunken text-warning"
       : status === "PAYMENT_RELEASED" || status === "COMPLETED" || status === "REVIEWED"
         ? "bg-normal-soft text-normal-ink"
         : "bg-sunken text-ink-muted";

@@ -94,7 +94,7 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
       {error ? (
         <p
           role="alert"
-          className="rounded-glam border-l-4 border-emergency bg-emergency-soft p-3 text-sm text-emergency-ink"
+          className="rounded-glam border-l-4 border-warning bg-sunken p-3 text-sm text-ink"
         >
           {error}
         </p>
