@@ -1,16 +1,21 @@
 // GLAMNET data model.
 //
-// SQLite is used so the app runs with no external services; the schema avoids
-// SQLite-only constructs (enums are modelled as checked strings, money as
-// integer pence) so it ports to Postgres by changing the datasource alone.
+// PostgreSQL. The schema avoids vendor-specific constructs — enums are modelled
+// as strings, money as integer pence — so it stays portable.
+//
+// Two URLs are needed on serverless hosts such as Vercel: `url` is the pooled
+// connection every request uses (a lambda per request would otherwise exhaust
+// Postgres connections), and `directUrl` is the unpooled one Prisma needs for
+// migrations, which a transaction pooler cannot carry.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 /// A geographic Beauty Hub. Providers cover one or more sectors within a hub.

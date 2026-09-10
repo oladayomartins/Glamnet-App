@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-import { getPricingContext } from "@/lib/server/emergency-config";
 
 /**
  * Typeface placeholders, paired with the token layer in globals.css.
@@ -40,12 +39,16 @@ const NAV = [
   { href: "/admin", label: "Admin" },
 ];
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
-  // The threshold is an admin-configurable commercial parameter, so the shell
-  // states the rule from config rather than repeating a hard-coded "12 hours".
-  const { thresholdMinutes } = await getPricingContext();
-  const thresholdHours = Math.round(thresholdMinutes / 60);
-
+/**
+ * The root layout must stay free of data access.
+ *
+ * It wraps every route, including the statically prerendered 404 — so a
+ * database read here forces that page to reach the database at build time,
+ * and the whole build fails wherever one is not available. The emergency
+ * threshold is stated with its live value on the screens where it actually
+ * matters (the home page and checkout), which load it themselves.
+ */
+export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en-GB"
@@ -77,8 +80,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">{children}</main>
 
         <footer className="safe-bottom mt-8 border-t border-line px-4 pt-4 text-center text-xs text-ink-muted">
-          Emergency bookings are appointments requested within {thresholdHours}{" "}
-          hours. The surcharge is always shown before payment.
+          Emergency bookings are short-notice appointments. The surcharge is
+          always shown before payment.
         </footer>
       </body>
     </html>

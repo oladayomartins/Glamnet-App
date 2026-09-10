@@ -18,15 +18,19 @@ dashboard.
 |---|---|
 | Framework | Next.js 16 (App Router), React 19, TypeScript |
 | Styling | Tailwind CSS v4, with all brand values as CSS custom properties |
-| Data | Prisma + SQLite (portable to Postgres by changing the datasource) |
+| Data | Prisma + PostgreSQL |
 | Validation | zod on every request body |
 | Tests | Vitest — 65 unit tests over the booking engine |
 
 ## Getting started
 
+You need a PostgreSQL database — any host will do (Supabase, Neon, Vercel
+Postgres, or a local `postgres` container). Copy `.env.example` to `.env` and
+fill in the two connection strings, then:
+
 ```bash
 npm install
-npm run db:migrate      # create the SQLite database
+npm run db:migrate      # apply the schema
 npm run db:seed         # hubs, services, providers, a sample booking
 npm run dev
 ```
@@ -40,7 +44,30 @@ npm run db:studio       # browse the data
 npm run build           # production build
 ```
 
-`DATABASE_URL` is the only environment variable; see `.env.example`.
+Two environment variables are required, both documented in `.env.example`:
+`DATABASE_URL` (pooled, used by the app) and `DIRECT_URL` (unpooled, used only
+by `prisma migrate`). Serverless hosts need the pooled URL for requests — a
+lambda per request would otherwise exhaust Postgres connections — and a
+transaction pooler cannot carry migrations, hence the second.
+
+---
+
+## Deploying
+
+The build does **not** touch the database. `next build` only needs
+`prisma generate` (wired into `postinstall`), and no page is prerendered from
+live data — the root layout in particular is deliberately free of data access,
+because it wraps the statically prerendered 404 and would otherwise drag that
+page into needing a database at build time.
+
+Migrations are therefore a deploy step, not a build step:
+
+```bash
+npm run db:migrate:deploy   # against DIRECT_URL
+```
+
+Set `DATABASE_URL` and `DIRECT_URL` in the host's environment for every
+environment you deploy to (on Vercel: Production, Preview and Development).
 
 ---
 
