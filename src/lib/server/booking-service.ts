@@ -29,6 +29,7 @@ export class BookingError extends Error {
       | "ALREADY_TAKEN"
       | "NOT_INVITED"
       | "INVALID_TRANSITION"
+      | "CONTENDED"
       | "NOT_FOUND",
     readonly status = 400,
   ) {
@@ -255,6 +256,49 @@ export async function createBooking(
 }
 
 /**
+ * Postgres error codes meaning "another transaction got in the way", rather
+ * than anything wrong with this request.
+ *
+ * P2028 is a transaction that could not be started in time — which is what a
+ * contended accept looks like when the connection pool is busy. P2034 is a
+ * write conflict or deadlock. Neither tells us whether the booking was taken,
+ * so neither may be reported as "already accepted".
+ */
+function isContention(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2028" || error.code === "P2034")
+  );
+}
+
+/**
+ * Run a transaction, retrying once if it lost a race to start.
+ *
+ * The retry is what turns a contended accept into a correct answer: the loser
+ * comes back, finds the booking is no longer BROADCAST, and gets a clean
+ * ALREADY_TAKEN instead of an opaque failure. Only contention is retried —
+ * a real error is rethrown untouched.
+ */
+async function withContentionRetry<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (!isContention(error)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    try {
+      return await run();
+    } catch (retryError) {
+      if (!isContention(retryError)) throw retryError;
+      throw new BookingError(
+        "Another provider is responding to this booking right now. Try again in a moment.",
+        "CONTENDED",
+        409,
+      );
+    }
+  }
+}
+
+/**
  * A provider accepts a broadcast request (spec §12 "Concurrent booking
  * acceptance is transactionally protected").
  *
@@ -268,7 +312,8 @@ export async function acceptBooking(
   providerId: string,
   now: Date = new Date(),
 ) {
-  return prisma.$transaction(async (tx) => {
+  return withContentionRetry(() =>
+    prisma.$transaction(async (tx) => {
     const invite = await tx.bookingBroadcast.findUnique({
       where: { bookingId_providerId: { bookingId, providerId } },
     });
@@ -364,7 +409,11 @@ export async function acceptBooking(
       where: { id: bookingId },
       include: { items: true, provider: true, customer: true },
     });
-  });
+    },
+    // Room to queue behind a competing accept rather than failing outright.
+    { maxWait: 8_000, timeout: 15_000 },
+    ),
+  );
 }
 
 export function isUniqueConstraintError(error: unknown): boolean {

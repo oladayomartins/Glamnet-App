@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import { BookingError } from "@/lib/server/booking-service";
 
@@ -24,6 +25,24 @@ export function errorResponse(error: unknown) {
         },
       },
       { status: 422 },
+    );
+  }
+
+  // A transaction that could not start, or lost a write conflict, is
+  // contention rather than a fault. Reporting it as 500 "Something went wrong"
+  // tells a provider nothing; 409 tells them to try again.
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2028" || error.code === "P2034")
+  ) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "CONTENDED",
+          message: "The database was busy. Please try that again.",
+        },
+      },
+      { status: 409 },
     );
   }
 
