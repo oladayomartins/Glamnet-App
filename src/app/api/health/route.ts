@@ -20,8 +20,48 @@ export const dynamic = "force-dynamic";
 function describeDatasource(url: string | undefined) {
   if (!url) return null;
 
+  // Characters that break a connection string and are easy to paste by
+  // accident. Reported as codepoints because several are invisible: a
+  // non-breaking space copied from a rendered web page looks identical to a
+  // normal one and is the classic cause of "invalid domain character".
+  const suspicious = [...new Set(Array.from(url))]
+    .filter((ch) => {
+      const code = ch.codePointAt(0) ?? 0;
+      return (
+        code < 0x20 || // control characters, including newline and tab
+        code === 0x7f ||
+        code > 0x7e || // anything non-ASCII, e.g. NBSP or a smart quote
+        "<>[]{}\"'`\\ ".includes(ch)
+      );
+    })
+    .map((ch) => {
+      const code = ch.codePointAt(0) ?? 0;
+      const name =
+        code === 0x20 ? "SPACE"
+        : code === 0x0a ? "NEWLINE"
+        : code === 0x0d ? "CARRIAGE RETURN"
+        : code === 0x09 ? "TAB"
+        : code === 0xa0 ? "NON-BREAKING SPACE"
+        : code > 0x7e ? "NON-ASCII"
+        : `'${ch}'`;
+      return `U+${code.toString(16).toUpperCase().padStart(4, "0")} ${name}`;
+    });
+
+  // Everything after the final "@" is host, port, database and parameters —
+  // no credential — so it is safe to echo, and it is exactly where an
+  // unreplaced placeholder shows up.
+  const at = url.lastIndexOf("@");
+  const afterCredentials = at === -1 ? null : url.slice(at + 1);
+
+  const shape = {
+    length: url.length,
+    afterCredentials,
+    suspiciousCharacters: suspicious.length ? suspicious : null,
+  };
+
   if (!/^postgres(ql)?:\/\//.test(url)) {
     return {
+      ...shape,
       parsed: false,
       problem: "Does not start with postgresql:// or postgres://",
     };
@@ -31,6 +71,7 @@ function describeDatasource(url: string | undefined) {
     const parsed = new URL(url);
     const host = decodeURIComponent(parsed.hostname);
     return {
+      ...shape,
       parsed: true,
       host,
       port: parsed.port || "(default)",
@@ -43,8 +84,10 @@ function describeDatasource(url: string | undefined) {
     };
   } catch {
     return {
+      ...shape,
       parsed: false,
-      problem: "Not a parseable URL — check for stray quotes, spaces or angle brackets",
+      problem:
+        "Starts with postgresql:// but is not a parseable URL. Check afterCredentials and suspiciousCharacters below.",
     };
   }
 }
@@ -69,6 +112,7 @@ export async function GET() {
     databaseUrlConfigured,
     directUrlConfigured,
     datasource: describeDatasource(process.env.DATABASE_URL),
+    vercelEnv: process.env.VERCEL_ENV ?? null,
     checkedAt: new Date().toISOString(),
   };
 
