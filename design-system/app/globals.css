@@ -1,0 +1,236 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* ---------------------------------------------------------------------------
+   Tailwind v4 theme bridge.
+
+   Colours are mapped with `@theme inline` so utilities emit `var(--gn-*)`
+   rather than a snapshot of the value — that is what lets a single set of
+   classes flip between light and dark when `data-theme` changes.
+   -------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-bg: var(--gn-bg);
+  --color-surface-1: var(--gn-surface-1);
+  --color-surface-2: var(--gn-surface-2);
+  --color-surface-3: var(--gn-surface-3);
+
+  --color-line: var(--gn-line);
+  --color-line-strong: var(--gn-line-strong);
+
+  --color-text-1: var(--gn-text-1);
+  --color-text-2: var(--gn-text-2);
+  --color-text-3: var(--gn-text-3);
+
+  --color-rose: var(--gn-rose);
+  --color-rose-tint: var(--gn-rose-tint);
+  --color-rose-ink: var(--gn-rose-ink);
+  --color-champagne: var(--gn-champagne);
+  --color-gold-text: var(--gn-gold-text);
+  --color-metal-ink: var(--gn-metal-ink);
+
+  --color-emergency: var(--gn-emergency);
+  --color-emergency-tint: var(--gn-emergency-tint);
+  --color-emergency-ink: var(--gn-emergency-ink);
+  --color-emergency-on: var(--gn-emergency-on);
+
+  --color-live: var(--gn-live);
+  --color-live-tint: var(--gn-live-tint);
+  --color-live-ink: var(--gn-live-ink);
+
+  --color-map-grid: var(--gn-map-grid);
+  --color-map-road: var(--gn-map-road);
+  --color-pin-inner: var(--gn-pin-inner);
+
+  --shadow-e2: var(--gn-shadow-1);
+  --shadow-e3: var(--gn-shadow-2);
+
+  --radius-input: var(--gn-radius-input);
+  --radius-tile: var(--gn-radius-tile);
+  --radius-card: var(--gn-radius-card);
+  --radius-pill: var(--gn-radius-pill);
+
+  --ease-gn: var(--gn-ease);
+
+  /* Loaded by next/font in app/layout.tsx. */
+  --font-sans: var(--font-instrument), "Instrument Sans", Helvetica, sans-serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+}
+
+@theme {
+  /* Type scale — §03. Body never goes below 15px in the PWA. */
+  --text-display: 40px;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.04em;
+  --text-h1: 26px;
+  --text-h1--line-height: 1.2;
+  --text-h1--letter-spacing: -0.03em;
+  --text-h2: 19px;
+  --text-h2--line-height: 1.3;
+  --text-body: 15px;
+  --text-body--line-height: 1.6;
+  --text-caption: 13px;
+  --text-caption--line-height: 1.5;
+  --text-meta: 11px;
+  --text-meta--line-height: 1.4;
+  --text-meta--letter-spacing: 0.1em;
+
+  /* Motion — §11. No bounce, no spin, no confetti. */
+  --animate-ring: gn-ring 3.6s ease-out infinite;
+  --animate-ring-slow: gn-ring 4s ease-out infinite;
+  --animate-float: gn-float 5s ease-in-out infinite;
+  --animate-sweep: gn-sweep 26s linear infinite;
+  --animate-breathe: gn-breathe 2.4s ease-in-out infinite;
+  --animate-breathe-fast: gn-breathe 1.8s ease-in-out infinite;
+  --animate-shimmer: gn-shimmer 1.4s linear infinite;
+
+  @keyframes gn-ring {
+    0% {
+      transform: scale(0.6);
+      opacity: 0.5;
+    }
+    80% {
+      opacity: 0;
+    }
+    100% {
+      transform: scale(2.6);
+      opacity: 0;
+    }
+  }
+  @keyframes gn-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+  @keyframes gn-sweep {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes gn-breathe {
+    0%,
+    100% {
+      opacity: 0.45;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @keyframes gn-shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: var(--gn-bg);
+    color: var(--gn-text-1);
+    -webkit-font-smoothing: antialiased;
+    transition:
+      background var(--gn-duration-screen) var(--gn-ease),
+      color var(--gn-duration-screen) var(--gn-ease);
+  }
+
+  a {
+    color: var(--gn-rose);
+    text-decoration: none;
+    transition: color var(--gn-duration-hover) var(--gn-ease);
+  }
+  a:hover {
+    color: var(--gn-gold-text);
+  }
+
+  /* Anything that ticks gets tabular figures, everywhere. */
+  time,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus ring — 2px champagne, offset 2px (§06). */
+  :focus-visible {
+    outline: 2px solid var(--gn-champagne);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* The brand's metal gradient. Fill only — never text, never a border. */
+  .bg-metal {
+    background: var(--gn-metal);
+  }
+
+  /*
+   * Raises a control's hit area to the 44px accessibility floor without
+   * changing the box you can see.
+   *
+   * Several controls in this system are deliberately shorter than 44px —
+   * segmented pills, service chips, the surcharge slider — because the visual
+   * rhythm depends on it. Padding them out to 44px would break the design;
+   * leaving them at 28–40px would break the promise made in §03. So the target
+   * is extended with an invisible overlay instead.
+   *
+   * It only grows vertically (`inset-inline: 0`), so it can never swallow taps
+   * meant for a neighbour sitting beside it in a row.
+   */
+  .tap-44 {
+    position: relative;
+  }
+  .tap-44::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: var(--gn-tap-min);
+    transform: translateY(-50%);
+  }
+
+  /* Shared shimmer overlay for pending/skeleton states. The highlight is
+     champagne so the loading state still reads as GlamNet. */
+  .shimmer-overlay {
+    background-image: linear-gradient(
+      90deg,
+      transparent 40%,
+      oklch(0.9 0.05 90 / 0.3) 50%,
+      transparent 60%
+    );
+    background-size: 200% 100%;
+  }
+  .shimmer-overlay-bright {
+    background-image: linear-gradient(
+      90deg,
+      transparent 40%,
+      oklch(0.95 0.05 92 / 0.6) 50%,
+      transparent 60%
+    );
+    background-size: 200% 100%;
+  }
+}
