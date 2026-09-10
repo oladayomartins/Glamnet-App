@@ -9,6 +9,47 @@ import { prisma } from "@/lib/server/prisma";
 export const dynamic = "force-dynamic";
 
 /**
+ * Describe the datasource without ever revealing the credential.
+ *
+ * Only the host, port, username and query-parameter names are reported. Those
+ * are not secrets — the project ref appears in every Supabase URL, and the
+ * pooler is shared infrastructure — but they are exactly what a malformed
+ * connection string gets wrong, so surfacing them turns "unreachable" from a
+ * guessing game into a single readable answer. The password is never touched.
+ */
+function describeDatasource(url: string | undefined) {
+  if (!url) return null;
+
+  if (!/^postgres(ql)?:\/\//.test(url)) {
+    return {
+      parsed: false,
+      problem: "Does not start with postgresql:// or postgres://",
+    };
+  }
+
+  try {
+    const parsed = new URL(url);
+    const host = decodeURIComponent(parsed.hostname);
+    return {
+      parsed: true,
+      host,
+      port: parsed.port || "(default)",
+      username: decodeURIComponent(parsed.username),
+      database: parsed.pathname.replace(/^\//, ""),
+      params: [...parsed.searchParams.keys()],
+      // A placeholder left in the value is the most common paste mistake, and
+      // it surfaces here as an unresolvable host rather than a vague timeout.
+      looksLikePlaceholder: /[<>\[\]{}\s]/.test(host) || host.toUpperCase() === host && /[A-Z_]/.test(host),
+    };
+  } catch {
+    return {
+      parsed: false,
+      problem: "Not a parseable URL — check for stray quotes, spaces or angle brackets",
+    };
+  }
+}
+
+/**
  * GET /api/health — deployment diagnostics.
  *
  * Reports whether the datasource is configured and reachable, and whether the
@@ -27,6 +68,7 @@ export async function GET() {
   const base = {
     databaseUrlConfigured,
     directUrlConfigured,
+    datasource: describeDatasource(process.env.DATABASE_URL),
     checkedAt: new Date().toISOString(),
   };
 
