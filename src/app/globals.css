@@ -1,78 +1,162 @@
 @import "tailwindcss";
 
 /*
- * GLAMNET design tokens.
+ * GLAMNET design tokens — Brand Guide v1.2.
  *
  * ---------------------------------------------------------------------------
- * PLACEHOLDER VALUES — pending the official "GlamNet Brand Guide".
+ * These are the real brand values: obsidian + metallic rose gold / champagne.
  * ---------------------------------------------------------------------------
- * The brand guide lives in a Claude Design project that this build could not
- * read (design-system authorisation is unavailable in a non-interactive
- * session). Every colour, font, radius and shadow used anywhere in the app is
- * defined ONCE here, so adopting the real brand guide is a single-file edit —
- * no component needs to change.
+ * Every colour, font, radius and shadow used anywhere in the app is still
+ * defined ONCE here. The guide ships light AND dark from this single variable
+ * set — never two stylesheets.
  *
- * The palette below is a neutral luxury-beauty scheme (deep plum + warm gold on
- * soft ivory) chosen so the UI reads correctly until the real values land.
+ * Rules encoded below (brand guide section in brackets):
+ *   · Metal is a gradient, never body text and never a border. It is reserved
+ *     for the logo, the single primary action on a screen, and totals. [§02]
+ *   · --glam-emergency is EMERGENCY only. Signal red never appears for generic
+ *     errors, and emergency is never signalled by colour alone — the word
+ *     EMERGENCY and the bolt icon travel with it. [§08]
+ *   · --glam-normal (jade) means live / confirmed / in person. [§02]
+ *
+ * Foreground/background pairs are tokenised (--glam-on-brand,
+ * --glam-on-emergency) because a colour that is dark in light mode is light in
+ * dark mode: hard-coding `text-white` on a brand fill breaks the moment the
+ * second mode exists.
+ *
+ * Dark mode is keyed on [data-theme="dark"], which next-themes writes to <html>
+ * before first paint (see src/components/theme-provider.tsx), so there is no
+ * flash and no second stylesheet.
  */
 
 :root {
-  /* --- Brand ---------------------------------------------------------- */
-  --glam-plum-50: #f8f4f8;
-  --glam-plum-100: #efe3ee;
-  --glam-plum-200: #dcc4da;
-  --glam-plum-400: #a36a9d;
-  --glam-plum-600: #6b3566;
-  --glam-plum-700: #542a50;
-  --glam-plum-900: #2e162c;
+  /* --- Brand: metallic rose gold ------------------------------------- */
+  --glam-rose-50: oklch(0.955 0.025 40);
+  --glam-rose-100: oklch(0.92 0.04 38);
+  --glam-rose-200: oklch(0.86 0.055 36);
+  --glam-rose-400: oklch(0.68 0.09 32);
+  --glam-rose-600: oklch(0.55 0.1 28);
+  --glam-rose-700: oklch(0.42 0.08 32);
+  --glam-rose-900: oklch(0.3 0.06 32);
+  /* Foreground for solid brand fills. */
+  --glam-on-brand: oklch(0.99 0.005 90);
 
-  --glam-gold-100: #fbf1dd;
-  --glam-gold-300: #e8c88a;
-  --glam-gold-500: #c9a24a;
-  --glam-gold-700: #94742f;
+  /* --- Accent: champagne --------------------------------------------- */
+  --glam-champagne-100: oklch(0.965 0.03 88);
+  --glam-champagne-300: oklch(0.9 0.055 88);
+  --glam-champagne-500: oklch(0.86 0.065 88);
+  --glam-champagne-700: oklch(0.48 0.07 70);
 
-  /* --- Surfaces ------------------------------------------------------- */
-  --glam-ivory: #fdfbf9;
-  --glam-surface: #ffffff;
-  --glam-surface-sunken: #f4f0ee;
-  --glam-border: #e6dfdb;
+  /* --- The metal -------------------------------------------------------
+     Identical in both modes. It is the brand. */
+  --glam-metal: linear-gradient(
+    135deg,
+    oklch(0.92 0.05 95) 0%,
+    oklch(0.86 0.065 88) 34%,
+    oklch(0.76 0.085 32) 100%
+  );
+  --glam-metal-ink: oklch(0.18 0.015 40);
 
-  /* --- Text ----------------------------------------------------------- */
-  --glam-ink: #1d1a1e;
-  --glam-ink-muted: #6b6369;
+  /* --- Surfaces --------------------------------------------------------
+     In light mode elevation is carried by shadow first, surface second. */
+  --glam-canvas: oklch(0.985 0.004 90);
+  --glam-surface: oklch(1 0 0);
+  --glam-surface-sunken: oklch(0.968 0.005 85);
+  --glam-border: oklch(0.905 0.006 85);
 
-  /* --- Status --------------------------------------------------------- */
-  /* EMERGENCY is a deliberately loud, non-brand alert colour: the spec
-     requires the customer and provider to notice it before payment. */
-  --glam-emergency: #c0341d;
-  --glam-emergency-soft: #fdecea;
-  --glam-normal: #2f6f4f;
-  --glam-normal-soft: #e8f3ed;
-  --glam-warning: #a76a12;
+  /* --- Text ------------------------------------------------------------
+     Never rose gold, never champagne: body copy must clear 4.5:1. [§03] */
+  --glam-ink: oklch(0.21 0.012 285);
+  --glam-ink-muted: oklch(0.45 0.01 285);
 
-  /* --- Shape & elevation ---------------------------------------------- */
-  --glam-radius: 0.875rem;
-  --glam-radius-sm: 0.5rem;
-  --glam-radius-lg: 1.5rem;
-  --glam-shadow-card: 0 1px 2px rgb(29 26 30 / 0.04), 0 8px 24px rgb(29 26 30 / 0.06);
-  --glam-shadow-raised: 0 2px 4px rgb(29 26 30 / 0.06), 0 16px 40px rgb(29 26 30 / 0.10);
+  /* --- Status ----------------------------------------------------------
+     `-ink` variants are for text on the matching `-soft` tint; the base
+     value is the fill and the border. */
+  --glam-emergency: oklch(0.545 0.205 25);
+  --glam-emergency-ink: oklch(0.45 0.17 25);
+  --glam-emergency-soft: oklch(0.962 0.035 25);
+  --glam-on-emergency: oklch(0.99 0.01 80);
+
+  --glam-normal: oklch(0.525 0.13 162);
+  --glam-normal-ink: oklch(0.36 0.1 162);
+  --glam-normal-soft: oklch(0.958 0.03 162);
+
+  /* Amber, deliberately not red — red belongs to EMERGENCY alone. */
+  --glam-warning: oklch(0.52 0.11 70);
+
+  /* --- Shape & elevation -----------------------------------------------
+     6 inputs · 12 tiles & slots · 18 cards & sheets · pill for every button
+     and tag. [§04] */
+  --glam-radius: 18px;
+  --glam-radius-sm: 12px;
+  --glam-radius-lg: 22px;
+  --glam-radius-input: 6px;
+  --glam-shadow-card: 0 6px 20px oklch(0.2 0.01 285 / 0.08);
+  --glam-shadow-raised: 0 18px 46px oklch(0.2 0.01 285 / 0.1);
+
+  /* --- Motion [§11] ----------------------------------------------------- */
+  --glam-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+[data-theme="dark"] {
+  /* Rose inverts to light-on-dark. Anything sitting *on* a brand fill must
+     therefore flip too — that is what --glam-on-brand is for. */
+  --glam-rose-50: oklch(0.28 0.035 40);
+  --glam-rose-100: oklch(0.33 0.045 40);
+  --glam-rose-200: oklch(0.4 0.055 38);
+  --glam-rose-400: oklch(0.58 0.07 36);
+  --glam-rose-600: oklch(0.72 0.075 34);
+  --glam-rose-700: oklch(0.8 0.075 34);
+  --glam-rose-900: oklch(0.88 0.065 36);
+  --glam-on-brand: oklch(0.18 0.015 40);
+
+  --glam-champagne-100: oklch(0.33 0.04 88);
+  --glam-champagne-300: oklch(0.55 0.06 88);
+  --glam-champagne-500: oklch(0.88 0.06 88);
+  --glam-champagne-700: oklch(0.9 0.055 88);
+
+  /* In dark mode elevation is carried by surface lightness first, shadow
+     second — the reverse of light mode. */
+  --glam-canvas: oklch(0.165 0.008 285);
+  --glam-surface: oklch(0.215 0.008 285);
+  --glam-surface-sunken: oklch(0.195 0.008 285);
+  --glam-border: oklch(0.3 0.01 285);
+
+  --glam-ink: oklch(0.96 0.008 80);
+  --glam-ink-muted: oklch(0.74 0.01 80);
+
+  --glam-emergency: oklch(0.62 0.21 22);
+  --glam-emergency-ink: oklch(0.85 0.13 28);
+  --glam-emergency-soft: oklch(0.255 0.06 22);
+  --glam-on-emergency: oklch(0.99 0.01 80);
+
+  --glam-normal: oklch(0.72 0.12 165);
+  --glam-normal-ink: oklch(0.86 0.11 165);
+  --glam-normal-soft: oklch(0.27 0.04 165);
+
+  --glam-warning: oklch(0.8 0.1 75);
+
+  --glam-shadow-card: 0 8px 24px oklch(0.08 0.01 285 / 0.45);
+  --glam-shadow-raised: 0 18px 50px oklch(0.06 0.01 285 / 0.6);
 }
 
 @theme inline {
-  --color-brand-50: var(--glam-plum-50);
-  --color-brand-100: var(--glam-plum-100);
-  --color-brand-200: var(--glam-plum-200);
-  --color-brand-400: var(--glam-plum-400);
-  --color-brand-600: var(--glam-plum-600);
-  --color-brand-700: var(--glam-plum-700);
-  --color-brand-900: var(--glam-plum-900);
+  --color-brand-50: var(--glam-rose-50);
+  --color-brand-100: var(--glam-rose-100);
+  --color-brand-200: var(--glam-rose-200);
+  --color-brand-400: var(--glam-rose-400);
+  --color-brand-600: var(--glam-rose-600);
+  --color-brand-700: var(--glam-rose-700);
+  --color-brand-900: var(--glam-rose-900);
+  --color-on-brand: var(--glam-on-brand);
 
-  --color-accent-100: var(--glam-gold-100);
-  --color-accent-300: var(--glam-gold-300);
-  --color-accent-500: var(--glam-gold-500);
-  --color-accent-700: var(--glam-gold-700);
+  --color-accent-100: var(--glam-champagne-100);
+  --color-accent-300: var(--glam-champagne-300);
+  --color-accent-500: var(--glam-champagne-500);
+  --color-accent-700: var(--glam-champagne-700);
 
-  --color-canvas: var(--glam-ivory);
+  --color-metal-ink: var(--glam-metal-ink);
+
+  --color-canvas: var(--glam-canvas);
   --color-surface: var(--glam-surface);
   --color-sunken: var(--glam-surface-sunken);
   --color-line: var(--glam-border);
@@ -81,32 +165,115 @@
   --color-ink-muted: var(--glam-ink-muted);
 
   --color-emergency: var(--glam-emergency);
+  --color-emergency-ink: var(--glam-emergency-ink);
   --color-emergency-soft: var(--glam-emergency-soft);
+  --color-on-emergency: var(--glam-on-emergency);
   --color-normal: var(--glam-normal);
+  --color-normal-ink: var(--glam-normal-ink);
   --color-normal-soft: var(--glam-normal-soft);
   --color-warning: var(--glam-warning);
 
   --radius-glam: var(--glam-radius);
   --radius-glam-sm: var(--glam-radius-sm);
   --radius-glam-lg: var(--glam-radius-lg);
+  --radius-glam-input: var(--glam-radius-input);
 
   --shadow-card: var(--glam-shadow-card);
   --shadow-raised: var(--glam-shadow-raised);
 
-  --font-sans: var(--font-brand-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-brand-display), Georgia, serif;
+  --ease-glam: var(--glam-ease);
+
+  /* Two families only. No third font, ever. [§03]
+     `display` is the same family as `sans` — the display voice comes from
+     weight and tight tracking, not from a second typeface. */
+  --font-sans: var(--font-brand-sans), Helvetica, ui-sans-serif, sans-serif;
+  --font-display: var(--font-brand-sans), Helvetica, ui-sans-serif, sans-serif;
+  --font-mono: var(--font-brand-mono), ui-monospace, monospace;
 }
 
 html {
+  /* Keeps form controls and scrollbars in step with the active theme. */
   color-scheme: light;
 }
 
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 body {
-  background: var(--glam-ivory);
+  background: var(--glam-canvas);
   color: var(--glam-ink);
+  transition:
+    background 320ms var(--glam-ease),
+    color 320ms var(--glam-ease);
+}
+
+/* Focus ring — 2px champagne, offset 2px. [§06] */
+:focus-visible {
+  outline: 2px solid var(--glam-champagne-500);
+  outline-offset: 2px;
+}
+
+/* Anything that ticks gets tabular figures. [§03] */
+time,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Respect the PWA safe area on notched devices. */
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@layer utilities {
+  /* The brand's metal gradient. Fill only — never text, never a border. */
+  .bg-metal {
+    background: var(--glam-metal);
+  }
+
+  /*
+   * The 15-minute transition block. Booked time is always drawn as service
+   * block + hatched tail, and the hatch is the visual signature of GlamNet's
+   * availability engine — never hide it. [§09]
+   */
+  .hatch-transition {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--glam-rose-700) 0 4px,
+      var(--glam-rose-50) 4px 8px
+    );
+  }
+  .hatch-transition-emergency {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--glam-emergency) 0 4px,
+      var(--glam-emergency-soft) 4px 8px
+    );
+  }
+
+  /*
+   * Raises a control's hit area to the 44px floor the guide asserts without
+   * changing the box you can see. Grows vertically only, so it cannot swallow
+   * taps meant for a neighbour. [§03]
+   */
+  .tap-44 {
+    position: relative;
+  }
+  .tap-44::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
 }

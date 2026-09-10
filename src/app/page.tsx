@@ -37,7 +37,7 @@ export default async function HomePage() {
       </section>
 
       <Card className="border-l-4 border-l-emergency p-4">
-        <p className="text-sm font-bold uppercase tracking-wider text-emergency">
+        <p className="text-sm font-bold uppercase tracking-wider text-emergency-ink">
           Need someone sooner?
         </p>
         <p className="mt-1 text-sm text-ink">

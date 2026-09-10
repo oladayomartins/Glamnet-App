@@ -81,7 +81,7 @@ export function EmergencyConfigForm({
             step={0.25}
             value={thresholdHours}
             onChange={(event) => setThresholdHours(event.target.value)}
-            className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+            className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
           />
           <span className="mt-1 block text-xs text-ink-muted">
             Bookings placed within this window are tagged EMERGENCY.
@@ -93,7 +93,7 @@ export function EmergencyConfigForm({
           <select
             value={surchargeType}
             onChange={(event) => setSurchargeType(event.target.value)}
-            className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+            className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
           >
             <option value="PERCENTAGE">Percentage of services</option>
             <option value="FIXED">Fixed amount</option>
@@ -110,7 +110,7 @@ export function EmergencyConfigForm({
             step={surchargeType === "FIXED" ? 0.5 : 0.25}
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
-            className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+            className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
           />
         </label>
 
@@ -123,7 +123,7 @@ export function EmergencyConfigForm({
             type="datetime-local"
             value={effectiveFrom}
             onChange={(event) => setEffectiveFrom(event.target.value)}
-            className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+            className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
           />
           <span className="mt-1 block text-xs text-ink-muted">
             Leave blank to apply immediately.
@@ -136,7 +136,7 @@ export function EmergencyConfigForm({
             value={note}
             onChange={(event) => setNote(event.target.value)}
             placeholder="Why this rate changed"
-            className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+            className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
           />
         </label>
 
@@ -145,7 +145,7 @@ export function EmergencyConfigForm({
             type="checkbox"
             checked={isActive}
             onChange={(event) => setIsActive(event.target.checked)}
-            className="h-4 w-4 accent-[var(--glam-plum-700)]"
+            className="size-5 accent-[var(--glam-rose-700)]"
           />
           <span className="text-sm font-medium text-ink">Active</span>
         </label>
@@ -156,12 +156,12 @@ export function EmergencyConfigForm({
           {status.kind === "saving" ? "Publishing…" : "Publish configuration"}
         </Button>
         {status.kind === "saved" ? (
-          <span className="text-sm text-normal" role="status">
+          <span className="text-sm text-normal-ink" role="status">
             Saved — new bookings price against these terms.
           </span>
         ) : null}
         {status.kind === "error" ? (
-          <span className="text-sm text-emergency" role="alert">
+          <span className="text-sm text-emergency-ink" role="alert">
             {status.message}
           </span>
         ) : null}

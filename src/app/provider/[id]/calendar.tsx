@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Lightning } from "@phosphor-icons/react/dist/ssr";
 import { BookingTypeTag, EmptyState, StatusPill } from "@/components/ui";
 import { formatDay, formatDuration, formatMoney, formatTime } from "@/lib/format";
 
@@ -155,23 +156,27 @@ function DayView({ calendar }: { calendar: CalendarPayload }) {
             <div key={entry.id}>
               <Link
                 href={`/bookings/${entry.id}`}
-                className={`absolute left-12 right-2 overflow-hidden rounded px-1.5 py-0.5 text-[11px] font-semibold text-white transition hover:brightness-110 ${
-                  isEmergency ? "bg-emergency" : "bg-brand-700"
+                className={`absolute left-12 right-2 overflow-hidden rounded-glam-sm px-1.5 py-0.5 text-[11px] font-semibold transition hover:brightness-110 ${
+                  isEmergency
+                    ? "bg-emergency text-on-emergency"
+                    : "bg-brand-700 text-on-brand"
                 }`}
                 style={{
                   top: `${percent(minutesInto(dayStart, entry.appointmentStartAt))}%`,
                   height: `${spanPercent(dayStart, entry.appointmentStartAt, entry.appointmentEndAt, span)}%`,
                 }}
               >
-                {isEmergency ? "⚡ " : ""}
+                {isEmergency ? <Lightning size={11} weight="bold" /> : null}
                 {formatTime(entry.appointmentStartAt)} {entry.customerName}
               </Link>
               <div
                 title={`${calendar.transitionBufferMinutes}-minute transition period`}
-                className={`absolute left-12 right-2 rounded-b border-b border-l border-r ${
+                // Hatched, not a flat tint: the hatch is the visual signature
+                // of the availability engine and must stay legible. [§09]
+                className={`absolute left-12 right-2 rounded-b border-b border-l border-r opacity-75 ${
                   isEmergency
-                    ? "border-emergency/50 bg-emergency/20"
-                    : "border-brand-700/40 bg-brand-700/20"
+                    ? "border-emergency/50 hatch-transition-emergency"
+                    : "border-brand-700/40 hatch-transition"
                 }`}
                 style={{
                   top: `${percent(minutesInto(dayStart, entry.appointmentEndAt))}%`,
@@ -240,14 +245,16 @@ function WeekView({ calendar }: { calendar: CalendarPayload }) {
                 <Link
                   key={entry.id}
                   href={`/bookings/${entry.id}`}
-                  className={`block rounded px-1.5 py-1 text-[10px] font-semibold text-white ${
+                  className={`flex items-center gap-0.5 rounded-glam-sm px-1.5 py-1 text-[10px] font-semibold ${
                     entry.bookingType === "EMERGENCY"
-                      ? "bg-emergency"
-                      : "bg-brand-700"
+                      ? "bg-emergency text-on-emergency"
+                      : "bg-brand-700 text-on-brand"
                   }`}
                   title={`Reserved until ${formatTime(entry.reservedUntilAt)} incl. transition`}
                 >
-                  {entry.bookingType === "EMERGENCY" ? "⚡ " : ""}
+                  {entry.bookingType === "EMERGENCY" ? (
+                    <Lightning size={10} weight="bold" />
+                  ) : null}
                   {formatTime(entry.appointmentStartAt)}–
                   {formatTime(entry.reservedUntilAt)}
                 </Link>
@@ -281,7 +288,10 @@ function Legend({ bufferMinutes }: { bufferMinutes: number }) {
         <span aria-hidden className="h-2.5 w-2.5 rounded bg-emergency" /> Emergency
       </span>
       <span className="flex items-center gap-1.5">
-        <span aria-hidden className="h-2.5 w-2.5 rounded bg-brand-700/20 ring-1 ring-brand-700/40" />{" "}
+        <span
+          aria-hidden
+          className="hatch-transition h-2.5 w-2.5 rounded opacity-75 ring-1 ring-brand-700/40"
+        />{" "}
         {bufferMinutes}-minute transition period
       </span>
     </p>

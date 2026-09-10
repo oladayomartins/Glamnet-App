@@ -94,7 +94,7 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
       {error ? (
         <p
           role="alert"
-          className="rounded-glam border-l-4 border-emergency bg-emergency-soft p-3 text-sm text-emergency"
+          className="rounded-glam border-l-4 border-emergency bg-emergency-soft p-3 text-sm text-emergency-ink"
         >
           {error}
         </p>
@@ -143,7 +143,7 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
                 type="date"
                 value={date}
                 onChange={(event) => setDate(event.target.value)}
-                className="mt-1 block rounded-glam-sm border border-line bg-surface px-3 py-1.5 text-sm outline-none focus:border-brand-400"
+                className="mt-1 block min-h-11 rounded-glam-sm border border-line bg-surface px-3 py-1.5 text-sm outline-none focus:border-brand-400"
               />
             </label>
 
@@ -160,7 +160,7 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
                   aria-pressed={view === option}
                   className={`px-3 py-1.5 text-sm font-medium capitalize transition ${
                     view === option
-                      ? "bg-brand-700 text-white"
+                      ? "bg-brand-700 text-on-brand"
                       : "bg-surface text-ink-muted hover:bg-sunken"
                   }`}
                 >
