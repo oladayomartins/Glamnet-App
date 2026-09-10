@@ -6,6 +6,8 @@ import { errorResponse } from "@/lib/api/respond";
 export async function GET() {
   try {
     const providers = await prisma.provider.findMany({
+      // Pending and rejected applicants are not part of the marketplace.
+      where: { approvalStatus: "APPROVED" },
       orderBy: [{ rating: "desc" }, { name: "asc" }],
       select: {
         id: true,

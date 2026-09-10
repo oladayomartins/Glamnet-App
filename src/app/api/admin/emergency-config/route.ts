@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { emergencyConfigSchema } from "@/lib/api/schemas";
 import { getActiveEmergencyConfig } from "@/lib/server/emergency-config";
+import { requireApiRole } from "@/lib/auth/api-guard";
 
 /**
  * GET /api/admin/emergency-config — the config in force plus its history.
@@ -12,6 +13,10 @@ import { getActiveEmergencyConfig } from "@/lib/server/emergency-config";
  */
 export async function GET() {
   try {
+    // Pricing history is commercial information: admin only.
+    const auth = await requireApiRole(["ADMIN"]);
+    if ("response" in auth) return auth.response;
+
     const [active, history] = await Promise.all([
       getActiveEmergencyConfig(),
       prisma.emergencyPricingConfig.findMany({
@@ -34,6 +39,10 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
+    // Commercial terms: admin only. Previously anyone could reprice the platform.
+    const auth = await requireApiRole(["ADMIN"]);
+    if ("response" in auth) return auth.response;
+
     const input = emergencyConfigSchema.parse(await request.json());
     const config = await prisma.emergencyPricingConfig.create({
       data: {

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { createBookingSchema } from "@/lib/api/schemas";
 import { createBooking } from "@/lib/server/booking-service";
+import { requireApiRole } from "@/lib/auth/api-guard";
 
 /** GET /api/bookings?customerId=…&type=…&status=… */
 export async function GET(request: Request) {
@@ -39,6 +40,10 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
+    // Only a signed-in customer may place a booking.
+    const auth = await requireApiRole(["CUSTOMER", "ADMIN"]);
+    if ("response" in auth) return auth.response;
+
     const input = createBookingSchema.parse(await request.json());
     const booking = await createBooking(input);
     return NextResponse.json({ booking }, { status: 201 });

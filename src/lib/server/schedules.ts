@@ -33,7 +33,14 @@ export async function loadCandidates(
   to: Date,
 ): Promise<MatchCandidate[]> {
   const providers = await prisma.provider.findMany({
-    where: { isAcceptingWork: true, hub: { sector } },
+    // Vetting is enforced here, in the matching query, rather than only being
+    // hidden in the UI: an unapproved provider must never be broadcast a job,
+    // whatever route the request arrived by.
+    where: {
+      isAcceptingWork: true,
+      approvalStatus: "APPROVED",
+      hub: { sector },
+    },
     include: {
       availability: true,
       services: true,

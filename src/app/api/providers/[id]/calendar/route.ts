@@ -10,6 +10,7 @@ import {
   startOfWeek,
 } from "@/lib/domain/availability";
 import { TRANSITION_BUFFER_MINUTES } from "@/lib/domain/constants";
+import { getSessionUser } from "@/lib/auth/session";
 
 /**
  * GET /api/providers/:id/calendar?view=day|week&date=ISO
@@ -25,6 +26,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    // A provider's calendar is theirs alone; admins may also view it.
+    const viewer = await getSessionUser();
+    if (!viewer || (viewer.role !== "ADMIN" && viewer.providerId !== id)) {
+      return NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "Not your calendar." } },
+        { status: 403 },
+      );
+    }
     const search = new URL(request.url).searchParams;
     const view = search.get("view") === "week" ? "week" : "day";
     const anchor = search.has("date")

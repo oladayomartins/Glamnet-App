@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
+import { requireApiRole } from "@/lib/auth/api-guard";
 
 /** Filters offered on the admin booking list (spec §10). */
 const FILTERS = [
@@ -33,6 +34,10 @@ function whereFor(filter: Filter) {
 /** GET /api/admin/bookings?filter=ALL|NORMAL|EMERGENCY|CONFIRMED|… */
 export async function GET(request: Request) {
   try {
+    // The booking ledger exposes customer addresses and prices.
+    const auth = await requireApiRole(["ADMIN"]);
+    if ("response" in auth) return auth.response;
+
     const raw = new URL(request.url).searchParams.get("filter") ?? "ALL";
     const filter = (FILTERS as readonly string[]).includes(raw)
       ? (raw as Filter)

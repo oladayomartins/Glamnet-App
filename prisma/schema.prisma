@@ -50,12 +50,36 @@ model Service {
   bookingItems BookingItem[]
 }
 
+/// Links a Supabase Auth user to their role and profile in this database.
+///
+/// Identity lives in Supabase `auth.users`; this table holds only what the
+/// app needs to authorise a request. `authUserId` is the Supabase user id
+/// (a uuid), and is the join between a session and everything below.
+model AppUser {
+  id         String   @id @default(cuid())
+  /// Supabase auth.users.id. Unique so a session maps to exactly one profile.
+  authUserId String   @unique
+  email      String   @unique
+  /// "CUSTOMER" | "PROVIDER" | "ADMIN". Never settable from the client.
+  role       String   @default("CUSTOMER")
+  createdAt  DateTime @default(now())
+
+  customer Customer?
+  provider Provider?
+
+  @@index([role])
+}
+
 model Customer {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
   phone     String   @default("")
   createdAt DateTime @default(now())
+
+  /// Null for seeded demo records that have no login yet.
+  appUserId String?  @unique
+  appUser   AppUser? @relation(fields: [appUserId], references: [id])
 
   bookings Booking[]
 }
@@ -70,6 +94,16 @@ model Provider {
   isAcceptingWork   Boolean  @default(true)
   createdAt         DateTime @default(now())
 
+  /// "PENDING" | "APPROVED" | "REJECTED" (spec: vetted marketplace).
+  /// Only APPROVED providers are eligible for broadcasts — enforced in the
+  /// matching query, not just hidden in the UI.
+  approvalStatus String    @default("PENDING")
+  approvedAt     DateTime?
+  approvalNote   String    @default("")
+
+  appUserId String?  @unique
+  appUser   AppUser? @relation(fields: [appUserId], references: [id])
+
   hubId String
   hub   Hub    @relation(fields: [hubId], references: [id])
 
@@ -80,6 +114,7 @@ model Provider {
   broadcasts   BookingBroadcast[]
 
   @@index([hubId])
+  @@index([approvalStatus])
 }
 
 /// Which services a provider is qualified to deliver.

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { formatNotice, noticePeriodMinutes } from "@/lib/domain/classification";
+import { getSessionUser } from "@/lib/auth/session";
 
 /**
  * GET /api/providers/:id/requests — the provider's broadcast inbox.
@@ -17,6 +18,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    // A provider's broadcast inbox is theirs alone; admins may also view it.
+    const viewer = await getSessionUser();
+    if (!viewer || (viewer.role !== "ADMIN" && viewer.providerId !== id)) {
+      return NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "Not your broadcast inbox." } },
+        { status: 403 },
+      );
+    }
     const now = new Date();
 
     const invitations = await prisma.bookingBroadcast.findMany({

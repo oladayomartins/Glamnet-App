@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api/respond";
 import { acceptSchema } from "@/lib/api/schemas";
 import { acceptBooking } from "@/lib/server/booking-service";
+import { requireApiRole } from "@/lib/auth/api-guard";
 
 /**
  * POST /api/bookings/:id/accept — a provider takes the job.
@@ -14,6 +15,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Only a provider may accept work.
+    const auth = await requireApiRole(["PROVIDER", "ADMIN"]);
+    if ("response" in auth) return auth.response;
+
     const { id } = await params;
     const { providerId } = acceptSchema.parse(await request.json());
     const booking = await acceptBooking(id, providerId);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { BookingError } from "@/lib/server/booking-service";
+import { getSessionUser } from "@/lib/auth/session";
 
 /** GET /api/bookings/:id — full booking record with lifecycle history. */
 export async function GET(
@@ -23,6 +24,21 @@ export async function GET(
     });
 
     if (!booking) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
+
+    // Ownership, not just a role. A signed-in provider must not be able to
+    // read another provider's job, and a customer must not read someone
+    // else's booking by guessing an id.
+    const viewer = await getSessionUser();
+    const mayView =
+      viewer?.role === "ADMIN" ||
+      (viewer?.customerId && viewer.customerId === booking.customerId) ||
+      (viewer?.providerId && viewer.providerId === booking.providerId);
+
+    if (!mayView) {
+      // 404 rather than 403: confirming a booking exists to a stranger is
+      // itself a disclosure.
+      throw new BookingError("Booking not found.", "NOT_FOUND", 404);
+    }
 
     // The address is withheld until the ADDRESS_UNLOCKED step (spec §8).
     return NextResponse.json({
