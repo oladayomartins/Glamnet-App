@@ -113,3 +113,8 @@ able to influence the classification.
 tokens. Motion, Vaul, Sonner and MapLibre are recommended in §12 but not
 installed — nothing in the guide needs them yet, and the CSS keyframes in
 `globals.css` cover the specified pulse/float/shimmer.
+
+---
+
+Deployed as a Vercel preview from the `design-system/brand-guide-v1.2` branch,
+with the Vercel project root set to `design-system/`.
