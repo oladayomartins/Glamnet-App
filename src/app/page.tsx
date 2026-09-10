@@ -1,69 +1,87 @@
-import Image from "next/image";
+import Link from "next/link";
+import { prisma } from "@/lib/server/prisma";
+import { getPricingContext } from "@/lib/server/emergency-config";
+import { Card, SectionTitle } from "@/components/ui";
+import { describeSurcharge, formatMoney } from "@/lib/format";
 
-export default function Home() {
+/**
+ * Read live from the database on every request. Without this Next prerenders
+ * the page at build time, which would freeze the hub and provider data into
+ * the build output.
+ */
+export const dynamic = "force-dynamic";
+
+/** Step 1 of the booking journey (spec §13): Select Beauty Hub. */
+export default async function HomePage() {
+  const [hubs, { config, thresholdMinutes }] = await Promise.all([
+    prisma.hub.findMany({
+      orderBy: { name: "asc" },
+      include: { _count: { select: { providers: true } } },
+    }),
+    getPricingContext(),
+  ]);
+
+  const thresholdHours = Math.round(thresholdMinutes / 60);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="space-y-8">
+      <section>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+          Beauty, booked to your door.
+        </h1>
+        <p className="mt-2 max-w-xl text-sm text-ink-muted">
+          Choose your Beauty Hub, build your service basket, and pick a time.
+          We match you with vetted professionals nearby who are genuinely free —
+          duration, travel and transition time all accounted for.
+        </p>
+      </section>
+
+      <Card className="border-l-4 border-l-emergency p-4">
+        <p className="text-sm font-bold uppercase tracking-wider text-emergency">
+          Need someone sooner?
+        </p>
+        <p className="mt-1 text-sm text-ink">
+          Appointments within {thresholdHours} hours are handled as{" "}
+          <strong>emergency bookings</strong>
+          {config
+            ? ` and carry a ${describeSurcharge(config.surchargeType, config.surchargeValue)} surcharge`
+            : ""}
+          . You will always see the surcharge on screen before you authorise
+          payment.
+        </p>
+      </Card>
+
+      <section>
+        <SectionTitle hint={`${hubs.length} hubs live`}>
+          Select your Beauty Hub
+        </SectionTitle>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {hubs.map((hub) => (
+            <Link
+              key={hub.id}
+              href={`/book/${hub.id}`}
+              className="rounded-glam border border-line bg-surface p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-raised"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-display text-lg font-semibold text-ink">
+                    {hub.name}
+                  </p>
+                  <p className="text-sm text-ink-muted">{hub.city}</p>
+                </div>
+                <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold tracking-wider text-brand-700">
+                  {hub.sector}
+                </span>
+              </div>
+              <p className="mt-3 text-xs text-ink-muted">
+                {hub._count.providers} providers · travel fee{" "}
+                {formatMoney(hub.travelFeeMinor)}
+              </p>
+            </Link>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </section>
     </div>
   );
 }

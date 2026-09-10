@@ -50,11 +50,12 @@ export async function GET(
         hubName: booking.hub.name,
         earningsMinor: invite.earningsMinor,
         emergencyEarningsMinor: invite.emergencyEarningsMinor,
-        /** Seconds left on the acceptance countdown. */
-        acceptanceSecondsRemaining: Math.max(
-          0,
-          Math.floor((invite.expiresAt.getTime() - now.getTime()) / 1_000),
-        ),
+        /**
+         * Absolute deadline for the acceptance countdown. Sent as a timestamp
+         * rather than a seconds-remaining count so response latency and a
+         * long-lived page cannot skew the clock the provider sees.
+         */
+        acceptanceExpiresAt: invite.expiresAt.toISOString(),
       };
     });
 
