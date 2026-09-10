@@ -59,7 +59,7 @@ export function BroadcastTicket({
             {formatMoney(request.earningsMinor)}
           </p>
           {request.emergencyEarningsMinor > 0 ? (
-            <p className="text-xs font-semibold text-emergency">
+            <p className="text-xs font-semibold text-emergency-ink">
               incl. {formatMoney(request.emergencyEarningsMinor)} surge
             </p>
           ) : null}
@@ -68,7 +68,7 @@ export function BroadcastTicket({
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-line pt-3 text-sm sm:grid-cols-4">
         <Field label="Notice">
-          <span className={isEmergency ? "font-semibold text-emergency" : ""}>
+          <span className={isEmergency ? "font-semibold text-emergency-ink" : ""}>
             {request.noticeLabel}
           </span>
         </Field>

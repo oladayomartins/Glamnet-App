@@ -68,7 +68,7 @@ export default async function BookingPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/" className="text-sm text-ink-muted hover:text-brand-700">
+        <Link href="/" className="tap-44 text-sm text-ink-muted hover:text-brand-700">
           ← Home
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -125,7 +125,7 @@ export default async function BookingPage({
               <div
                 key={row.label}
                 className={`flex justify-between gap-4 text-sm ${
-                  row.emphasis ? "font-semibold text-emergency" : "text-ink"
+                  row.emphasis ? "font-semibold text-emergency-ink" : "text-ink"
                 }`}
               >
                 <dt>{row.label}</dt>

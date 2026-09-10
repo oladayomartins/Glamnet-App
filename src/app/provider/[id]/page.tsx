@@ -23,7 +23,7 @@ export default async function ProviderPage({
       <div>
         <Link
           href="/provider"
-          className="text-sm text-ink-muted hover:text-brand-700"
+          className="tap-44 text-sm text-ink-muted hover:text-brand-700"
         >
           ← All providers
         </Link>

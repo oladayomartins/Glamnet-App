@@ -151,9 +151,9 @@ export default async function AdminPage({
               key={option}
               href={option === "ALL" ? "/admin" : `/admin?filter=${option}`}
               aria-current={filter === option ? "page" : undefined}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${
+              className={`tap-44 rounded-full px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider transition ${
                 filter === option
-                  ? "bg-brand-700 text-white"
+                  ? "bg-brand-700 text-on-brand"
                   : "bg-surface text-ink-muted ring-1 ring-line hover:bg-sunken"
               }`}
             >
@@ -197,7 +197,7 @@ export default async function AdminPage({
                     {formatMoney(booking.totalInvoicePriceMinor)}
                   </p>
                   {booking.emergencySurchargeMinor > 0 ? (
-                    <p className="text-xs font-semibold text-emergency">
+                    <p className="text-xs font-semibold text-emergency-ink">
                       +{formatMoney(booking.emergencySurchargeMinor)} surge
                     </p>
                   ) : null}
@@ -227,7 +227,7 @@ function Metric({
       </p>
       <p
         className={`mt-1 font-display text-xl font-bold tabular-nums ${
-          tone === "emergency" ? "text-emergency" : "text-ink"
+          tone === "emergency" ? "text-emergency-ink" : "text-ink"
         }`}
       >
         {value}

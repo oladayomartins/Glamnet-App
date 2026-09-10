@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Lightning } from "@phosphor-icons/react/dist/ssr";
 import {
   BookingTypeTag,
   Button,
@@ -291,7 +292,7 @@ export function BookingFlow({
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/" className="text-sm text-ink-muted hover:text-brand-700">
+        <Link href="/" className="tap-44 text-sm text-ink-muted hover:text-brand-700">
           ← All hubs
         </Link>
         <h1 className="mt-1 font-display text-2xl font-bold text-ink">
@@ -331,7 +332,7 @@ export function BookingFlow({
               value={referenceImageUrl}
               onChange={(event) => setReferenceImageUrl(event.target.value)}
               placeholder="https://…"
-              className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+              className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
             />
             <span className="mt-1 block text-xs text-ink-muted">
               Share the look you want so your provider arrives prepared.
@@ -379,7 +380,7 @@ export function BookingFlow({
                 setDate(event.target.value);
                 setSelectedSlot(null);
               }}
-              className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+              className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
             />
           </label>
 
@@ -404,26 +405,30 @@ export function BookingFlow({
                       type="button"
                       onClick={() => setSelectedSlot(slot.startAt)}
                       aria-pressed={isSelected}
-                      className={`rounded-glam-sm border px-3 py-2 text-sm font-medium transition ${
+                      // Every slot is a 44px tap target and pill-shaped. [§04]
+                      className={`inline-flex min-h-11 items-center justify-center gap-1 rounded-full border px-3 py-2 text-sm font-medium transition duration-[180ms] ease-glam ${
                         isSelected
-                          ? "border-brand-700 bg-brand-700 text-white"
+                          ? "border-brand-700 bg-brand-700 text-on-brand"
                           : isEmergency
-                            ? "border-emergency/40 bg-emergency-soft text-emergency hover:border-emergency"
+                            ? "border-emergency/40 bg-emergency-soft text-emergency-ink hover:border-emergency"
                             : "border-line bg-surface text-ink hover:border-brand-400"
                       }`}
                     >
                       {formatTime(slot.startAt)}
                       {isEmergency ? (
-                        <span className="ml-1" aria-label="emergency window">
-                          ⚡
-                        </span>
+                        <Lightning
+                          size={13}
+                          weight="bold"
+                          aria-label="emergency window"
+                        />
                       ) : null}
                     </button>
                   );
                 })}
               </div>
-              <p className="text-xs text-ink-muted">
-                ⚡ marks times inside the {thresholdHours}-hour emergency window.
+              <p className="flex flex-wrap items-center gap-1 text-xs text-ink-muted">
+                <Lightning size={13} weight="bold" aria-hidden />
+                marks times inside the {thresholdHours}-hour emergency window.
                 Times already committed to another booking, including each
                 provider&rsquo;s 15-minute transition period, are not shown.
               </p>
@@ -470,7 +475,7 @@ export function BookingFlow({
                     key={line.key}
                     className={`flex justify-between gap-4 text-sm ${
                       line.emphasis === "emergency"
-                        ? "font-semibold text-emergency"
+                        ? "font-semibold text-emergency-ink"
                         : "text-ink"
                     }`}
                   >
@@ -493,7 +498,7 @@ export function BookingFlow({
                 <select
                   value={customerId}
                   onChange={(event) => setCustomerId(event.target.value)}
-                  className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+                  className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
                 >
                   {customers.map((customer) => (
                     <option key={customer.id} value={customer.id}>
@@ -509,7 +514,7 @@ export function BookingFlow({
                   value={addressLine}
                   onChange={(event) => setAddressLine(event.target.value)}
                   placeholder="Street, town, postcode"
-                  className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+                  className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
                 />
                 <span className="mt-1 block text-xs text-ink-muted">
                   Only released to your provider once they are on their way.
@@ -524,7 +529,7 @@ export function BookingFlow({
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
                   rows={2}
-                  className="mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+                  className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
                 />
               </label>
             </Card>
@@ -552,7 +557,7 @@ export function BookingFlow({
       {error ? (
         <p
           role="alert"
-          className="rounded-glam border-l-4 border-emergency bg-emergency-soft p-3 text-sm text-emergency"
+          className="rounded-glam border-l-4 border-emergency bg-emergency-soft p-3 text-sm text-emergency-ink"
         >
           {error}
         </p>
@@ -582,7 +587,7 @@ function ServiceRow({
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-        className="mt-1 h-4 w-4 accent-[var(--glam-plum-700)]"
+        className="mt-1 size-5 accent-[var(--glam-rose-700)]"
       />
       <span className="flex-1">
         <span className="flex justify-between gap-2">

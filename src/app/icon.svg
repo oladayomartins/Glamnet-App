@@ -1,5 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="GLAMNET">
-  <rect width="512" height="512" rx="112" fill="#542a50"/>
-  <text x="256" y="322" font-family="Georgia, serif" font-size="248" font-weight="700"
-        fill="#c9a24a" text-anchor="middle">G</text>
+  <!--
+    The GLAMNET app icon: the pin mark on an obsidian tile. [brand guide §01]
+
+    Hex values are the sRGB equivalents of the oklch tokens in globals.css.
+    SVG and the PWA manifest take plain hex, so these must be updated together
+    with the tokens they mirror:
+      #0e0e12  obsidian ground
+      metal    --glam-metal, 135° champagne into rose gold
+  -->
+  <defs>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#efe5c0"/>
+      <stop offset="0.34" stop-color="#e3cfa1"/>
+      <stop offset="1" stop-color="#e29d8f"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#0e0e12"/>
+
+  <!--
+    The teardrop: a square with three 50% corners and one sharp corner,
+    rotated -45° so the point falls straight down. Drawn pre-rotation as a
+    270° arc closing into the point.
+  -->
+  <g transform="translate(256 236) rotate(-45)">
+    <path
+      d="M -100 0 A 100 100 0 1 1 0 100 L -88 100 Q -100 100 -100 88 Z"
+      fill="url(#metal)"
+    />
+    <circle cx="0" cy="0" r="31" fill="#0e0e12"/>
+  </g>
 </svg>
