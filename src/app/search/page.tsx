@@ -76,7 +76,7 @@ export default async function SearchPage({
   const cities = [...new Set(areas.map((area) => area.city))].sort();
 
   return (
-    <div>
+    <div data-page-width="wide">
       <div className="mb-4">
         <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink">
           {q ? `“${q}”` : "All providers"}

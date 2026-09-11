@@ -124,7 +124,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <OfflineNotice />
 
           <header className="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur">
-            <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3">
+            <div className="mx-auto flex w-full max-w-[var(--glam-page-max)] items-center justify-between gap-4 px-4 py-3">
               <Link
                 href="/"
                 aria-label="GLAMNET home"
@@ -169,7 +169,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           </header>
 
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+          <main className="mx-auto w-full max-w-[var(--glam-page-max)] flex-1 px-4 py-6">
             {children}
           </main>
 

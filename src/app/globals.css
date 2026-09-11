@@ -93,6 +93,12 @@
   --glam-shadow-card: 0 6px 20px oklch(0.2 0.01 285 / 0.08);
   --glam-shadow-raised: 0 18px 46px oklch(0.2 0.01 285 / 0.1);
 
+  /* --- Page width -------------------------------------------------------
+     Header, content and footer all read this, so they can never drift out of
+     alignment with each other. The default is the app width; the marketplace
+     pages widen it below. */
+  --glam-page-max: 64rem;
+
   /* --- Motion [§11] -----------------------------------------------------
      One easing curve for everything. No bounce, no spin, no confetti.
      The durations are tokens rather than literals because the same beat has
@@ -211,6 +217,22 @@ html {
 
 [data-theme="dark"] {
   color-scheme: dark;
+}
+
+/*
+ * The marketplace pages — home, search results, provider profiles — are the
+ * only ones with anything to gain from width: a 4:3 hero and card grids that
+ * reflow on `auto-fill`. Booking, auth, the customer's own bookings and the
+ * provider and admin screens stay at the app width, because a form or a
+ * paragraph set across 1280px is harder to read, not easier.
+ *
+ * Driven by a marker the page renders rather than by a list of routes here, so
+ * the two cannot fall out of step, and a page added tomorrow gets the app
+ * width unless it asks for more. A browser without `:has()` support gets that
+ * same default, which is why this widens rather than narrows.
+ */
+body:has([data-page-width="wide"]) {
+  --glam-page-max: 80rem;
 }
 
 body {
