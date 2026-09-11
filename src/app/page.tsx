@@ -74,7 +74,7 @@ export default async function MarketingPage() {
   const cards: ProviderCardData[] = providers.map((provider) => ({
     id: provider.id,
     name: provider.name,
-    href: `/book/${provider.hubId}`,
+    href: `/providers/${provider.id}`,
     rating: provider.rating,
     reviewCount: provider.reviewCount,
     city: provider.city,

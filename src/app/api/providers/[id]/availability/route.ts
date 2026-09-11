@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { requireApiRole } from "@/lib/auth/api-guard";
+import { requireOwnProvider } from "@/lib/auth/provider-guard";
 
 const schema = z.object({ isAcceptingWork: z.boolean() });
 
@@ -25,17 +26,8 @@ export async function POST(
     const { id } = await params;
     // A provider may only switch themselves off. Without this, the id in the
     // path would be enough to take a competitor out of the broadcast pool.
-    if (auth.user.role !== "ADMIN" && auth.user.providerId !== id) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "FORBIDDEN",
-            message: "You can only change your own availability.",
-          },
-        },
-        { status: 403 },
-      );
-    }
+    const denied = requireOwnProvider(auth.user, id);
+    if (denied) return denied;
 
     const { isAcceptingWork } = schema.parse(await request.json());
     const provider = await prisma.provider.update({

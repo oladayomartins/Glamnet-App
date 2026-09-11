@@ -221,7 +221,7 @@ export default async function AdminPage({
                   >
                     <Td mono>
                       <Link
-                        href={`/bookings/${booking.id}`}
+                        href={`/admin/bookings/${booking.id}`}
                         className="font-medium text-ink hover:text-brand-700"
                       >
                         {booking.id.slice(-8)}

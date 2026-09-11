@@ -57,13 +57,9 @@ export default async function SearchPage({
   const cards: ProviderCardData[] = results.map((provider) => ({
     id: provider.id,
     name: provider.name,
-    // Pre-select the service that matched, so the builder opens on the thing
-    // the customer searched for rather than an empty basket.
-    href: `/book/${provider.hubId}${
-      provider.matchedServices.length > 0 && q
-        ? `?service=${provider.matchedServices[0].id}`
-        : ""
-    }`,
+    // The card names a person, so it opens that person's profile — not a hub
+    // booking form with their name nowhere on it.
+    href: `/providers/${provider.id}`,
     rating: provider.rating,
     reviewCount: provider.reviewCount,
     city: provider.city,

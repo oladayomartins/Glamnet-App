@@ -51,12 +51,20 @@ export default async function ProviderPage({
           {provider.hub.name} · {provider.hub.sector} ·{" "}
           {provider.rating.toFixed(1)}★ · {provider.completedBookings} completed
         </p>
-        <Link
-          href={`/provider/${provider.id}/earnings`}
-          className="mt-3 inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
-        >
-          Earnings ledger →
-        </Link>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href={`/provider/${provider.id}/availability`}
+            className="inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
+          >
+            Availability
+          </Link>
+          <Link
+            href={`/provider/${provider.id}/earnings`}
+            className="inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
+          >
+            Earnings ledger
+          </Link>
+        </div>
       </div>
 
       <TodayStrip providerId={provider.id} today={today} />
