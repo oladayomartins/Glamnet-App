@@ -17,11 +17,8 @@ import { BlockHeading } from "@/components/ui";
 import { SearchBar } from "@/components/search-bar";
 import { FeaturedProviders } from "@/components/featured-providers";
 import { GlamImage } from "@/components/glam-image";
-import {
-  HERO_IMAGE_PATH,
-  brandImageUrl,
-  categoryImageUrl,
-} from "@/lib/imagekit";
+import { BrandImage } from "@/components/brand-image";
+import { HERO_IMAGE_PATH, categoryImagePath } from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
 
 export const dynamic = "force-dynamic";
@@ -155,8 +152,8 @@ export default async function MarketingPage() {
           `priority` because on a wide screen this is the largest thing painted,
           and leaving it to lazy-load is the difference the page is judged on.
         */}
-        <GlamImage
-          src={brandImageUrl(HERO_IMAGE_PATH)}
+        <BrandImage
+          path={HERO_IMAGE_PATH}
           alt="A makeup artist finishing a client's look at home"
           width={880}
           height={660}
@@ -184,14 +181,33 @@ export default async function MarketingPage() {
                   {/* Empty alt on purpose: the category name is written out
                       directly below, and announcing the photograph as well
                       would read the same link twice. */}
-                  <GlamImage
-                    src={categoryImageUrl(category.name, category.imageUrl)}
-                    alt=""
-                    width={400}
-                    height={250}
-                    sizes="(max-width: 640px) 50vw, 200px"
-                    className="aspect-[16/10] w-full object-cover"
-                  />
+                  {/* Anything really uploaded against the service wins; the
+                      shipped artwork is the fallback, and a category with
+                      neither still falls through to the brand metal. */}
+                  {category.imageUrl ? (
+                    <GlamImage
+                      src={category.imageUrl}
+                      alt=""
+                      width={400}
+                      height={250}
+                      sizes="(max-width: 640px) 50vw, 200px"
+                      className="aspect-[16/10] w-full object-cover"
+                    />
+                  ) : categoryImagePath(category.name) ? (
+                    <BrandImage
+                      path={categoryImagePath(category.name)!}
+                      alt=""
+                      width={400}
+                      height={250}
+                      sizes="(max-width: 640px) 50vw, 200px"
+                      className="aspect-[16/10] w-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className="block aspect-[16/10] w-full bg-metal"
+                    />
+                  )}
                   {/* The icon survives the photograph rather than being
                       replaced by it, on a surface chip so it stays legible
                       whatever the image behind it is doing. */}
