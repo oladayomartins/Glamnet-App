@@ -24,17 +24,20 @@ export function isImageKitConfigured(): boolean {
 }
 
 /**
- * Brand artwork that lives in the media library but is not uploaded through
- * the app — the marketing photography, referenced by path.
+ * The library the brand's own artwork lives in.
  *
- * Built from the configured endpoint rather than hard-coded in full, so an
- * unconfigured deployment gets `null` and the slot falls back to the brand
- * metal, exactly as an unset provider photo does. It also means the account
- * id lives in one place.
+ * Falls back to the known origin when no endpoint is configured, rather than
+ * returning null. Uploads still need the full configuration — they need a key
+ * to sign with — but artwork that is already published and referenced from our
+ * own source does not, and tying it to a deployment variable meant one unset
+ * value silently replaced every photograph on the marketing pages with a
+ * gradient. That is the correct behaviour for a provider who has not uploaded
+ * a photo; it is not correct for a picture we know exists.
  */
-export function brandImageUrl(path: string): string | null {
-  const endpoint = imageKitEndpoint();
-  return endpoint ? `${endpoint}${path}` : null;
+const BRAND_MEDIA_ORIGIN = "https://ik.imagekit.io/glamnetapp";
+
+export function brandMediaOrigin(): string {
+  return imageKitEndpoint() ?? BRAND_MEDIA_ORIGIN;
 }
 
 /** The home page hero: a makeup artist at work, warm low light. */
@@ -57,14 +60,9 @@ export const CATEGORY_IMAGE_PATHS: Record<string, string> = {
   Makeup: "/Glamorous Makeup Application Portrait  .png",
 };
 
-/** The tile image for a category, preferring anything really uploaded. */
-export function categoryImageUrl(
-  category: string,
-  uploadedUrl?: string,
-): string | null {
-  if (uploadedUrl) return uploadedUrl;
-  const path = CATEGORY_IMAGE_PATHS[category];
-  return path ? brandImageUrl(path) : null;
+/** The artwork path for a category, if one has been drawn for it. */
+export function categoryImagePath(category: string): string | null {
+  return CATEGORY_IMAGE_PATHS[category] ?? null;
 }
 
 /** Where uploaded files live, keyed by what they are. */

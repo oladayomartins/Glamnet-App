@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  CATEGORY_IMAGE_PATHS,
   HERO_IMAGE_PATH,
-  brandImageUrl,
-  categoryImageUrl,
+  brandMediaOrigin,
+  categoryImagePath,
   isImageKitConfigured,
   isTrustedImageUrl,
 } from "@/lib/imagekit";
@@ -14,64 +15,68 @@ afterEach(() => {
   delete process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
 });
 
-describe("brandImageUrl", () => {
-  it("builds a URL the renderer will trust", () => {
-    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = ENDPOINT;
-    const url = brandImageUrl(HERO_IMAGE_PATH);
+describe("brandMediaOrigin", () => {
+  it("resolves with nothing configured at all", () => {
+    // The whole point of the change: an unset endpoint used to replace every
+    // photograph on the marketing pages with a gradient, silently.
+    expect(isImageKitConfigured()).toBe(false);
+    expect(brandMediaOrigin()).toBe(ENDPOINT);
+  });
 
-    // The whole point: GlamImage silently falls back to the metal gradient for
-    // any URL it does not trust, so a hero that fails this check would vanish
-    // without an error anywhere.
-    expect(url).toBe(`${ENDPOINT}${HERO_IMAGE_PATH}`);
-    expect(isTrustedImageUrl(url!)).toBe(true);
+  it("prefers a configured endpoint, so a moved library needs one change", () => {
+    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/other";
+    expect(brandMediaOrigin()).toBe("https://ik.imagekit.io/other");
   });
 
   it("tolerates a trailing slash on the endpoint", () => {
     process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = `${ENDPOINT}/`;
-    expect(brandImageUrl(HERO_IMAGE_PATH)).toBe(`${ENDPOINT}${HERO_IMAGE_PATH}`);
+    expect(brandMediaOrigin()).toBe(ENDPOINT);
+  });
+});
+
+describe("brand artwork paths", () => {
+  it("gives every path a leading slash and no double slash when joined", () => {
+    const paths = [HERO_IMAGE_PATH, ...Object.values(CATEGORY_IMAGE_PATHS)];
+
+    for (const path of paths) {
+      expect(path.startsWith("/")).toBe(true);
+      expect(`${brandMediaOrigin()}${path}`).not.toMatch(/[^:]\/\//);
+    }
   });
 
-  it("returns null when nothing is configured, so the slot falls back", () => {
-    expect(brandImageUrl(HERO_IMAGE_PATH)).toBeNull();
-    expect(isImageKitConfigured()).toBe(false);
+  it("encodes to a URL whose path survives the spaces in the filenames", () => {
+    // Two of these carry spaces and one carries two of them in a row, which is
+    // exactly the kind of thing that silently 404s.
+    for (const path of Object.values(CATEGORY_IMAGE_PATHS)) {
+      const url = new URL(`${brandMediaOrigin()}${encodeURI(path)}`);
+
+      // The pathname carries the account segment too, so the filename is
+      // checked at the end of it rather than as the whole thing.
+      expect(decodeURIComponent(url.pathname).endsWith(path)).toBe(true);
+      // Spaces must be escaped in the URL itself, or the request is malformed.
+      expect(url.pathname).not.toContain(" ");
+    }
+  });
+
+  it("knows the seeded categories and nothing it has not been given", () => {
+    for (const category of ["Hair", "Nails", "Makeup"]) {
+      expect(categoryImagePath(category)).not.toBeNull();
+    }
+    expect(categoryImagePath("Massage")).toBeNull();
   });
 });
 
 describe("isTrustedImageUrl", () => {
-  it("refuses a host that is not our delivery endpoint", () => {
+  it("still refuses a host that is not our delivery endpoint", () => {
     process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = ENDPOINT;
-    // A customer-supplied reference image pointing anywhere else is exactly
-    // the tracking-pixel case this check exists for.
+    // Customer-supplied reference images keep the guard: this is the
+    // tracking-pixel case, and nothing above relaxes it.
     expect(isTrustedImageUrl("https://evil.example/pixel.png")).toBe(false);
     expect(isTrustedImageUrl("not a url")).toBe(false);
     expect(isTrustedImageUrl("")).toBe(false);
   });
-});
 
-describe("categoryImageUrl", () => {
-  it("prefers a real uploaded image over the shipped artwork", () => {
-    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = ENDPOINT;
-    const uploaded = `${ENDPOINT}/glamnet/services/braids.png`;
-
-    // Adding photography through the admin must not require a code change
-    // here, so anything uploaded wins.
-    expect(categoryImageUrl("Hair", uploaded)).toBe(uploaded);
-  });
-
-  it("falls back to the shipped artwork for the seeded categories", () => {
-    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = ENDPOINT;
-
-    for (const category of ["Hair", "Nails", "Makeup"]) {
-      const url = categoryImageUrl(category);
-      expect(url).not.toBeNull();
-      // Same silent-fallback trap as the hero: an untrusted URL would leave
-      // the tile showing metal with nothing to explain why.
-      expect(isTrustedImageUrl(url!)).toBe(true);
-    }
-  });
-
-  it("returns null for a category with no artwork, so the tile falls back", () => {
-    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = ENDPOINT;
-    expect(categoryImageUrl("Massage")).toBeNull();
+  it("refuses everything when no endpoint is configured", () => {
+    expect(isTrustedImageUrl(`${ENDPOINT}/anything.png`)).toBe(false);
   });
 });
