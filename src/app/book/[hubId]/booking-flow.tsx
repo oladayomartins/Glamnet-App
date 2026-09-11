@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Lightning } from "@phosphor-icons/react/dist/ssr";
+import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import {
   BookingTypeTag,
   Button,
@@ -83,6 +84,7 @@ export function BookingFlow({
   services,
   customerId,
   customerName,
+  imageUploadsEnabled,
   thresholdMinutes,
   surchargeType,
   surchargeValue,
@@ -91,6 +93,7 @@ export function BookingFlow({
   services: Service[];
   customerId: string | null;
   customerName: string;
+  imageUploadsEnabled: boolean;
   thresholdMinutes: number;
   surchargeType: string | null;
   surchargeValue: number | null;
@@ -114,7 +117,7 @@ export function BookingFlow({
   } | null>(null);
   const [addressLine, setAddressLine] = useState("");
   const [notes, setNotes] = useState("");
-  const [referenceImageUrl, setReferenceImageUrl] = useState("");
+  const [referenceImage, setReferenceImage] = useState<UploadedImage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<{
@@ -245,7 +248,8 @@ export function BookingFlow({
           customerId,
           addressLine,
           notes,
-          referenceImageUrl,
+          referenceImageUrl: referenceImage?.url ?? "",
+          referenceImageFileId: referenceImage?.fileId ?? "",
         }),
       });
       const payload = await response.json();
@@ -318,22 +322,16 @@ export function BookingFlow({
       <section>
         <SectionTitle hint="Step 2 of 4">Add a reference & extras</SectionTitle>
         <Card className="space-y-4 p-4">
-          <label className="block">
-            <span className="text-sm font-medium text-ink">
-              Reference image URL{" "}
-              <span className="text-ink-muted">(optional)</span>
-            </span>
-            <input
-              type="url"
-              value={referenceImageUrl}
-              onChange={(event) => setReferenceImageUrl(event.target.value)}
-              placeholder="https://…"
-              className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
+          {imageUploadsEnabled ? (
+            <ImageUpload
+              folder="reference"
+              value={referenceImage}
+              onChange={setReferenceImage}
+              label="Reference photo (optional)"
+              hint="Show the look you want, so your provider arrives prepared."
+              disabled={submitting}
             />
-            <span className="mt-1 block text-xs text-ink-muted">
-              Share the look you want so your provider arrives prepared.
-            </span>
-          </label>
+          ) : null}
 
           {addons.length > 0 ? (
             <div>

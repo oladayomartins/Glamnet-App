@@ -17,6 +17,7 @@
     "db:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
+    "@imagekit/next": "^2.1.5",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/client": "^6.19.3",
     "@supabase/ssr": "^0.12.7",

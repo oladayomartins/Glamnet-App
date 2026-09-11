@@ -18,6 +18,7 @@ export async function getMarketingData() {
         bio: true,
         rating: true,
         completedBookings: true,
+        avatarUrl: true,
         hub: { select: { id: true, name: true, city: true, sector: true } },
         services: { select: { service: { select: { category: true } } } },
       },
@@ -31,6 +32,7 @@ export async function getMarketingData() {
         kind: true,
         priceMinor: true,
         durationMinutes: true,
+        imageUrl: true,
       },
     }),
     prisma.hub.findMany({
@@ -48,13 +50,19 @@ export async function getMarketingData() {
 
   // One tile per category, priced from the cheapest real service in it, so the
   // "from" figure is always something a customer can actually book.
-  const categoryMap = new Map<string, { count: number; fromMinor: number }>();
+  const categoryMap = new Map<
+    string,
+    { count: number; fromMinor: number; imageUrl: string }
+  >();
   for (const service of services) {
     if (service.kind === "ADDON") continue;
     const existing = categoryMap.get(service.category);
     categoryMap.set(service.category, {
       count: (existing?.count ?? 0) + 1,
       fromMinor: Math.min(existing?.fromMinor ?? Infinity, service.priceMinor),
+      // First real image in the category represents it, so a tile gets
+      // photography as soon as any one service has it.
+      imageUrl: existing?.imageUrl || service.imageUrl,
     });
   }
 
@@ -85,6 +93,7 @@ export async function getMarketingData() {
       bio: provider.bio,
       rating: provider.rating,
       completedBookings: provider.completedBookings,
+      avatarUrl: provider.avatarUrl,
       hubId: provider.hub.id,
       city: provider.hub.city,
       sector: provider.hub.sector,

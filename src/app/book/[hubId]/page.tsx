@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { getPricingContext } from "@/lib/server/emergency-config";
 import { requireUser } from "@/lib/auth/session";
+import { isImageKitConfigured } from "@/lib/imagekit";
 import { BookingFlow } from "./booking-flow";
 
 /**
@@ -37,6 +38,7 @@ export default async function BookPage({
       services={services}
       customerId={viewer.customerId}
       customerName={viewer.email}
+      imageUploadsEnabled={isImageKitConfigured()}
       thresholdMinutes={thresholdMinutes}
       surchargeType={config?.surchargeType ?? null}
       surchargeValue={config?.surchargeValue ?? null}

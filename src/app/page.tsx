@@ -11,6 +11,7 @@ import { getPricingContext } from "@/lib/server/emergency-config";
 import { getMarketingData } from "@/lib/server/marketing";
 import { Card } from "@/components/ui";
 import { SearchBar } from "@/components/search-bar";
+import { GlamImage } from "@/components/glam-image";
 import { describeSurcharge, formatMoney } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -107,10 +108,16 @@ export default async function MarketingPage() {
                 href={`/search?q=${encodeURIComponent(category.name)}`}
                 className="group overflow-hidden rounded-glam border border-line bg-surface shadow-card transition hover:-translate-y-0.5 hover:shadow-raised"
               >
-                {/* The brand metal, used as a fill — the guide forbids it as
-                    text or border, and it stands in for photography we do not
-                    have yet. */}
-                <div className="h-24 bg-metal" aria-hidden />
+                {/* GlamImage falls back to the brand metal when a category
+                    has no photography yet, so the tile never looks broken. */}
+                <GlamImage
+                  src={category.imageUrl}
+                  alt=""
+                  width={400}
+                  height={200}
+                  sizes="(max-width: 640px) 100vw, 33vw"
+                  className="h-24 w-full object-cover"
+                />
                 <div className="p-4">
                   <h3 className="font-display text-lg font-semibold text-ink">
                     {category.name}
@@ -145,8 +152,15 @@ export default async function MarketingPage() {
                 href={`/book/${provider.hubId}`}
                 className="rounded-glam border border-line bg-surface p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-raised"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-start gap-3">
+                  <GlamImage
+                    src={provider.avatarUrl}
+                    alt=""
+                    width={96}
+                    height={96}
+                    className="h-11 w-11 shrink-0 rounded-full object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
                     <h3 className="truncate font-display text-base font-semibold text-ink">
                       {provider.name}
                     </h3>

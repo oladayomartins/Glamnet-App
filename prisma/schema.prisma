@@ -45,6 +45,9 @@ model Service {
   kind            String  @default("SERVICE")
   category        String  @default("Hair")
   isActive        Boolean @default(true)
+  /// Illustrative image for category tiles and search results.
+  imageUrl        String  @default("")
+  imageFileId     String  @default("")
 
   providers    ProviderService[]
   bookingItems BookingItem[]
@@ -93,6 +96,11 @@ model Provider {
   completedBookings Int      @default(0)
   isAcceptingWork   Boolean  @default(true)
   createdAt         DateTime @default(now())
+
+  /// Profile photo in the media library. fileId is kept so the image can be
+  /// deleted from ImageKit when it is replaced, rather than orphaned.
+  avatarUrl    String @default("")
+  avatarFileId String @default("")
 
   /// "PENDING" | "APPROVED" | "REJECTED" (spec: vetted marketplace).
   /// Only APPROVED providers are eligible for broadcasts — enforced in the
@@ -208,15 +216,16 @@ model Booking {
   providerEmergencyEarningsMinor Int @default(0)
 
   // --- Lifecycle (spec §8) ------------------------------------------------
-  status            String  @default("REQUESTED")
-  sector            String
-  referenceImageUrl String  @default("")
-  notes             String  @default("")
-  addressLine       String  @default("")
+  status               String  @default("REQUESTED")
+  sector               String
+  referenceImageUrl    String  @default("")
+  referenceImageFileId String  @default("")
+  notes                String  @default("")
+  addressLine          String  @default("")
   /// Revealed to the provider only at ADDRESS_UNLOCKED.
-  addressUnlocked   Boolean @default(false)
-  rating            Int?
-  cancelledReason   String  @default("")
+  addressUnlocked      Boolean @default(false)
+  rating               Int?
+  cancelledReason      String  @default("")
 
   customerId String
   customer   Customer  @relation(fields: [customerId], references: [id])
