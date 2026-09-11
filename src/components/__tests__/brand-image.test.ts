@@ -13,9 +13,9 @@ const render = (props: Parameters<typeof BrandImage>[0]) =>
 
 const heroProps = {
   path: HERO_IMAGE_PATH,
-  alt: "A makeup artist finishing a client's look at home",
-  width: 880,
-  height: 660,
+  alt: "A client with fresh braids and evening makeup at home",
+  width: 1600,
+  height: 600,
   priority: true,
 };
 
@@ -28,24 +28,25 @@ describe("BrandImage", () => {
 
     expect(html).toContain("<img");
     expect(html).toContain("ik.imagekit.io/glamnetapp");
-    expect(html).toContain("GlamNet%20App%20Hero%20Image.png");
+    expect(html).toContain("Hero%20Banner%20-%20Glamnet%20App.png");
   });
 
   it("reserves the box before the bytes arrive", () => {
     const html = render(heroProps);
 
     // Without intrinsic dimensions the hero shunts the page as it loads.
-    expect(html).toContain('width="880"');
-    expect(html).toContain('height="660"');
+    expect(html).toContain('width="1600"');
+    expect(html).toContain('height="600"');
   });
 
   it("asks the CDN for the size it will actually display", () => {
     const html = render(heroProps);
 
-    // 4:3 preserved at every offered width, so no candidate is a crop of a
-    // different shape to the box it lands in.
-    expect(html).toContain("tr=w-480,h-360");
-    expect(html).toContain("tr=w-1440,h-1080");
+    // 8:3 preserved at every offered width, so no candidate is a crop of a
+    // different shape to the box it lands in — which for this banner would
+    // move the subject out from under the copy.
+    expect(html).toContain("tr=w-480,h-180");
+    expect(html).toContain("tr=w-1440,h-540");
   });
 
   it("loads a priority image eagerly and anything else lazily", () => {

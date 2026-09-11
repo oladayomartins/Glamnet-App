@@ -121,30 +121,38 @@ export default async function MarketingPage() {
     // break out of a container it sits inside.
     <div data-page-width="full" className="-mt-6 pb-6">
       {/* ================= Block 1 — search hero ====================== */}
-      <section className="relative isolate overflow-hidden">
+      {/*
+        The banner is 8:3 with the subject on the right and deliberate cream
+        negative space on the left, so the copy sits in space the photograph
+        already left for it. No scrim: the left third measures 227 mean
+        luminance and 191 at its darkest, which puts dark ink at 7.75:1 even
+        at the worst point — a black wash would only destroy the composition
+        that makes that true.
+
+        The band is a light region in both themes, so it scopes the light
+        palette. Without that, dark mode would invert the copy and the search
+        bar to their dark selves on top of a cream photograph.
+      */}
+      <section className="on-light relative bg-[var(--glam-hero-ground)] text-ink">
+        {/*
+          Below `lg` the banner is a strip above the copy: 8:3 is 150px tall on
+          a phone, which cannot hold a headline, and cropping it taller would
+          either lose the subject or put the words across her face. From `lg`
+          it fills the band and the copy sits on its cream half.
+        */}
         <BrandImage
           path={HERO_IMAGE_PATH}
-          alt=""
-          width={1440}
-          height={720}
+          alt="A client with fresh braids and evening makeup at home"
+          width={1600}
+          height={600}
           sizes="100vw"
           priority
-          className="absolute inset-0 -z-10 h-full w-full object-cover object-[70%_center]"
-        />
-        {/*
-          The scrim is what makes the copy legible, so it is not decoration and
-          it does not change with the theme: the hero is a dark band in both
-          modes, and the text on it is light in both. Angled from the left,
-          where the words are, so the photograph keeps its right-hand side.
-        */}
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 bg-gradient-to-r from-black/85 via-black/65 to-black/25"
+          className="aspect-[8/3] w-full object-cover object-[70%_center] lg:absolute lg:inset-0 lg:h-full lg:object-right"
         />
 
-        <Container className="py-16 sm:py-24">
-          <div className="max-w-xl">
-            <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-white/80">
+        <Container className="relative py-10 lg:py-28">
+          <div className="max-w-lg">
+            <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
               {/* Jade means live. One breathing dot, and the words carry the
                   meaning on their own if the motion is switched off. */}
               <span
@@ -154,17 +162,17 @@ export default async function MarketingPage() {
               Beauty, at your door
             </p>
 
-            <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-white sm:text-5xl">
+            <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-ink sm:text-5xl">
               Find a vetted beauty professional for every occasion
             </h1>
 
-            <p className="mt-4 max-w-lg text-[15px] text-white/80">
+            <p className="mt-4 max-w-md text-[15px] text-ink-muted">
               Hair, makeup and nails from professionals who come to you. Real
               availability, an itemised price before you pay, and someone at
               your door — today, if that is what you need.
             </p>
 
-            <div className="mt-7">
+            <div className="mt-7 max-w-xl">
               <SearchBar areas={areas} />
             </div>
 
@@ -466,9 +474,11 @@ function SeeAll({ href }: { href: string }) {
 }
 
 /**
- * A hero trust figure. Fixed light colours rather than tokens, because the
- * hero is a dark band in both themes and the token pair would invert
- * underneath it.
+ * A hero trust figure.
+ *
+ * Uses the ordinary ink tokens, which is safe here precisely because the band
+ * scopes the light palette — inside it they resolve to their light-mode values
+ * in both themes, matching the cream the copy sits on.
  */
 function HeroFigure({
   icon,
@@ -481,14 +491,14 @@ function HeroFigure({
 }) {
   return (
     <div className="flex items-center gap-2">
-      {icon ? <span className="text-accent-500">{icon}</span> : null}
+      {icon ? <span className="text-accent-700">{icon}</span> : null}
       <div>
         <dt className="sr-only">{label}</dt>
         <dd>
-          <span data-numeric className="text-sm font-bold text-white">
+          <span data-numeric className="text-sm font-bold text-ink">
             {value}
           </span>{" "}
-          <span className="text-sm text-white/70">{label}</span>
+          <span className="text-sm text-ink-muted">{label}</span>
         </dd>
       </div>
     </div>

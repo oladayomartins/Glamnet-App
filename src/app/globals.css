@@ -28,7 +28,15 @@
  * flash and no second stylesheet.
  */
 
-:root {
+:root,
+/*
+ * A region that is light in BOTH themes — the hero band sits on cream
+ * photography, so its controls and copy must render their light-mode selves
+ * whatever the theme is. Declared alongside `:root` rather than restating the
+ * palette, so the two cannot drift; a descendant's own declaration wins over
+ * the inherited dark one regardless of specificity.
+ */
+.on-light {
   /* --- Brand: metallic rose gold ------------------------------------- */
   --glam-rose-50: oklch(0.955 0.025 40);
   --glam-rose-100: oklch(0.92 0.04 38);
@@ -100,6 +108,12 @@
      token that flipped underneath them would invert light text onto a light
      ground. Everything else keeps using the pairs that do flip. */
   --glam-obsidian: oklch(0.165 0.008 285);
+  /*
+   * Sampled from the hero artwork's own negative space, so the band can run
+   * past the edges of the photograph without a seam. A palette entry would be
+   * close but not equal, and the join is exactly where that shows.
+   */
+  --glam-hero-ground: #f4e3d4;
   --glam-on-obsidian: oklch(0.96 0.008 80);
   --glam-on-obsidian-muted: oklch(0.74 0.01 80);
 
