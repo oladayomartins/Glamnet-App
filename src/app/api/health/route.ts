@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isEmailConfigured } from "@/lib/server/email";
 import { prisma } from "@/lib/server/prisma";
 
 /**
@@ -111,6 +112,12 @@ export async function GET() {
   const base = {
     databaseUrlConfigured,
     directUrlConfigured,
+    // Booleans only. Whether email is wired up is a real deployment question
+    // — the notification records are written either way, so a silent inbox is
+    // otherwise indistinguishable from a working one — but the key itself is
+    // never echoed.
+    emailConfigured: isEmailConfigured(),
+    emailFromConfigured: Boolean(process.env.RESEND_FROM?.trim()),
     datasource: describeDatasource(process.env.DATABASE_URL),
     vercelEnv: process.env.VERCEL_ENV ?? null,
     checkedAt: new Date().toISOString(),

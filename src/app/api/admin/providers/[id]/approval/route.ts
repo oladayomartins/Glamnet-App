@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { requireApiRole } from "@/lib/auth/api-guard";
+import { deliverApprovalEmail } from "@/lib/server/notifications";
 
 const approvalSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED", "PENDING"]),
@@ -37,10 +38,20 @@ export async function POST(
       select: {
         id: true,
         name: true,
+        email: true,
         approvalStatus: true,
         approvedAt: true,
         isAcceptingWork: true,
       },
+    });
+
+    // A vetting decision is the one thing an applicant is waiting on, so it is
+    // mailed rather than left for them to discover by signing in again.
+    await deliverApprovalEmail({
+      name: provider.name,
+      email: provider.email,
+      decision,
+      note: note ?? "",
     });
 
     return NextResponse.json({ provider });

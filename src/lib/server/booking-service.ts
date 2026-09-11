@@ -16,6 +16,10 @@ import {
   TRANSITION_BUFFER_MINUTES,
 } from "@/lib/domain/constants";
 import type { BasketLine, BookingType } from "@/lib/domain/types";
+import {
+  deliverBookingConfirmedEmail,
+  deliverBroadcastEmails,
+} from "./notifications";
 
 export class BookingError extends Error {
   constructor(
@@ -177,7 +181,7 @@ export async function createBooking(
 
   const expiresAt = addMinutes(now, BROADCAST_ACCEPTANCE_WINDOW_MINUTES);
 
-  return prisma.$transaction(async (tx) => {
+  const booking = await prisma.$transaction(async (tx) => {
     const booking = await tx.booking.create({
       data: {
         bookingType: quote.bookingType,
@@ -255,6 +259,20 @@ export async function createBooking(
 
     return booking;
   });
+
+  // After the commit, never inside it: a slow Resend call must not hold the
+  // transaction open, and a failed one must not undo a valid booking.
+  await deliverBroadcastEmails({
+    bookingId: booking.id,
+    providerIds: quote.eligibleProviderIds,
+    isEmergency: quote.bookingType === "EMERGENCY",
+    serviceNames: quote.basket.map((line) => line.name),
+    appointmentStartAt: quote.appointmentStartAt,
+    sector: quote.sector,
+    providerEarningsMinor: quote.price.providerEarningsMinor,
+  });
+
+  return booking;
 }
 
 /**
@@ -314,7 +332,7 @@ export async function acceptBooking(
   providerId: string,
   now: Date = new Date(),
 ) {
-  return withContentionRetry(() =>
+  const booking = await withContentionRetry(() =>
     prisma.$transaction(async (tx) => {
     const invite = await tx.bookingBroadcast.findUnique({
       where: { bookingId_providerId: { bookingId, providerId } },
@@ -416,6 +434,21 @@ export async function acceptBooking(
     { maxWait: 8_000, timeout: 15_000 },
     ),
   );
+
+  // Same rule as the broadcast: the customer is told once the claim is durable.
+  await deliverBookingConfirmedEmail({
+    bookingId: booking.id,
+    customerName: booking.customer.name,
+    customerEmail: booking.customer.email,
+    providerName: booking.provider?.name ?? "Your provider",
+    isEmergency: booking.bookingType === "EMERGENCY",
+    serviceNames: booking.items.map((item) => item.name),
+    appointmentStartAt: booking.appointmentStartAt,
+    sector: booking.sector,
+    totalInvoicePriceMinor: booking.totalInvoicePriceMinor,
+  });
+
+  return booking;
 }
 
 export function isUniqueConstraintError(error: unknown): boolean {
