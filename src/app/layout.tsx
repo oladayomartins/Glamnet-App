@@ -14,6 +14,7 @@ import {
 } from "@/lib/site";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { OfflineNotice } from "@/components/offline-notice";
 
 /**
  * The brand families, paired with the token layer in globals.css.
@@ -120,6 +121,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col bg-canvas font-sans text-ink">
         <ThemeProvider>
+          <OfflineNotice />
+
           <header className="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur">
             <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3">
               <Link

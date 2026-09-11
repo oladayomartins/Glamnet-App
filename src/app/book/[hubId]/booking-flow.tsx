@@ -13,6 +13,7 @@ import {
   SectionTitle,
   Skeleton,
 } from "@/components/ui";
+import { SearchingForProvider } from "./searching";
 import {
   describeSurcharge,
   formatCustomerTime,
@@ -293,27 +294,22 @@ export function BookingFlow({
     }
   };
 
+  // Once the request is placed there is nothing left to do on this screen, so
+  // it becomes the searching state (§C-08) rather than a confirmation card
+  // sitting on top of a form the customer can no longer use.
   if (confirmation) {
     return (
-      <Card className="p-6">
-        <BookingTypeTag bookingType={confirmation.bookingType} />
-        <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          Request sent to providers
-        </h1>
-        <p className="mt-2 text-[15px] text-ink-muted">
-          Your payment is pre-authorised and your request has been broadcast to
-          the nearest available providers. You will be notified as soon as one
-          accepts.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link href={`/bookings/${confirmation.id}`}>
-            <Button>Track this booking</Button>
-          </Link>
-          <Link href="/">
-            <Button variant="secondary">Book something else</Button>
-          </Link>
-        </div>
-      </Card>
+      <SearchingForProvider
+        bookingId={confirmation.id}
+        bookingType={confirmation.bookingType}
+        sector={hub.sector}
+        // Back to the picker with the basket still selected — only the slot
+        // is cleared, since that is the one thing that did not work.
+        onTryAnotherTime={() => {
+          setConfirmation(null);
+          setSelectedSlot(null);
+        }}
+      />
     );
   }
 
