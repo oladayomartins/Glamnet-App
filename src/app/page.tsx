@@ -17,6 +17,11 @@ import { BlockHeading } from "@/components/ui";
 import { SearchBar } from "@/components/search-bar";
 import { FeaturedProviders } from "@/components/featured-providers";
 import { GlamImage } from "@/components/glam-image";
+import {
+  HERO_IMAGE_PATH,
+  brandImageUrl,
+  categoryImageUrl,
+} from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
 
 export const dynamic = "force-dynamic";
@@ -141,11 +146,23 @@ export default async function MarketingPage() {
           </dl>
         </div>
 
-        {/* 4:3 hero slot. Real photography drops in here; until then it holds
-            its aspect ratio so the hero never reflows when it arrives. */}
-        <div
-          aria-hidden
-          className="hidden aspect-[4/3] w-full rounded-glam-lg bg-metal shadow-raised lg:block"
+        {/*
+          The 4:3 hero. No longer hidden on a phone: it was a metal placeholder
+          before, which was noise above the fold, and the column order puts it
+          after the search bar when the grid collapses — so a real photograph
+          costs the customer nothing they were about to use.
+
+          `priority` because on a wide screen this is the largest thing painted,
+          and leaving it to lazy-load is the difference the page is judged on.
+        */}
+        <GlamImage
+          src={brandImageUrl(HERO_IMAGE_PATH)}
+          alt="A makeup artist finishing a client's look at home"
+          width={880}
+          height={660}
+          sizes="(max-width: 1024px) 100vw, 45vw"
+          priority
+          className="aspect-[4/3] w-full rounded-glam-lg object-cover shadow-raised"
         />
       </section>
 
@@ -161,14 +178,33 @@ export default async function MarketingPage() {
               <Link
                 key={category.name}
                 href={`/search?q=${encodeURIComponent(category.name)}`}
-                className="flex min-h-[118px] flex-col justify-between rounded-glam border border-line bg-surface p-4 shadow-card transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-raised"
+                className="overflow-hidden rounded-glam border border-line bg-surface shadow-card transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-raised"
               >
-                <span className="text-brand-700" aria-hidden>
-                  {CATEGORY_ICONS[category.name] ?? (
-                    <SquaresFour size={20} weight="light" />
-                  )}
+                <span className="relative block">
+                  {/* Empty alt on purpose: the category name is written out
+                      directly below, and announcing the photograph as well
+                      would read the same link twice. */}
+                  <GlamImage
+                    src={categoryImageUrl(category.name, category.imageUrl)}
+                    alt=""
+                    width={400}
+                    height={250}
+                    sizes="(max-width: 640px) 50vw, 200px"
+                    className="aspect-[16/10] w-full object-cover"
+                  />
+                  {/* The icon survives the photograph rather than being
+                      replaced by it, on a surface chip so it stays legible
+                      whatever the image behind it is doing. */}
+                  <span
+                    aria-hidden
+                    className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-brand-700 backdrop-blur"
+                  >
+                    {CATEGORY_ICONS[category.name] ?? (
+                      <SquaresFour size={16} weight="light" />
+                    )}
+                  </span>
                 </span>
-                <span>
+                <span className="block p-3">
                   <span className="block text-sm font-semibold text-ink">
                     {category.name}
                   </span>
@@ -183,12 +219,12 @@ export default async function MarketingPage() {
             {/* The last tile is the way out of the grid, in the rose tint. */}
             <Link
               href="/search"
-              className="flex min-h-[118px] flex-col justify-between rounded-glam border border-brand-200 bg-brand-50 p-4 transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-card"
+              className="flex flex-col overflow-hidden rounded-glam border border-brand-200 bg-brand-50 transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-card"
             >
-              <span className="text-brand-700" aria-hidden>
-                <SquaresFour size={20} weight="light" />
+              <span className="flex aspect-[16/10] w-full items-center justify-center text-brand-700">
+                <SquaresFour size={28} weight="light" aria-hidden />
               </span>
-              <span>
+              <span className="block p-3">
                 <span className="block text-sm font-semibold text-brand-700">
                   All categories
                 </span>
