@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Broadcast } from "@phosphor-icons/react";
 import { Button, Card, EmptyState, SectionTitle } from "@/components/ui";
 import { BroadcastTicket, type BroadcastRequest } from "./broadcast-ticket";
 import { ProviderCalendar, type CalendarPayload } from "./calendar";
@@ -49,7 +50,20 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
         }
 
         setCalendar(calendarPayload);
-        setRequests(requestsResponse.ok ? requestsPayload.requests : []);
+        // Emergency tickets come first. They have the least notice and the
+        // shortest acceptance window, so burying one under three normal
+        // requests costs the provider the job.
+        setRequests(
+          requestsResponse.ok
+            ? [...(requestsPayload.requests as BroadcastRequest[])].sort(
+                (a, b) =>
+                  Number(b.bookingType === "EMERGENCY") -
+                    Number(a.bookingType === "EMERGENCY") ||
+                  Date.parse(a.acceptanceExpiresAt) -
+                    Date.parse(b.acceptanceExpiresAt),
+              )
+            : [],
+        );
         setError(null);
       } catch (cause) {
         if (controller.signal.aborted) return;
@@ -112,9 +126,12 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
         </SectionTitle>
 
         {requests.length === 0 ? (
-          <EmptyState>
-            No open requests right now. New broadcasts appear here the moment a
-            customer books in your sector.
+          <EmptyState
+            icon={<Broadcast size={24} weight="light" />}
+            title="No open requests"
+          >
+            New broadcasts appear here the moment a customer books in your
+            sector. Keep the page open — the acceptance window is short.
           </EmptyState>
         ) : (
           <div className="grid gap-3">
@@ -158,9 +175,9 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
                   type="button"
                   onClick={() => setView(option)}
                   aria-pressed={view === option}
-                  className={`px-3 py-1.5 text-sm font-medium capitalize transition ${
+                  className={`min-h-11 px-4 text-sm font-semibold capitalize transition duration-[180ms] ease-glam ${
                     view === option
-                      ? "bg-brand-700 text-on-brand"
+                      ? "bg-brand-50 text-brand-700"
                       : "bg-surface text-ink-muted hover:bg-sunken"
                   }`}
                 >

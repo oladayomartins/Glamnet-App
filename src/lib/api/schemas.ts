@@ -44,6 +44,9 @@ export const transitionSchema = z.object({
 
 export const reviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
+  /// Optional written review. Capped so a single field cannot be used to
+  /// stuff the booking row with arbitrary text.
+  note: z.string().max(2_000).optional(),
 });
 
 export const emergencyConfigSchema = z.object({

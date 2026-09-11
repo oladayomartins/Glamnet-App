@@ -318,6 +318,19 @@ time,
   }
 
   /*
+   * A period the provider blocked out themselves. Neutral, because it is not
+   * a booking and must not read as one — only reserved time earns the rose
+   * hatch. [§09]
+   */
+  .hatch-blocked {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--glam-border) 0 4px,
+      var(--glam-surface-sunken) 4px 8px
+    );
+  }
+
+  /*
    * Raises a control's hit area to the 44px floor the guide asserts without
    * changing the box you can see. Grows vertically only, so it cannot swallow
    * taps meant for a neighbour. [§03]

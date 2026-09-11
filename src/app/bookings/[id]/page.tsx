@@ -10,6 +10,8 @@ import {
   formatMoney,
 } from "@/lib/format";
 import { BOOKING_STATUSES } from "@/lib/domain/types";
+import { JobActions } from "./job-actions";
+import { ReviewForm } from "./review-form";
 
 /**
  * Customer-facing booking record. Shows the classification and the surcharge
@@ -47,6 +49,14 @@ export default async function BookingPage({
   const reachedIndex = BOOKING_STATUSES.indexOf(
     booking.status as (typeof BOOKING_STATUSES)[number],
   );
+
+  // The same record is two screens: the customer's booking (§C-09) and the
+  // provider's job (§P-05). Which one you get is decided here, from the
+  // viewer's relationship to the booking, not from a query parameter.
+  const isTheProvider =
+    booking.providerId !== null && viewer.providerId === booking.providerId;
+  const isTheCustomer = viewer.customerId === booking.customerId;
+  const awaitingReview = booking.status === "COMPLETED";
 
   const priceRows = [
     ...booking.items.map((item) => ({
@@ -175,6 +185,32 @@ export default async function BookingPage({
           </dl>
         </Card>
       </div>
+
+      {isTheProvider ? (
+        <JobActions
+          bookingId={booking.id}
+          status={booking.status}
+          addressLine={booking.addressLine}
+          addressUnlocked={booking.addressUnlocked}
+        />
+      ) : null}
+
+      {isTheCustomer && awaitingReview && booking.provider ? (
+        <ReviewForm bookingId={booking.id} providerName={booking.provider.name} />
+      ) : null}
+
+      {booking.rating ? (
+        <Card className="p-4">
+          <SectionTitle hint={`${booking.rating}/5`}>Your review</SectionTitle>
+          {booking.reviewNote ? (
+            <p className="text-[15px] text-ink">{booking.reviewNote}</p>
+          ) : (
+            <p className="text-[15px] text-ink-muted">
+              You rated this {booking.rating} out of 5 without writing anything.
+            </p>
+          )}
+        </Card>
+      ) : null}
 
       <Card className="p-4">
         <SectionTitle hint={`${booking.events.length} events`}>Progress</SectionTitle>
