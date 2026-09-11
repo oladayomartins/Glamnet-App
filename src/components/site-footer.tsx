@@ -39,33 +39,39 @@ export function SiteFooter() {
   ];
 
   return (
-    <footer className="safe-bottom mt-16 border-t border-line">
-      <div className="mx-auto w-full max-w-[var(--glam-page-max)] px-4 py-10">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-1">
+    /*
+      An obsidian band in both themes, which is the brand's own ground rather
+      than a borrowed one. Fixed rather than tokenised-and-flipping because
+      the point of a dark footer is that it closes the page — one that turned
+      pale in dark mode would stop doing that.
+    */
+    <footer className="safe-bottom mt-20 bg-obsidian text-on-obsidian">
+      <div className="mx-auto w-full max-w-[var(--glam-page-max)] px-4 py-14">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
+          <div>
             <div className="flex items-center gap-2.5">
-              <GlamNetPin />
-              <span className="text-lg font-bold tracking-[-0.03em] text-ink">
+              <GlamNetPin dotClassName="bg-obsidian" />
+              <span className="text-lg font-bold tracking-[-0.03em]">
                 {SITE_NAME}
               </span>
             </div>
-            <p className="mt-3 max-w-xs text-sm text-ink-muted">
-              Vetted hair and makeup professionals, booked to your door —
+            <p className="mt-4 max-w-xs text-sm text-on-obsidian-muted">
+              Vetted hair, makeup and nail professionals, booked to your door —
               including at short notice.
             </p>
           </div>
 
           {columns.map((column) => (
             <div key={column.heading}>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-ink">
+              <h2 className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-on-obsidian-muted">
                 {column.heading}
               </h2>
-              <ul className="mt-3 space-y-2">
+              <ul className="mt-4 space-y-2.5">
                 {column.links.map((link) => (
                   <li key={`${column.heading}-${link.href}`}>
                     <Link
                       href={link.href}
-                      className="text-sm text-ink-muted transition hover:text-brand-700"
+                      className="text-sm text-on-obsidian transition duration-[180ms] hover:text-accent-500"
                     >
                       {link.label}
                     </Link>
@@ -76,7 +82,7 @@ export function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-10 flex flex-col gap-2 border-t border-line pt-6 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-on-obsidian-muted sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {new Date().getFullYear()} {SITE_NAME}. Emergency bookings are
             short-notice appointments; the surcharge is always shown before

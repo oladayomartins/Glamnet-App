@@ -169,7 +169,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           </header>
 
-          <main className="mx-auto w-full max-w-[var(--glam-page-max)] flex-1 px-4 py-6">
+          <main
+            data-page-shell
+            className="mx-auto w-full max-w-[var(--glam-page-max)] flex-1 px-4 py-6"
+          >
             {children}
           </main>
 

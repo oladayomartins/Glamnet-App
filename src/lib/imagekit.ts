@@ -40,8 +40,12 @@ export function brandMediaOrigin(): string {
   return imageKitEndpoint() ?? BRAND_MEDIA_ORIGIN;
 }
 
-/** The home page hero: a makeup artist at work, warm low light. */
-export const HERO_IMAGE_PATH = "/GlamNet App Hero Image.png";
+/**
+ * The home page hero banner: 8:3, subject on the right, with deliberate cream
+ * negative space on the left for the copy to sit in. The layout depends on
+ * that composition, so a replacement needs the same shape.
+ */
+export const HERO_IMAGE_PATH = "/Hero Banner - Glamnet App.png";
 
 /**
  * Artwork for the category tiles, keyed by the category name as it is stored

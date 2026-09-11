@@ -28,7 +28,15 @@
  * flash and no second stylesheet.
  */
 
-:root {
+:root,
+/*
+ * A region that is light in BOTH themes — the hero band sits on cream
+ * photography, so its controls and copy must render their light-mode selves
+ * whatever the theme is. Declared alongside `:root` rather than restating the
+ * palette, so the two cannot drift; a descendant's own declaration wins over
+ * the inherited dark one regardless of specificity.
+ */
+.on-light {
   /* --- Brand: metallic rose gold ------------------------------------- */
   --glam-rose-50: oklch(0.955 0.025 40);
   --glam-rose-100: oklch(0.92 0.04 38);
@@ -92,6 +100,22 @@
   --glam-radius-input: 6px;
   --glam-shadow-card: 0 6px 20px oklch(0.2 0.01 285 / 0.08);
   --glam-shadow-raised: 0 18px 46px oklch(0.2 0.01 285 / 0.1);
+
+  /* --- Fixed dark ------------------------------------------------------
+     Obsidian and its foreground, deliberately NOT redefined for dark mode.
+     Some surfaces are dark in both themes — the footer band and the hero
+     scrim sit over photographs and have to stay legible either way — and a
+     token that flipped underneath them would invert light text onto a light
+     ground. Everything else keeps using the pairs that do flip. */
+  --glam-obsidian: oklch(0.165 0.008 285);
+  /*
+   * Sampled from the hero artwork's own negative space, so the band can run
+   * past the edges of the photograph without a seam. A palette entry would be
+   * close but not equal, and the join is exactly where that shows.
+   */
+  --glam-hero-ground: #f4e3d4;
+  --glam-on-obsidian: oklch(0.96 0.008 80);
+  --glam-on-obsidian-muted: oklch(0.74 0.01 80);
 
   /* --- Page width -------------------------------------------------------
      Header, content and footer all read this, so they can never drift out of
@@ -192,6 +216,10 @@
   --color-normal-soft: var(--glam-normal-soft);
   --color-warning: var(--glam-warning);
 
+  --color-obsidian: var(--glam-obsidian);
+  --color-on-obsidian: var(--glam-on-obsidian);
+  --color-on-obsidian-muted: var(--glam-on-obsidian-muted);
+
   --radius-glam: var(--glam-radius);
   --radius-glam-sm: var(--glam-radius-sm);
   --radius-glam-lg: var(--glam-radius-lg);
@@ -231,8 +259,23 @@ html {
  * width unless it asks for more. A browser without `:has()` support gets that
  * same default, which is why this widens rather than narrows.
  */
-body:has([data-page-width="wide"]) {
+body:has([data-page-width="wide"]),
+body:has([data-page-width="full"]) {
   --glam-page-max: 80rem;
+}
+
+/*
+ * A page with an edge-to-edge band — the marketplace hero — asks the shell to
+ * get out of the way and takes responsibility for containing its own sections.
+ *
+ * Done by widening the shell rather than by letting a child break out with
+ * `100vw` margins: a viewport unit includes the scrollbar, so that trick
+ * overhangs by the scrollbar width and shifts the band off-centre on every
+ * desktop that shows one.
+ */
+body:has([data-page-width="full"]) [data-page-shell] {
+  max-width: none;
+  padding-inline: 0;
 }
 
 body {
@@ -312,6 +355,19 @@ time,
   /* The emergency bolt. Deliberately the slowest thing on the screen. */
   .breathe-emergency {
     animation: glam-breathe var(--glam-breathe-emergency) var(--glam-ease) infinite;
+  }
+
+  /*
+   * A horizontally scrolling row. The scrollbar is hidden because the arrows
+   * and the partially visible next card already say it scrolls, and a native
+   * bar under a row of photographs reads as a rendering fault.
+   */
+  .rail {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .rail::-webkit-scrollbar {
+    display: none;
   }
 
   /* Map provider pins: 6px of travel, staggered so they never move in unison. */
