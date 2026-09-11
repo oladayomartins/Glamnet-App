@@ -23,10 +23,13 @@ export function SiteFooter() {
       ],
     },
     {
-      heading: "Professionals",
+      heading: "Vendors",
       links: [
         { href: "/become-a-vendor", label: "Become a vendor" },
-        { href: "/sign-in", label: "Sign in" },
+        // The vendor column's sign-in goes straight to the vendor page: the
+        // chooser exists for someone who arrived without saying who they are,
+        // and this link has already said it.
+        { href: "/sign-in/vendor", label: "Vendor sign in" },
       ],
     },
     {

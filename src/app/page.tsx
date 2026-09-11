@@ -88,7 +88,10 @@ function Container({
  * grid.
  */
 export default async function MarketingPage() {
-  const [{ providers, categories, cities, stats }, { thresholdMinutes }] =
+  const [
+    { providers, categories, cities, searchHints, stats },
+    { thresholdMinutes },
+  ] =
     await Promise.all([getMarketingData(), getPricingContext()]);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
@@ -187,10 +190,20 @@ export default async function MarketingPage() {
               availability, an itemised price before you pay, and someone at
               your door — today, if that is what you need.
             </p>
+          </div>
 
-            <div className="mt-8">
-              <SearchBar areas={areas} />
-            </div>
+          {/*
+            The bar is deliberately wider than the words above it. A measure
+            that suits a headline is too narrow for a control holding a field,
+            a town and a button — below `lg` those stack and the width is moot,
+            and from `lg` the extra 4rem still lands on the photograph's cream
+            half, well clear of the subject.
+          */}
+          <div className="mt-8 max-w-[34rem] lg:max-w-[42rem]">
+            <SearchBar areas={areas} hints={searchHints} />
+          </div>
+
+          <div className="max-w-[34rem] xl:max-w-[38rem]">
 
             {/* Trust figures. Real counts, never rounded up. */}
             <dl className="mt-6 flex flex-wrap items-center gap-x-7 gap-y-3">
