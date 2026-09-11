@@ -117,12 +117,6 @@
   --glam-on-obsidian: oklch(0.96 0.008 80);
   --glam-on-obsidian-muted: oklch(0.74 0.01 80);
 
-  /* --- Page width -------------------------------------------------------
-     Header, content and footer all read this, so they can never drift out of
-     alignment with each other. The default is the app width; the marketplace
-     pages widen it below. */
-  --glam-page-max: 64rem;
-
   /* --- Motion [§11] -----------------------------------------------------
      One easing curve for everything. No bounce, no spin, no confetti.
      The durations are tokens rather than literals because the same beat has
@@ -138,6 +132,21 @@
   --glam-breathe: 1800ms;
   --glam-breathe-emergency: 2200ms;
   --glam-pulse: 3200ms;
+}
+
+/* --- Page width ---------------------------------------------------------
+   Header, content and footer all read this, so they can never drift out of
+   alignment with each other. The default is the app width; the marketplace
+   pages widen it below.
+
+   Declared on `:root` ALONE, unlike the palette above. `.on-light` exists to
+   give a region its light-mode colours whatever the theme is, and it wins by
+   redeclaring what it inherits — which silently applied to this too, so the
+   hero band (an `.on-light` region) reset itself to the app width and its
+   copy sat 128px inside the header and every block beneath it. Layout tokens
+   do not belong in a colour scope. */
+:root {
+  --glam-page-max: 64rem;
 }
 
 [data-theme="dark"] {
@@ -297,6 +306,26 @@ body {
 :focus-visible {
   outline: 2px solid var(--glam-champagne-500);
   outline-offset: 2px;
+}
+
+/*
+ * A composite control — the search bar is a pill holding a text field, a
+ * select and a button — draws ONE ring around the whole shell rather than
+ * letting the bare field inside draw its own. The field has no border of its
+ * own, so the default ring landed as a rectangle floating inside the pill.
+ *
+ * The ring is not removed, only moved: `:has()` means it appears exactly when
+ * a field inside is keyboard-focused, and the submit button still draws its
+ * own, so every stop in the tab order is still visibly focused.
+ */
+.focus-shell:has(input:focus-visible, select:focus-visible) {
+  outline: 2px solid var(--glam-champagne-500);
+  outline-offset: 2px;
+}
+
+.focus-shell input:focus-visible,
+.focus-shell select:focus-visible {
+  outline: none;
 }
 
 /* Anything that ticks gets tabular figures. [§03] */

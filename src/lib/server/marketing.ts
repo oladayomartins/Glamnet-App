@@ -43,7 +43,12 @@ export async function getMarketingData() {
         services: {
           select: {
             service: {
-              select: { category: true, kind: true, priceMinor: true },
+              select: {
+                name: true,
+                category: true,
+                kind: true,
+                priceMinor: true,
+              },
             },
           },
         },
@@ -105,6 +110,26 @@ export async function getMarketingData() {
       // photography as soon as any one service has it.
       imageUrl: existing?.imageUrl || service.imageUrl,
     });
+  }
+
+  /*
+   * The phrases the search bar cycles through.
+   *
+   * Taken from services a vendor on the platform right now actually offers,
+   * not from a hand-written list: the bar is the first promise the page makes
+   * about what is bookable, and a placeholder suggesting something nobody
+   * provides breaks that promise before the customer has typed anything.
+   * Vendors are already ordered by rating, so the best-served work leads.
+   */
+  const searchHints: string[] = [];
+  for (const provider of providers) {
+    for (const link of provider.services) {
+      if (link.service.kind === "ADDON") continue;
+      if (searchHints.length >= 6) break;
+      if (!searchHints.includes(link.service.name)) {
+        searchHints.push(link.service.name);
+      }
+    }
   }
 
   const categories = [...categoryMap.entries()]
@@ -192,6 +217,7 @@ export async function getMarketingData() {
       providerCount: providerCountByCategory.get(category.name) ?? 0,
     })),
     cities,
+    searchHints,
     stats: {
       providerCount: providers.length,
       averageRating,
