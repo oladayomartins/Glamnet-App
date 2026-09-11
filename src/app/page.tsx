@@ -17,6 +17,7 @@ import { BlockHeading } from "@/components/ui";
 import { SearchBar } from "@/components/search-bar";
 import { FeaturedProviders } from "@/components/featured-providers";
 import { GlamImage } from "@/components/glam-image";
+import { HERO_IMAGE_PATH, brandImageUrl } from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
 
 export const dynamic = "force-dynamic";
@@ -141,11 +142,23 @@ export default async function MarketingPage() {
           </dl>
         </div>
 
-        {/* 4:3 hero slot. Real photography drops in here; until then it holds
-            its aspect ratio so the hero never reflows when it arrives. */}
-        <div
-          aria-hidden
-          className="hidden aspect-[4/3] w-full rounded-glam-lg bg-metal shadow-raised lg:block"
+        {/*
+          The 4:3 hero. No longer hidden on a phone: it was a metal placeholder
+          before, which was noise above the fold, and the column order puts it
+          after the search bar when the grid collapses — so a real photograph
+          costs the customer nothing they were about to use.
+
+          `priority` because on a wide screen this is the largest thing painted,
+          and leaving it to lazy-load is the difference the page is judged on.
+        */}
+        <GlamImage
+          src={brandImageUrl(HERO_IMAGE_PATH)}
+          alt="A makeup artist finishing a client's look at home"
+          width={880}
+          height={660}
+          sizes="(max-width: 1024px) 100vw, 45vw"
+          priority
+          className="aspect-[4/3] w-full rounded-glam-lg object-cover shadow-raised"
         />
       </section>
 

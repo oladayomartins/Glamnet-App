@@ -23,6 +23,23 @@ export function isImageKitConfigured(): boolean {
   return Boolean(imageKitEndpoint() && imageKitPublicKey());
 }
 
+/**
+ * Brand artwork that lives in the media library but is not uploaded through
+ * the app — the marketing photography, referenced by path.
+ *
+ * Built from the configured endpoint rather than hard-coded in full, so an
+ * unconfigured deployment gets `null` and the slot falls back to the brand
+ * metal, exactly as an unset provider photo does. It also means the account
+ * id lives in one place.
+ */
+export function brandImageUrl(path: string): string | null {
+  const endpoint = imageKitEndpoint();
+  return endpoint ? `${endpoint}${path}` : null;
+}
+
+/** The home page hero: a makeup artist at work, warm low light. */
+export const HERO_IMAGE_PATH = "/GlamNet App Hero Image.png";
+
 /** Where uploaded files live, keyed by what they are. */
 export const IMAGE_FOLDERS = {
   reference: "/glamnet/booking-references",
