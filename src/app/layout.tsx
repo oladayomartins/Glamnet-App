@@ -4,6 +4,7 @@ import Link from "next/link";
 import "./globals.css";
 import { GlamNetPin } from "@/components/brand";
 import { getSessionUser } from "@/lib/auth/session";
+import { SiteFooter } from "@/components/site-footer";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -83,7 +84,8 @@ export const viewport: Viewport = {
 /** Public navigation. Role-specific links are added from the session below. */
 const NAV = [
   { href: "/search", label: "Find a service" },
-  { href: "/book", label: "Book" },
+  { href: "/how-it-works", label: "How it works" },
+  { href: "/sign-up", label: "Become a provider" },
 ];
 
 /**
@@ -133,7 +135,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 </span>
               </Link>
               <nav className="flex items-center gap-1" aria-label="Main">
-                {[...NAV, ...roleLinks].map((item) => (
+                {[...(user ? NAV.filter((i) => i.href !== "/sign-up") : NAV), ...roleLinks].map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -168,10 +170,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </main>
 
-          <footer className="safe-bottom mt-8 border-t border-line px-4 pt-4 text-center text-xs text-ink-muted">
-            Emergency bookings are short-notice appointments. The surcharge is
-            always shown before payment.
-          </footer>
+          <SiteFooter />
         </ThemeProvider>
       </body>
     </html>

@@ -1,40 +1,53 @@
 import Link from "next/link";
-import { Lightning, MapPin, ShieldCheck, Sparkle } from "@phosphor-icons/react/dist/ssr";
-import { prisma } from "@/lib/server/prisma";
+import {
+  CalendarCheck,
+  House,
+  Lightning,
+  MagnifyingGlass,
+  ShieldCheck,
+  Star,
+} from "@phosphor-icons/react/dist/ssr";
 import { getPricingContext } from "@/lib/server/emergency-config";
-import { searchableAreas } from "@/lib/server/search";
+import { getMarketingData } from "@/lib/server/marketing";
 import { Card } from "@/components/ui";
-import { describeSurcharge, formatDuration, formatMoney } from "@/lib/format";
 import { SearchBar } from "@/components/search-bar";
+import { describeSurcharge, formatMoney } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-/** The front door: what GLAMNET is, and a way straight into finding a service. */
+const HOW_IT_WORKS = [
+  {
+    icon: <MagnifyingGlass size={20} weight="bold" />,
+    title: "Search",
+    body: "Tell us what you need and where. You only see services someone can actually deliver near you.",
+  },
+  {
+    icon: <CalendarCheck size={20} weight="bold" />,
+    title: "Compare & book",
+    body: "Real availability and the full itemised price, before you authorise anything.",
+  },
+  {
+    icon: <House size={20} weight="bold" />,
+    title: "They come to you",
+    body: "The first matched professional to accept takes the job, and the slot locks into their calendar.",
+  },
+];
+
 export default async function MarketingPage() {
-  const [areas, popular, { config, thresholdMinutes }, providerCount] =
-    await Promise.all([
-      searchableAreas(),
-      prisma.service.findMany({
-        where: { isActive: true, kind: "SERVICE" },
-        orderBy: { durationMinutes: "desc" },
-        take: 6,
-        select: {
-          id: true,
-          name: true,
-          category: true,
-          priceMinor: true,
-          durationMinutes: true,
-        },
-      }),
-      getPricingContext(),
-      prisma.provider.count({ where: { approvalStatus: "APPROVED" } }),
-    ]);
+  const [{ providers, categories, cities, stats }, { config, thresholdMinutes }] =
+    await Promise.all([getMarketingData(), getPricingContext()]);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
+  const areas = cities.map((city) => ({
+    id: city.hubId,
+    name: city.city,
+    city: city.city,
+    sector: city.sector,
+  }));
 
   return (
-    <div className="space-y-14 pb-8">
-      {/* ---- Hero ---------------------------------------------------- */}
+    <div className="space-y-16 pb-4">
+      {/* ---- Hero + search ------------------------------------------- */}
       <section className="pt-4">
         <h1 className="max-w-2xl font-display text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-ink sm:text-5xl">
           Hair and makeup,
@@ -43,50 +56,191 @@ export default async function MarketingPage() {
         </h1>
         <p className="mt-4 max-w-xl text-base text-ink-muted">
           Book a vetted beauty professional to come to you — today if you need
-          one. Real availability, a price you see before you pay, and no
-          searching through people who are already busy.
+          one. Real availability, a price you see before you pay.
         </p>
 
         <div className="mt-6 max-w-2xl">
           <SearchBar areas={areas} />
         </div>
-
-        <p className="mt-3 text-xs text-ink-muted">
-          {providerCount} professionals across{" "}
-          {new Set(areas.map((area) => area.city)).size} areas
-        </p>
       </section>
 
-      {/* ---- Why ----------------------------------------------------- */}
+      {/* ---- Trust figures. Real counts, never rounded up. ------------ */}
       <section className="grid gap-3 sm:grid-cols-3">
         {[
           {
-            icon: <MapPin size={20} weight="bold" />,
-            title: "They come to you",
-            body: "Your home, your chair. Travel is a fixed fee shown up front, never a surprise.",
+            value: String(stats.providerCount),
+            label: stats.providerCount === 1 ? "Vetted professional" : "Vetted professionals",
           },
           {
-            icon: <ShieldCheck size={20} weight="bold" />,
-            title: "Vetted professionals",
-            body: "Every provider is reviewed before taking work, and rated by customers after.",
+            value: stats.averageRating ? `${stats.averageRating.toFixed(1)}/5` : "—",
+            label: "Average rating",
           },
           {
-            icon: <Sparkle size={20} weight="bold" />,
-            title: "Genuinely available",
-            body: "You only see times a professional can actually make, including travel between jobs.",
+            value: String(stats.serviceCount),
+            label: `Services across ${stats.cityCount} ${stats.cityCount === 1 ? "area" : "areas"}`,
           },
-        ].map((item) => (
-          <Card key={item.title} className="p-4">
-            <span className="text-brand-700">{item.icon}</span>
-            <h2 className="mt-2 font-display text-base font-semibold text-ink">
-              {item.title}
-            </h2>
-            <p className="mt-1 text-sm text-ink-muted">{item.body}</p>
+        ].map((stat) => (
+          <Card key={stat.label} className="p-4">
+            <p className="font-display text-3xl font-bold tabular-nums text-ink">
+              {stat.value}
+            </p>
+            <p className="mt-0.5 text-sm text-ink-muted">{stat.label}</p>
           </Card>
         ))}
       </section>
 
-      {/* ---- Emergency ----------------------------------------------- */}
+      {/* ---- Categories ---------------------------------------------- */}
+      {categories.length > 0 ? (
+        <section>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-xl font-semibold text-ink">
+              Browse by service
+            </h2>
+            <Link href="/search" className="text-sm font-semibold text-brand-700 hover:underline">
+              See all
+            </Link>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {categories.map((category) => (
+              <Link
+                key={category.name}
+                href={`/search?q=${encodeURIComponent(category.name)}`}
+                className="group overflow-hidden rounded-glam border border-line bg-surface shadow-card transition hover:-translate-y-0.5 hover:shadow-raised"
+              >
+                {/* The brand metal, used as a fill — the guide forbids it as
+                    text or border, and it stands in for photography we do not
+                    have yet. */}
+                <div className="h-24 bg-metal" aria-hidden />
+                <div className="p-4">
+                  <h3 className="font-display text-lg font-semibold text-ink">
+                    {category.name}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    {category.count}{" "}
+                    {category.count === 1 ? "service" : "services"} · from{" "}
+                    {formatMoney(category.fromMinor)}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ---- Featured professionals ---------------------------------- */}
+      {providers.length > 0 ? (
+        <section>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-xl font-semibold text-ink">
+              Professionals near you
+            </h2>
+            <Link href="/search" className="text-sm font-semibold text-brand-700 hover:underline">
+              See all
+            </Link>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {providers.slice(0, 6).map((provider) => (
+              <Link
+                key={provider.id}
+                href={`/book/${provider.hubId}`}
+                className="rounded-glam border border-line bg-surface p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-raised"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-display text-base font-semibold text-ink">
+                      {provider.name}
+                    </h3>
+                    <p className="font-mono text-xs text-ink-muted">
+                      {provider.city} · {provider.sector}
+                    </p>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1 font-mono text-sm text-ink">
+                    <Star size={13} weight="fill" className="text-accent-500" />
+                    {provider.rating.toFixed(1)}
+                  </span>
+                </div>
+                {provider.bio ? (
+                  <p className="mt-2 line-clamp-2 text-sm text-ink-muted">
+                    {provider.bio}
+                  </p>
+                ) : null}
+                {provider.specialities.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {provider.specialities.slice(0, 3).map((speciality) => (
+                      <span
+                        key={speciality}
+                        className="rounded-full bg-sunken px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-muted"
+                      >
+                        {speciality}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ---- Areas ---------------------------------------------------- */}
+      {cities.length > 0 ? (
+        <section>
+          <h2 className="font-display text-xl font-semibold text-ink">
+            Browse by area
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {cities.map((city) => (
+              <Link
+                key={city.city}
+                href={`/search?location=${encodeURIComponent(city.city)}`}
+                className="rounded-glam border border-line bg-surface p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-raised"
+              >
+                <h3 className="font-display text-lg font-semibold text-ink">
+                  {city.city}
+                </h3>
+                <p className="mt-0.5 text-xs text-ink-muted">
+                  {city.providerCount}{" "}
+                  {city.providerCount === 1 ? "professional" : "professionals"}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ---- How it works -------------------------------------------- */}
+      <section>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="font-display text-xl font-semibold text-ink">
+            How it works
+          </h2>
+          <Link href="/how-it-works" className="text-sm font-semibold text-brand-700 hover:underline">
+            In detail
+          </Link>
+        </div>
+        <ol className="mt-3 grid gap-3 sm:grid-cols-3">
+          {HOW_IT_WORKS.map((step, index) => (
+            <li key={step.title}>
+              <Card className="h-full p-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+                    {step.icon}
+                  </span>
+                  <span className="font-mono text-xs text-ink-muted">
+                    0{index + 1}
+                  </span>
+                </div>
+                <h3 className="mt-2.5 font-display text-base font-semibold text-ink">
+                  {step.title}
+                </h3>
+                <p className="mt-1 text-sm text-ink-muted">{step.body}</p>
+              </Card>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ---- Emergency: the thing that makes this different ----------- */}
       <section>
         <Card className="border-l-4 border-l-emergency p-5">
           <p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wider text-emergency-ink">
@@ -97,12 +251,12 @@ export default async function MarketingPage() {
             Emergency bookings, within {thresholdHours} hours
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-            Something came up. Book an appointment starting in the next{" "}
-            {thresholdHours} hours and we broadcast it straight to the
-            professionals near you who are free right now.
+            Book an appointment starting in the next {thresholdHours} hours and
+            we broadcast it to the professionals near you who are free right
+            now.
             {config
-              ? ` Short notice carries a ${describeSurcharge(config.surchargeType, config.surchargeValue)} emergency rate —`
-              : " Short notice carries an emergency rate —"}{" "}
+              ? ` Short notice carries a ${describeSurcharge(config.surchargeType, config.surchargeValue)} rate —`
+              : " Short notice carries a higher rate —"}{" "}
             shown in full before you authorise payment, never after.
           </p>
           <Link
@@ -114,51 +268,34 @@ export default async function MarketingPage() {
         </Card>
       </section>
 
-      {/* ---- Popular services ---------------------------------------- */}
+      {/* ---- Dual CTA -------------------------------------------------- */}
       <section>
-        <h2 className="font-display text-xl font-semibold text-ink">
-          Popular services
-        </h2>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {popular.map((service) => (
-            <Link
-              key={service.id}
-              href={`/search?q=${encodeURIComponent(service.name)}`}
-              className="rounded-glam border border-line bg-surface p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-raised"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-sm font-semibold text-ink">
-                  {service.name}
-                </span>
-                <span className="font-mono text-sm font-semibold text-ink">
-                  {formatMoney(service.priceMinor)}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-ink-muted">
-                {formatDuration(service.durationMinutes)} · {service.category}
-              </p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ---- For providers ------------------------------------------- */}
-      <section>
-        <Card className="p-5">
-          <h2 className="font-display text-xl font-semibold text-ink">
-            Are you a beauty professional?
+        <Card className="p-6 text-center">
+          <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink">
+            Ready when you are
           </h2>
-          <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-            Set your own hours and service menu, and get booking requests from
-            customers near you. We handle scheduling, payment and the
-            15-minute gap between jobs so you are never double-booked.
+          <p className="mx-auto mt-2 max-w-lg text-sm text-ink-muted">
+            Whether you need someone this evening or you want to take bookings
+            of your own.
           </p>
-          <Link
-            href="/sign-up"
-            className="mt-4 inline-flex rounded-glam-sm bg-brand-700 px-4 py-2.5 text-sm font-semibold text-on-brand"
-          >
-            Apply to join
-          </Link>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <Link
+              href="/search"
+              className="rounded-glam-sm bg-brand-700 px-5 py-2.5 text-sm font-semibold text-on-brand"
+            >
+              Find a professional
+            </Link>
+            <Link
+              href="/sign-up"
+              className="rounded-glam-sm bg-surface px-5 py-2.5 text-sm font-semibold text-ink ring-1 ring-line"
+            >
+              Become a provider
+            </Link>
+          </div>
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-ink-muted">
+            <ShieldCheck size={14} weight="bold" />
+            Every professional is reviewed before taking work
+          </p>
         </Card>
       </section>
     </div>
