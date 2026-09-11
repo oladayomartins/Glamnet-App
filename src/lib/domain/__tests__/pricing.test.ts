@@ -134,7 +134,7 @@ describe("priceBooking (spec §5)", () => {
     expect(price.totalMinor).toBe(11_300);
   });
 
-  it("gives the provider a share of the surge on top of their base earnings", () => {
+  it("gives the vendor a share of the surge on top of their base earnings", () => {
     const normal = priceBooking(
       { basket, bookingType: "NORMAL", travelFeeMinor: 500, emergencyConfig: percentageConfig },
       NOW,
@@ -153,7 +153,7 @@ describe("priceBooking (spec §5)", () => {
     expect(emergency.providerEarningsMinor).toBe(9_250);
   });
 
-  it("never shares the trust fee with the provider", () => {
+  it("never shares the trust fee with the vendor", () => {
     const price = priceBooking(
       {
         basket: [],

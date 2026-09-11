@@ -11,7 +11,7 @@ export interface SessionUser {
   role: Role;
   customerId: string | null;
   providerId: string | null;
-  /** Providers only: whether an admin has approved them yet. */
+  /** Vendors only: whether an admin has approved them yet. */
   providerApproved: boolean;
 }
 
@@ -50,7 +50,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   // Sign-up intent arrives in Supabase user_metadata, which the user can edit
   // themselves — so it is treated as a request, not a fact. Only CUSTOMER and
   // PROVIDER are honoured; ADMIN can never come from here. Self-declaring
-  // PROVIDER grants nothing on its own, because a new provider is PENDING and
+  // PROVIDER grants nothing on its own, because a new vendor is PENDING and
   // the matching query only broadcasts to APPROVED ones.
   const requested = String(user.user_metadata?.role ?? "").toUpperCase();
   const requestedRole: Role = requested === "PROVIDER" ? "PROVIDER" : "CUSTOMER";
@@ -162,7 +162,7 @@ export async function requireRole(
   return user;
 }
 
-/** Require an approved provider — pending signups get the waiting screen. */
+/** Require an approved vendor — pending signups get the waiting screen. */
 export async function requireApprovedProvider(
   returnTo: string,
 ): Promise<SessionUser> {

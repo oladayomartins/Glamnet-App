@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     // Any signed-in account may upload: customers attach reference images,
-    // providers their portfolio. Role is enforced per surface, not here.
+    // vendors their portfolio. Role is enforced per surface, not here.
     const auth = await requireApiRole(["CUSTOMER", "PROVIDER", "ADMIN"]);
     if ("response" in auth) return auth.response;
 

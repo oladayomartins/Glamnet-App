@@ -14,9 +14,16 @@ interface Hub {
 
 type Intent = "CUSTOMER" | "PROVIDER";
 
-export function SignUpForm({ hubs }: { hubs: Hub[] }) {
+export function SignUpForm({
+  hubs,
+  initialIntent = "CUSTOMER",
+}: {
+  hubs: Hub[];
+  /** Preselected when arriving from the vendor landing page. */
+  initialIntent?: Intent;
+}) {
   const router = useRouter();
-  const [intent, setIntent] = useState<Intent>("CUSTOMER");
+  const [intent, setIntent] = useState<Intent>(initialIntent);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,7 +48,7 @@ export function SignUpForm({ hubs }: { hubs: Hub[] }) {
       password,
       options: {
         // A request, not a grant. The server only honours CUSTOMER or
-        // PROVIDER from here, and a new provider starts PENDING.
+        // PROVIDER from here, and a new vendor starts PENDING.
         data: { role: intent, name: name.trim(), hubId },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/account`,
       },
@@ -85,8 +92,8 @@ export function SignUpForm({ hubs }: { hubs: Hub[] }) {
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {(
             [
-              ["CUSTOMER", "Book services", "Find a professional near me"],
-              ["PROVIDER", "Offer services", "Take bookings as a pro"],
+              ["CUSTOMER", "Book services", "Find a vendor near me"],
+              ["PROVIDER", "Work as a vendor", "Take bookings on your hours"],
             ] as const
           ).map(([value, label, hint]) => (
             <label

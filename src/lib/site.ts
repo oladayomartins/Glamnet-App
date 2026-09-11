@@ -34,4 +34,4 @@ export function isProductionSite(): boolean {
 export const SITE_NAME = "GLAMNET";
 export const SITE_TAGLINE = "Hair and makeup, at your door";
 export const SITE_DESCRIPTION =
-  "Book a vetted beauty professional to come to you — today if you need one. Real availability, a price you see before you pay, and emergency bookings within 12 hours.";
+  "Book a vetted beauty vendor to come to you — today if you need one. Real availability, a price you see before you pay, and emergency bookings within 12 hours.";

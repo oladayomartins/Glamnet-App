@@ -15,14 +15,14 @@ export const dynamic = "force-dynamic";
 /**
  * Confirm a chosen offer (§C-07), in one step.
  *
- * Search already settled the provider, the service and the time, so this page
+ * Search already settled the vendor, the service and the time, so this page
  * re-checks rather than re-asks. Everything in the URL is treated as a claim:
  * the hub, the service and the start time are all verified here, and the price
  * is recomputed from scratch by the same engine the booking itself uses. A
  * customer who edits the query string gets a different quote, not a discount.
  *
  * The full builder is still at /book/[hubId] for anyone who arrives without a
- * time already chosen — from a provider profile, or straight from the nav.
+ * time already chosen — from a vendor profile, or straight from the nav.
  */
 export default async function ConfirmPage({
   params,
@@ -114,7 +114,7 @@ export default async function ConfirmPage({
         </h1>
         <p className="mt-1 text-[15px] text-ink-muted">
           {quote.eligibleProviderIds.length}{" "}
-          {quote.eligibleProviderIds.length === 1 ? "provider is" : "providers are"}{" "}
+          {quote.eligibleProviderIds.length === 1 ? "vendor is" : "vendors are"}{" "}
           free for this slot. The first to accept takes the job.
         </p>
       </div>

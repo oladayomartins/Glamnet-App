@@ -25,7 +25,7 @@ describe("canTransition (spec §8)", () => {
     expect(canTransition("PAYMENT_RELEASED", "REVIEWED")).toBe(false);
   });
 
-  it("allows cancellation before the provider is en route or later", () => {
+  it("allows cancellation before the vendor is en route or later", () => {
     expect(canTransition("BROADCAST", "CANCELLED")).toBe(true);
     expect(canTransition("PROVIDER_EN_ROUTE", "CANCELLED")).toBe(true);
     expect(canTransition("ARRIVED", "CANCELLED")).toBe(false);

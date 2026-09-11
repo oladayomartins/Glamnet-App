@@ -14,7 +14,7 @@
  *  - red (#D0342C, from --glam-emergency) is reserved for the EMERGENCY tag.
  *    It never appears on a normal booking, which is the whole point of the
  *    tag: spec §11 requires the classification to read identically in every
- *    channel, so a customer or provider can tell the two apart at a glance.
+ *    channel, so a customer or vendor can tell the two apart at a glance.
  */
 
 const INK = "#2A2A31";
@@ -123,10 +123,10 @@ export interface BookingEmailFacts {
 }
 
 /**
- * Provider broadcast — the message that wins or loses the job.
+ * Vendor broadcast — the message that wins or loses the job.
  *
  * The EMERGENCY variant leads with the deadline because that is the only
- * decision the provider is making in the ten-minute acceptance window.
+ * decision the vendor is making in the ten-minute acceptance window.
  */
 export function providerBroadcastEmail(
   providerName: string,
@@ -148,8 +148,8 @@ export function providerBroadcastEmail(
       paragraph(`Hi ${providerName},`) +
       paragraph(
         facts.isEmergency
-          ? "A customer needs this at short notice. First provider to accept takes the job."
-          : "You are one of the providers this request went out to. First to accept takes the job.",
+          ? "A customer needs this at short notice. First vendor to accept takes the job."
+          : "You are one of the vendors this request went out to. First to accept takes the job.",
       ) +
       factList([
         ["Service", facts.serviceNames.join(", ")],
@@ -159,7 +159,7 @@ export function providerBroadcastEmail(
       ]),
     cta: { label: "View the request", url: facts.url },
     footerNote:
-      "Requests are offered to several providers at once and close as soon as one accepts.",
+      "Requests are offered to several vendors at once and close as soon as one accepts.",
   });
 
   const text = textBlock([
@@ -167,8 +167,8 @@ export function providerBroadcastEmail(
     "",
     `Hi ${providerName},`,
     facts.isEmergency
-      ? "A customer needs this at short notice. First provider to accept takes the job."
-      : "You are one of the providers this request went out to. First to accept takes the job.",
+      ? "A customer needs this at short notice. First vendor to accept takes the job."
+      : "You are one of the vendors this request went out to. First to accept takes the job.",
     "",
     `Service: ${facts.serviceNames.join(", ")}`,
     `When: ${facts.appointmentLabel}`,
@@ -181,7 +181,7 @@ export function providerBroadcastEmail(
   return { subject, html, text };
 }
 
-/** Customer confirmation — sent the moment a provider claims the booking. */
+/** Customer confirmation — sent the moment a vendor claims the booking. */
 export function customerBookingConfirmedEmail(
   customerName: string,
   providerName: string,
@@ -230,7 +230,7 @@ export function customerBookingConfirmedEmail(
 }
 
 /**
- * Provider vetting decision.
+ * Vendor vetting decision.
  *
  * A rejection is not an error state, so it gets no red: the brand guide keeps
  * red for EMERGENCY, and dressing a rejection in it would both break that rule

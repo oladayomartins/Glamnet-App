@@ -15,7 +15,7 @@ import type { BasketLine } from "@/lib/domain/types";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import { getActiveEmergencyConfig } from "./emergency-config";
 
-/** How far ahead an offer will look for a provider's first free slot. */
+/** How far ahead an offer will look for a vendor's first free slot. */
 const HORIZON_DAYS = 7;
 
 export interface Offer {
@@ -38,7 +38,7 @@ export interface Offer {
   reservedMinutes: number;
 
   /**
-   * The provider's first genuinely free start, or null when they have nothing
+   * The vendor's first genuinely free start, or null when they have nothing
    * inside the horizon. Null offers are dropped rather than shown as "ask" —
    * an offer nobody can act on is not an offer.
    */
@@ -62,7 +62,7 @@ export interface OfferQuery {
 /**
  * Bookable offers for a search (§C-02).
  *
- * The unit here is an offer, not a provider: one person, one service, one real
+ * The unit here is an offer, not a vendor: one person, one service, one real
  * start time, and the price that time actually costs. That is a stronger thing
  * to put in front of a customer than "from £35" — it is the number they will
  * be asked to authorise, computed by the same pricing engine the booking uses,
@@ -149,7 +149,7 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
       .filter((service) => service.isActive && service.kind !== "ADDON");
 
     // What the customer asked for, or — with no query — the cheapest thing
-    // this provider does, so a bare search still shows a real offer rather
+    // this vendor does, so a bare search still shows a real offer rather
     // than an arbitrary one.
     const matched = needle
       ? offered.filter(
@@ -252,7 +252,7 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
 /**
  * Soonest first, which is the question a customer arriving from search is
  * actually asking. Rating breaks ties rather than leading it, so a slower
- * five-star provider does not bury someone who is free this afternoon.
+ * five-star vendor does not bury someone who is free this afternoon.
  */
 export function compareOffers(
   a: Pick<Offer, "startAt" | "rating" | "completedBookings">,
@@ -266,7 +266,7 @@ export function compareOffers(
 }
 
 /**
- * The first start this provider can genuinely serve, looking day by day.
+ * The first start this vendor can genuinely serve, looking day by day.
  *
  * Uses the same gate as the customer's slot picker and the broadcast matcher —
  * working hours, existing reservations (which already carry the transition)

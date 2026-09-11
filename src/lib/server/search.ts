@@ -3,13 +3,13 @@ import { prisma } from "./prisma";
 /**
  * Area lookups for the marketplace.
  *
- * Provider search itself lives in `offers.ts`: the results page asks for
+ * Vendor search itself lives in `offers.ts`: the results page asks for
  * bookable offers — a person, a real start time and a real price — rather than
- * a directory of providers, so the query that produced the directory is gone
+ * a directory of vendors, so the query that produced the directory is gone
  * rather than kept alongside it.
  */
 
-/** Cities and sectors that currently have approved, working providers. */
+/** Cities and sectors that currently have approved, working vendors. */
 export async function searchableAreas() {
   const hubs = await prisma.hub.findMany({
     where: {

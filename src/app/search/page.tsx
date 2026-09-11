@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  * engine the booking uses, so a row inside the emergency window shows its
  * surcharge here rather than surprising the customer at checkout.
  *
- * Choosing a row still opens the builder rather than assigning that provider.
+ * Choosing a row still opens the builder rather than assigning that vendor.
  * Search feeds the broadcast; it does not replace it — the customer gets the
  * top-five broadcast, not a direct assignment to whoever they tapped, which is
  * what the matching engine guarantees and what the profile page says too.
@@ -77,7 +77,7 @@ export default async function SearchPage({
     <div data-page-width="wide">
       <div className="mb-4">
         <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink">
-          {q ? `“${q}”` : "All providers"}
+          {q ? `“${q}”` : "All vendors"}
           {location ? ` in ${location}` : ""}
         </h1>
         <p className="mt-1 text-[15px] text-ink-muted" data-numeric>
@@ -109,7 +109,7 @@ export default async function SearchPage({
                   href="/sign-up"
                   className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
                 >
-                  Become our first provider here
+                  Become our first vendor here
                 </Link>
               )
             }

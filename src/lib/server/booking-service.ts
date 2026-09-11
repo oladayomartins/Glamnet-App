@@ -60,12 +60,12 @@ export interface Quote {
   sector: string;
   basket: BasketLine[];
   price: PriceBreakdown;
-  /** Providers who could take this slot right now. */
+  /** Vendors who could take this slot right now. */
   eligibleProviderIds: string[];
 }
 
 /**
- * Build a full server-side quote: classification, duration, price and provider
+ * Build a full server-side quote: classification, duration, price and vendor
  * eligibility.
  *
  * This is the single source of truth for both the checkout preview and the
@@ -159,7 +159,7 @@ export interface CreateBookingRequest extends QuoteRequest {
 }
 
 /**
- * Create a booking and broadcast it to the top five eligible providers.
+ * Create a booking and broadcast it to the top five eligible vendors.
  *
  * The quote is recomputed here rather than accepted from the client, so the
  * stored classification, duration and price are all server-derived (spec §9,
@@ -173,7 +173,7 @@ export async function createBooking(
 
   if (quote.eligibleProviderIds.length === 0) {
     throw new BookingError(
-      "No providers are available for that time. Please choose another slot.",
+      "No vendors are available for that time. Please choose another slot.",
       "NO_PROVIDER",
       409,
     );
@@ -310,7 +310,7 @@ async function withContentionRetry<T>(run: () => Promise<T>): Promise<T> {
     } catch (retryError) {
       if (!isContention(retryError)) throw retryError;
       throw new BookingError(
-        "Another provider is responding to this booking right now. Try again in a moment.",
+        "Another vendor is responding to this booking right now. Try again in a moment.",
         "CONTENDED",
         409,
       );
@@ -319,11 +319,11 @@ async function withContentionRetry<T>(run: () => Promise<T>): Promise<T> {
 }
 
 /**
- * A provider accepts a broadcast request (spec §12 "Concurrent booking
+ * A vendor accepts a broadcast request (spec §12 "Concurrent booking
  * acceptance is transactionally protected").
  *
  * Everything happens in one transaction, and the winning update is guarded by
- * `status: "BROADCAST"` — so if two providers accept at the same instant, the
+ * `status: "BROADCAST"` — so if two vendors accept at the same instant, the
  * second update matches zero rows and that caller is told the job is gone
  * rather than double-booking the slot.
  */
@@ -348,7 +348,7 @@ export async function acceptBooking(
     const booking = await tx.booking.findUnique({ where: { id: bookingId } });
     if (!booking) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
 
-    // Re-check the calendar inside the transaction: the provider may have
+    // Re-check the calendar inside the transaction: the vendor may have
     // accepted another job since the broadcast was sent (spec §7).
     const conflict = await tx.booking.findFirst({
       where: {
@@ -386,7 +386,7 @@ export async function acceptBooking(
     });
     if (claimed.count === 0) {
       throw new BookingError(
-        "This booking has already been accepted by another provider.",
+        "This booking has already been accepted by another vendor.",
         "ALREADY_TAKEN",
         409,
       );
@@ -421,7 +421,7 @@ export async function acceptBooking(
           booking.bookingType === "EMERGENCY"
             ? "EMERGENCY BOOKING confirmed"
             : "Your booking is confirmed",
-        body: "A provider has accepted your request.",
+        body: "A vendor has accepted your request.",
       },
     });
 
@@ -440,7 +440,7 @@ export async function acceptBooking(
     bookingId: booking.id,
     customerName: booking.customer.name,
     customerEmail: booking.customer.email,
-    providerName: booking.provider?.name ?? "Your provider",
+    providerName: booking.provider?.name ?? "Your vendor",
     isEmergency: booking.bookingType === "EMERGENCY",
     serviceNames: booking.items.map((item) => item.name),
     appointmentStartAt: booking.appointmentStartAt,

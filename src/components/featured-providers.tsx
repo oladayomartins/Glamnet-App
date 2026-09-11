@@ -7,10 +7,10 @@ import { EmptyState } from "@/components/ui";
 import { UsersThree } from "@phosphor-icons/react";
 
 /**
- * The featured-provider block (§C-01, block 3).
+ * The featured-vendor block (§C-01, block 3).
  *
  * The chip row filters an already-loaded set rather than re-querying: the home
- * page ships a handful of providers, so filtering on the client keeps the grid
+ * page ships a handful of vendors, so filtering on the client keeps the grid
  * from flashing a skeleton for work that takes no time at all. Search — which
  * really does query — lives on /search.
  */
@@ -34,7 +34,7 @@ export function FeaturedProviders({
       <div
         className="rail -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1"
         role="group"
-        aria-label="Filter providers by service"
+        aria-label="Filter vendors by service"
       >
         <Chip label="All" active={active === null} onSelect={() => setActive(null)} />
         {categories.map((category) => (
@@ -57,14 +57,14 @@ export function FeaturedProviders({
               onClick={() => setActive(null)}
               className="tap-44 text-sm font-semibold text-brand-700 hover:underline"
             >
-              Show every provider
+              Show every vendor
             </button>
           }
         >
-          None of our featured providers offer {active} right now.
+          None of our featured vendors offer {active} right now.
         </EmptyState>
       ) : (
-        <Rail label="Featured providers">
+        <Rail label="Featured vendors">
           {shown.slice(0, 10).map((provider) => (
             <div
               key={provider.id}

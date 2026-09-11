@@ -1,7 +1,7 @@
 import { SLOT_GRANULARITY_MINUTES, TRANSITION_BUFFER_MINUTES } from "./constants";
 import type { Interval } from "./types";
 
-/** A provider's recurring weekly working window, in local wall-clock minutes. */
+/** A vendor's recurring weekly working window, in local wall-clock minutes. */
 export interface WorkingWindow {
   /** 0 = Sunday … 6 = Saturday, matching `Date#getDay`. */
   dayOfWeek: number;
@@ -37,7 +37,7 @@ export function overlaps(a: Interval, b: Interval): boolean {
 }
 
 /**
- * The window a booking actually occupies in a provider's calendar (spec §2):
+ * The window a booking actually occupies in a vendor's calendar (spec §2):
  * service duration + the 15-minute transition period.
  *
  * A 12:00–14:00 booking reserves 12:00–14:15.
@@ -55,7 +55,7 @@ export function reservationWindow(
   };
 }
 
-/** True when `window` sits entirely inside one of the provider's working windows. */
+/** True when `window` sits entirely inside one of the vendor's working windows. */
 export function withinWorkingHours(
   window: Interval,
   workingWindows: readonly WorkingWindow[],
@@ -73,7 +73,7 @@ export function withinWorkingHours(
 }
 
 /**
- * Whether a provider can take a booking starting at `appointmentStartAt`.
+ * Whether a vendor can take a booking starting at `appointmentStartAt`.
  *
  * This is the single gate used by both the customer slot picker and the
  * emergency broadcast matcher, which is what guarantees spec §7: an emergency
@@ -119,18 +119,18 @@ export function startOfWeek(at: Date): Date {
 export interface SlotOption {
   startAt: Date;
   endAt: Date;
-  /** Providers who can serve this slot — drives the broadcast shortlist. */
+  /** Vendors who can serve this slot — drives the broadcast shortlist. */
   availableProviderIds: string[];
 }
 
 /**
  * Every start time on `date` that falls inside at least one qualified
- * provider's working hours — whether or not anyone is actually free to take
+ * vendor's working hours — whether or not anyone is actually free to take
  * it.
  *
  * The customer's slot grid needs the unservable times as well as the servable
  * ones: a grid that silently omits 16:00 reads as "we do not work then",
- * whereas "no provider free" is the truth and is worth showing. Eligibility is
+ * whereas "no vendor free" is the truth and is worth showing. Eligibility is
  * still decided here, on the server — the client only renders what comes back.
  */
 export function buildDayGrid(
@@ -171,11 +171,11 @@ export function buildDayGrid(
 }
 
 /**
- * Every start time on `date` that at least one provider can serve for a basket
+ * Every start time on `date` that at least one vendor can serve for a basket
  * of `serviceDurationMinutes`.
  *
  * Slots are generated at 15-minute granularity, filtered against each
- * provider's real calendar, and any slot starting before `notBefore` (normally
+ * vendor's real calendar, and any slot starting before `notBefore` (normally
  * "now") is dropped so the picker cannot offer a time in the past.
  */
 export function buildSlotOptions(

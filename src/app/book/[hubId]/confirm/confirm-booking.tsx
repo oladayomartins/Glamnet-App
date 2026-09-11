@@ -36,9 +36,9 @@ export interface ConfirmQuote {
 /**
  * The single confirm step (§C-07), for a customer who already chose.
  *
- * Search hands over a provider, a service and a real start time, so re-asking
+ * Search hands over a vendor, a service and a real start time, so re-asking
  * all three would be asking twice. What is left is the part that genuinely
- * cannot be answered earlier: where to come, anything the provider should know,
+ * cannot be answered earlier: where to come, anything the vendor should know,
  * and the authorisation itself.
  *
  * The price shown here is not carried from the results page. It was recomputed
@@ -230,7 +230,7 @@ export function ConfirmBooking({
             className="mt-1 min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 py-2 text-[15px] outline-none transition duration-[180ms] focus:border-brand-400"
           />
           <span className="mt-1 block text-xs text-ink-muted">
-            Only released to your provider once they are on their way.
+            Only released to your vendor once they are on their way.
           </span>
         </label>
 
@@ -252,7 +252,7 @@ export function ConfirmBooking({
             value={referenceImage}
             onChange={setReferenceImage}
             label="Reference photo (optional)"
-            hint="Show the look you want, so your provider arrives prepared."
+            hint="Show the look you want, so your vendor arrives prepared."
             disabled={submitting}
           />
         ) : null}

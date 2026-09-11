@@ -8,7 +8,7 @@ import { requireOwnProvider } from "@/lib/auth/provider-guard";
 const schema = z.object({ isAcceptingWork: z.boolean() });
 
 /**
- * POST /api/providers/:id/availability — the provider's own on/off switch.
+ * POST /api/providers/:id/availability — the vendor's own on/off switch.
  *
  * Turning work off only stops new broadcasts reaching them; it never releases
  * a booking they have already accepted, which stays in their calendar and in
@@ -24,7 +24,7 @@ export async function POST(
     if ("response" in auth) return auth.response;
 
     const { id } = await params;
-    // A provider may only switch themselves off. Without this, the id in the
+    // A vendor may only switch themselves off. Without this, the id in the
     // path would be enough to take a competitor out of the broadcast pool.
     const denied = requireOwnProvider(auth.user, id);
     if (denied) return denied;

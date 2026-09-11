@@ -30,7 +30,7 @@ export function errorResponse(error: unknown) {
 
   // A transaction that could not start, or lost a write conflict, is
   // contention rather than a fault. Reporting it as 500 "Something went wrong"
-  // tells a provider nothing; 409 tells them to try again.
+  // tells a vendor nothing; 409 tells them to try again.
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&
     (error.code === "P2028" || error.code === "P2034")

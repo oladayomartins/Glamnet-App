@@ -63,7 +63,7 @@ export async function transitionBooking(
       where: { id: bookingId },
       data: {
         status: to,
-        // The address is released to the provider only at this step.
+        // The address is released to the vendor only at this step.
         ...(to === "ADDRESS_UNLOCKED" ? { addressUnlocked: true } : {}),
         ...(to === "CANCELLED" ? { cancelledReason: note } : {}),
       },
@@ -73,7 +73,7 @@ export async function transitionBooking(
       data: { bookingId, fromStatus: from, toStatus: to, actor, note },
     });
 
-    // Completing a job credits the provider's record, which feeds match ranking.
+    // Completing a job credits the vendor's record, which feeds match ranking.
     if (to === "COMPLETED" && booking.providerId) {
       await tx.provider.update({
         where: { id: booking.providerId },

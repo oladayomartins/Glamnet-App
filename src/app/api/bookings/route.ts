@@ -35,7 +35,7 @@ export async function GET(request: Request) {
  *
  * Corresponds to the point in the journey (spec §13) just after Stripe
  * pre-authorisation: the booking is created and immediately broadcast to the
- * top five eligible providers. Classification and price are recomputed here
+ * top five eligible vendors. Classification and price are recomputed here
  * from the request's intent, never read from the client.
  */
 export async function POST(request: Request) {

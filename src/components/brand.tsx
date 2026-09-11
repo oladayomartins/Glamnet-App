@@ -1,6 +1,6 @@
 /**
  * The GLAMNET mark: a map pin with a soft centre — the meeting point of a
- * provider and a customer. Location is the product.
+ * vendor and a customer. Location is the product.
  *
  * The teardrop is a square with three round corners and one sharp one, rotated
  * -45°. The metallic fill runs 135°, champagne into rose gold.

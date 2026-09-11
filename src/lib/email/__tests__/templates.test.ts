@@ -16,7 +16,7 @@ const normal: BookingEmailFacts = {
   appointmentLabel: "Fri 12 Sep, 14:00",
   amountLabel: "£125.50",
   sector: "SE1",
-  url: "https://glamnetapp.com/provider",
+  url: "https://glamnetapp.com/vendor",
 };
 
 const emergency: BookingEmailFacts = { ...normal, isEmergency: true };
@@ -44,7 +44,7 @@ describe("providerBroadcastEmail", () => {
     );
   });
 
-  it("shows the provider what they earn, not what the customer pays", () => {
+  it("shows the vendor what they earn, not what the customer pays", () => {
     const email = providerBroadcastEmail("Amara", normal);
     expect(email.html).toContain("You earn");
     expect(email.text).toContain("£125.50");
@@ -60,7 +60,7 @@ describe("providerBroadcastEmail", () => {
 });
 
 describe("customerBookingConfirmedEmail", () => {
-  it("names the provider who accepted", () => {
+  it("names the vendor who accepted", () => {
     const email = customerBookingConfirmedEmail("Joy", "Amara", normal);
     expect(email.html).toContain("Amara");
     expect(email.subject).toContain("Your booking is confirmed");

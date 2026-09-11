@@ -6,7 +6,7 @@ import { describeSurcharge, formatMoney } from "@/lib/format";
 
 /**
  * Read live from the database on every request. Without this Next prerenders
- * the page at build time, which would freeze the hub and provider data into
+ * the page at build time, which would freeze the hub and vendor data into
  * the build output.
  */
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function BookPage() {
           Where are you?
         </h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          Pick your Beauty Hub to see the professionals covering your area and
+          Pick your Beauty Hub to see the vendors covering your area and
           the times they are genuinely free — service duration, travel and the
           15-minute transition period all accounted for.
         </p>

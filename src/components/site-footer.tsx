@@ -25,7 +25,7 @@ export function SiteFooter() {
     {
       heading: "Professionals",
       links: [
-        { href: "/sign-up", label: "Become a provider" },
+        { href: "/become-a-vendor", label: "Become a vendor" },
         { href: "/sign-in", label: "Sign in" },
       ],
     },
@@ -56,7 +56,7 @@ export function SiteFooter() {
               </span>
             </div>
             <p className="mt-4 max-w-xs text-sm text-on-obsidian-muted">
-              Vetted hair, makeup and nail professionals, booked to your door —
+              Vetted hair, makeup and nail vendors, booked to your door —
               including at short notice.
             </p>
           </div>

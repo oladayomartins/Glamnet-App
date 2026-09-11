@@ -18,7 +18,7 @@ const PROBE_MINUTES = 60;
 const PROBE_STEP_MINUTES = 30;
 
 /**
- * Whether a provider could still take an hour's work in `[from, to)` today.
+ * Whether a vendor could still take an hour's work in `[from, to)` today.
  *
  * The probe runs through exactly the same gate as the customer slot
  * picker and the broadcast matcher — working hours, existing reservations

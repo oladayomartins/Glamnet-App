@@ -11,7 +11,7 @@ const approvalSchema = z.object({
 });
 
 /**
- * POST /api/admin/providers/:id/approval — vet a provider application.
+ * POST /api/admin/providers/:id/approval — vet a vendor application.
  *
  * Approving also opens them for work; rejecting closes it, so a rejected
  * application cannot keep receiving broadcasts through a stale flag.

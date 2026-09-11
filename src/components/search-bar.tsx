@@ -34,7 +34,7 @@ const DEBOUNCE_MS = 160;
  * A combobox rather than a plain field: the marketplace's whole promise is
  * that what you see is bookable, and a suggestion list is the earliest point
  * that promise can be kept — every row comes from the server already filtered
- * to services with a provider behind them and providers who are taking work.
+ * to services with a vendor behind them and vendors who are taking work.
  *
  * Submitting still goes to /search, which does the real query. The list is a
  * shortcut, not the only way through, so a customer who ignores it entirely

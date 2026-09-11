@@ -81,7 +81,7 @@ export default async function AccountPage({
             href={user.providerApproved ? `/provider/${user.providerId}` : "/provider/pending"}
             className="rounded-glam-sm bg-surface px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line"
           >
-            Provider dashboard
+            Vendor dashboard
           </Link>
         ) : null}
         {user.role === "ADMIN" ? (
@@ -142,7 +142,7 @@ export default async function AccountPage({
                 href="/"
                 className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
               >
-                Find a provider
+                Find a vendor
               </Link>
             }
           >
@@ -168,7 +168,7 @@ export default async function AccountPage({
                   </div>
                   <p className="mt-1 truncate text-xs text-ink-muted">
                     {booking.items.map((item) => item.name).join(" + ")}
-                    {booking.provider ? ` · ${booking.provider.name}` : " · awaiting provider"}
+                    {booking.provider ? ` · ${booking.provider.name}` : " · awaiting vendor"}
                   </p>
                 </div>
                 <span data-numeric className="text-sm font-bold text-ink">

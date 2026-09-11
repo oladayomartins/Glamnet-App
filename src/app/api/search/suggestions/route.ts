@@ -11,13 +11,13 @@ const PER_GROUP = 4;
  * GET /api/search/suggestions?q= — typeahead for the marketplace search.
  *
  * Public, because it only reads the catalogue a customer can already browse:
- * service names, the areas covered, and providers who are approved and taking
+ * service names, the areas covered, and vendors who are approved and taking
  * work. Nothing here is scoped to a viewer, so there is no session to check
  * and nothing a signed-out visitor could learn that the search page would not
  * already tell them.
  *
  * Every suggestion is something that leads somewhere. A service with no
- * provider behind it, or a provider who is not taking work, is not offered —
+ * vendor behind it, or a vendor who is not taking work, is not offered —
  * the point of a suggestion is that acting on it produces results.
  */
 export async function GET(request: Request) {

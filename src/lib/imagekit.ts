@@ -31,7 +31,7 @@ export function isImageKitConfigured(): boolean {
  * to sign with — but artwork that is already published and referenced from our
  * own source does not, and tying it to a deployment variable meant one unset
  * value silently replaced every photograph on the marketing pages with a
- * gradient. That is the correct behaviour for a provider who has not uploaded
+ * gradient. That is the correct behaviour for a vendor who has not uploaded
  * a photo; it is not correct for a picture we know exists.
  */
 const BRAND_MEDIA_ORIGIN = "https://ik.imagekit.io/glamnetapp";
@@ -94,7 +94,7 @@ export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
  * Whether a URL is one we are willing to render.
  *
  * Reference images arrive from customers. Rendering an arbitrary URL would let
- * a booking embed a tracker that fires for every provider and admin who opens
+ * a booking embed a tracker that fires for every vendor and admin who opens
  * it, so only our own delivery endpoint is trusted.
  */
 export function isTrustedImageUrl(url: string): boolean {

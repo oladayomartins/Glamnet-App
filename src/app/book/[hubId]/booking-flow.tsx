@@ -339,7 +339,7 @@ export function BookingFlow({
     <div className="space-y-8">
       <div>
         <Link href="/search" className="tap-44 text-sm text-ink-muted hover:text-brand-700">
-          ← All providers
+          ← All vendors
         </Link>
         <h1 className="mt-1 font-display text-2xl font-bold tracking-[-0.02em] text-ink">
           {hub.name}
@@ -429,7 +429,7 @@ export function BookingFlow({
               value={referenceImage}
               onChange={setReferenceImage}
               label="Reference photo"
-              hint="Show the look you want, so your provider arrives prepared."
+              hint="Show the look you want, so your vendor arrives prepared."
               disabled={submitting}
             />
           ) : (
@@ -441,7 +441,7 @@ export function BookingFlow({
             </p>
           )}
           <p className="mt-3 text-xs text-ink-muted">
-            A clear photo of the finished look, in good light. Your provider
+            A clear photo of the finished look, in good light. Your vendor
             sees it the moment they accept, so they arrive with the right kit.
             You can skip this and add one later.
           </p>
@@ -642,7 +642,7 @@ export function BookingFlow({
                   className="mt-1 min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 py-2 text-[15px] outline-none transition duration-[180ms] focus:border-brand-400"
                 />
                 <span className="mt-1 block text-xs text-ink-muted">
-                  Only released to your provider once they are on their way.
+                  Only released to your vendor once they are on their way.
                 </span>
               </label>
 
@@ -833,7 +833,7 @@ function SlotLegend() {
       </li>
       <li className="flex items-center gap-1.5">
         <span aria-hidden className="h-3 w-5 rounded-[4px] bg-sunken" />
-        <span className="line-through">No provider free</span>
+        <span className="line-through">No vendor free</span>
       </li>
     </ul>
   );

@@ -52,7 +52,7 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
         setCalendar(calendarPayload);
         // Emergency tickets come first. They have the least notice and the
         // shortest acceptance window, so burying one under three normal
-        // requests costs the provider the job.
+        // requests costs the vendor the job.
         setRequests(
           requestsResponse.ok
             ? [...(requestsPayload.requests as BroadcastRequest[])].sort(

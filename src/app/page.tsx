@@ -43,7 +43,7 @@ const HOW_IT_WORKS = [
   {
     icon: <MagnifyingGlass size={20} weight="light" />,
     title: "Search your sector",
-    body: "You only ever see services a vetted provider can actually deliver where you are.",
+    body: "You only ever see services a vetted vendor can actually deliver where you are.",
   },
   {
     icon: <Receipt size={20} weight="light" />,
@@ -53,7 +53,7 @@ const HOW_IT_WORKS = [
   {
     icon: <CalendarCheck size={20} weight="light" />,
     title: "Book and track",
-    body: "The first matched provider to accept takes the job, and you follow them to the door.",
+    body: "The first matched vendor to accept takes the job, and you follow them to the door.",
   },
 ];
 
@@ -77,7 +77,7 @@ function Container({
 /**
  * The customer home is a marketplace, not a dashboard.
  *
- * Five blocks in a fixed order — search hero, categories, featured providers,
+ * Five blocks in a fixed order — search hero, categories, featured vendors,
  * cities, how it works — and then the CTA band. Each block gets at most one
  * metal element, which is why the hero's submit, the active filter chip and
  * the CTA's primary button are the only metal on the page.
@@ -179,11 +179,11 @@ export default async function MarketingPage() {
             {/* 800, which is heavier than Instrument Sans could go at all —
                 the reason the display family exists. */}
             <h1 className="mt-4 font-display text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
-              Find a vetted beauty professional for every occasion
+              Find a vetted beauty vendor for every occasion
             </h1>
 
             <p className="mt-5 max-w-lg text-base text-ink-muted">
-              Hair, makeup and nails from professionals who come to you. Real
+              Hair, makeup and nails from vendors who come to you. Real
               availability, an itemised price before you pay, and someone at
               your door — today, if that is what you need.
             </p>
@@ -199,8 +199,8 @@ export default async function MarketingPage() {
                 value={String(stats.providerCount)}
                 label={
                   stats.providerCount === 1
-                    ? "Vetted provider"
-                    : "Vetted providers"
+                    ? "Vetted vendor"
+                    : "Vetted vendors"
                 }
               />
               <HeroFigure
@@ -224,7 +224,7 @@ export default async function MarketingPage() {
         <Container className="pt-14 sm:pt-16">
           <BlockHeading
             title="Browse service categories"
-            lede="Every category here has a provider behind it right now."
+            lede="Every category here has a vendor behind it right now."
             action={
               <SeeAll href="/search" />
             }
@@ -310,11 +310,11 @@ export default async function MarketingPage() {
         </Container>
       ) : null}
 
-      {/* ================= Block 3 — featured providers ================ */}
+      {/* ================= Block 3 — featured vendors ================ */}
       {cards.length > 0 ? (
         <Container className="pt-14 sm:pt-16">
           <BlockHeading
-            title="Featured providers"
+            title="Featured vendors"
             lede="Ranked by rating and completed work, never by what they paid us."
             action={<SeeAll href="/search" />}
           />
@@ -331,7 +331,7 @@ export default async function MarketingPage() {
           <Container>
             <BlockHeading
               title="Browse by city"
-              lede="Providers who already cover your area."
+              lede="Vendors who already cover your area."
             />
             <Rail label="Cities">
               {cities.map((city) => (
@@ -427,20 +427,20 @@ export default async function MarketingPage() {
                   href="/search"
                   className="inline-flex min-h-11 items-center gap-2 rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
                 >
-                  Find a provider
+                  Find a vendor
                   <ArrowRight size={15} weight="bold" aria-hidden />
                 </Link>
                 <Link
-                  href="/sign-up"
+                  href="/become-a-vendor"
                   className="inline-flex min-h-11 items-center rounded-full bg-surface px-6 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] ease-glam hover:bg-sunken active:scale-[0.98]"
                 >
-                  Become a provider
+                  Become a vendor
                 </Link>
               </div>
             </div>
 
             {/* Overlapping avatar stack. The overflow chip counts the
-                providers the stack could not show — a marketplace that
+                vendors the stack could not show — a marketplace that
                 inflates its own numbers here is contradicted by the search
                 page one click away. */}
             <div className="flex items-center gap-3">

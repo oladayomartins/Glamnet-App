@@ -9,7 +9,7 @@ import { TodayStrip } from "./today-strip";
 /** The dashboard reads live figures, so it must not be prerendered. */
 export const dynamic = "force-dynamic";
 
-/** Provider PWA dashboard: calendar plus the broadcast inbox (spec §2, §6). */
+/** Vendor PWA dashboard: calendar plus the broadcast inbox (spec §2, §6). */
 export default async function ProviderPage({
   params,
 }: {
@@ -17,8 +17,8 @@ export default async function ProviderPage({
 }) {
   const { id } = await params;
 
-  // A provider dashboard shows earnings, customer names and addresses, so it
-  // is limited to that provider and to admins.
+  // A vendor dashboard shows earnings, customer names and addresses, so it
+  // is limited to that vendor and to admins.
   const viewer = await requireUser(`/provider/${id}`);
   if (viewer.role !== "ADMIN" && viewer.providerId !== id) redirect("/forbidden");
   if (viewer.role === "PROVIDER" && !viewer.providerApproved) {
@@ -42,7 +42,7 @@ export default async function ProviderPage({
           href="/provider"
           className="tap-44 text-sm text-ink-muted hover:text-brand-700"
         >
-          ← All providers
+          ← All vendors
         </Link>
         <h1 className="mt-1 font-display text-2xl font-bold text-ink">
           {provider.name}
