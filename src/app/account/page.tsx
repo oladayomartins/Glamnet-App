@@ -1,19 +1,60 @@
 import Link from "next/link";
+import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/server/prisma";
-import { BookingTypeTag, EmptyState, SectionTitle, StatusPill } from "@/components/ui";
-import { formatDayTime, formatMoney } from "@/lib/format";
+import { BookingTypeTag, EmptyState, SectionTitle, LifecycleChip } from "@/components/ui";
+import { formatCustomerDayTime, formatMoney } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
+/** The three ways a customer looks for one of their own bookings (§C-11). */
+const TABS = [
+  { key: "upcoming", label: "Upcoming" },
+  { key: "past", label: "Past" },
+  { key: "cancelled", label: "Cancelled" },
+] as const;
+
+type Tab = (typeof TABS)[number]["key"];
+
 /** Where every signed-in user lands: their role decides what they see. */
-export default async function AccountPage() {
-  const user = await requireUser("/account");
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const [user, { tab: requestedTab }] = await Promise.all([
+    requireUser("/account"),
+    searchParams,
+  ]);
+
+  const tab: Tab = TABS.some((entry) => entry.key === requestedTab)
+    ? (requestedTab as Tab)
+    : "upcoming";
+
+  const now = new Date();
+  // Cancelled and disputed bookings leave the timeline entirely rather than
+  // sitting in Past: a customer looking for what happened wants the ones that
+  // happened.
+  const closed = ["CANCELLED", "EXPIRED", "DISPUTED"];
+  const tabFilter =
+    tab === "cancelled"
+      ? { status: { in: closed } }
+      : tab === "past"
+        ? {
+            status: { notIn: closed },
+            appointmentStartAt: { lt: now },
+          }
+        : {
+            status: { notIn: closed },
+            appointmentStartAt: { gte: now },
+          };
 
   const bookings = user.customerId
     ? await prisma.booking.findMany({
-        where: { customerId: user.customerId },
-        orderBy: { appointmentStartAt: "desc" },
+        where: { customerId: user.customerId, ...tabFilter },
+        // Upcoming reads forwards from now; the other two read backwards from
+        // the most recent.
+        orderBy: { appointmentStartAt: tab === "upcoming" ? "asc" : "desc" },
         take: 20,
         include: { items: true, provider: { select: { name: true } } },
       })
@@ -63,13 +104,51 @@ export default async function AccountPage() {
 
       <section>
         <SectionTitle hint={`${bookings.length} shown`}>Your bookings</SectionTitle>
-        {bookings.length === 0 ? (
-          <EmptyState>
-            No bookings yet.{" "}
-            <Link href="/book" className="font-semibold text-brand-700 hover:underline">
-              Book your first service
+
+        <div
+          className="mb-3 flex flex-wrap gap-2"
+          role="tablist"
+          aria-label="Booking history"
+        >
+          {TABS.map((entry) => (
+            <Link
+              key={entry.key}
+              href={`/account?tab=${entry.key}`}
+              role="tab"
+              aria-selected={tab === entry.key}
+              className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition duration-[180ms] ease-glam ${
+                tab === entry.key
+                  ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200"
+                  : "bg-surface text-ink-muted ring-1 ring-line hover:text-ink"
+              }`}
+            >
+              {entry.label}
             </Link>
-            .
+          ))}
+        </div>
+
+        {bookings.length === 0 ? (
+          <EmptyState
+            icon={<CalendarBlank size={24} weight="light" />}
+            title={
+              tab === "upcoming"
+                ? "Nothing booked yet"
+                : tab === "past"
+                  ? "No completed bookings"
+                  : "Nothing cancelled"
+            }
+            action={
+              <Link
+                href="/"
+                className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
+              >
+                Find a provider
+              </Link>
+            }
+          >
+            {tab === "upcoming"
+              ? "When you book someone, the appointment and its live status appear here."
+              : "Bookings move into this tab once they are behind you."}
           </EmptyState>
         ) : (
           <div className="space-y-2">
@@ -82,9 +161,9 @@ export default async function AccountPage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <BookingTypeTag bookingType={booking.bookingType} size="sm" />
-                    <StatusPill status={booking.status} />
+                    <LifecycleChip status={booking.status} />
                     <span className="text-sm font-semibold text-ink">
-                      {formatDayTime(booking.appointmentStartAt)}
+                      {formatCustomerDayTime(booking.appointmentStartAt)}
                     </span>
                   </div>
                   <p className="mt-1 truncate text-xs text-ink-muted">
@@ -92,7 +171,7 @@ export default async function AccountPage() {
                     {booking.provider ? ` · ${booking.provider.name}` : " · awaiting provider"}
                   </p>
                 </div>
-                <span className="text-sm font-bold tabular-nums text-ink">
+                <span data-numeric className="text-sm font-bold text-ink">
                   {formatMoney(booking.totalInvoicePriceMinor)}
                 </span>
               </Link>

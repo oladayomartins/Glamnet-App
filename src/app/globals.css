@@ -93,8 +93,21 @@
   --glam-shadow-card: 0 6px 20px oklch(0.2 0.01 285 / 0.08);
   --glam-shadow-raised: 0 18px 46px oklch(0.2 0.01 285 / 0.1);
 
-  /* --- Motion [§11] ----------------------------------------------------- */
+  /* --- Motion [§11] -----------------------------------------------------
+     One easing curve for everything. No bounce, no spin, no confetti.
+     The durations are tokens rather than literals because the same beat has
+     to be reused by a chip, a sheet and a theme swap without drifting. */
   --glam-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --glam-press: 120ms;
+  --glam-hover: 180ms;
+  --glam-sheet: 240ms;
+  --glam-screen: 320ms;
+  --glam-shimmer: 1400ms;
+  /* Live states breathe at 1.8s. Emergency breathes SLOWER, at 2.2s: urgency
+     lives in colour and copy, never in frame rate. */
+  --glam-breathe: 1800ms;
+  --glam-breathe-emergency: 2200ms;
+  --glam-pulse: 3200ms;
 }
 
 [data-theme="dark"] {
@@ -232,6 +245,59 @@ time,
   }
 
   /*
+   * Skeleton shimmer — 1400ms linear, champagne highlight. [§11]
+   *
+   * A card that is loading keeps its own footprint and shimmers in place;
+   * it never collapses to a spinner, because a spinner throws the grid away
+   * and then throws it back.
+   */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--glam-surface-sunken);
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--glam-champagne-100) 50%,
+      transparent 100%
+    );
+    animation: glam-shimmer var(--glam-shimmer) linear infinite;
+  }
+
+  /*
+   * The single pulse ring. One per screen — the searching state and the live
+   * map presence are each allowed exactly one. [§11]
+   */
+  .pulse-ring::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 1px solid currentColor;
+    animation: glam-pulse var(--glam-pulse) var(--glam-ease) infinite;
+  }
+
+  /* Live / en-route / in-progress chips. */
+  .breathe {
+    animation: glam-breathe var(--glam-breathe) var(--glam-ease) infinite;
+  }
+  /* The emergency bolt. Deliberately the slowest thing on the screen. */
+  .breathe-emergency {
+    animation: glam-breathe var(--glam-breathe-emergency) var(--glam-ease) infinite;
+  }
+
+  /* Map provider pins: 6px of travel, staggered so they never move in unison. */
+  .float {
+    animation: glam-float 5200ms ease-in-out infinite;
+  }
+
+  /*
    * The 15-minute transition block. Booked time is always drawn as service
    * block + hatched tail, and the hatch is the visual signature of GlamNet's
    * availability engine — never hide it. [§09]
@@ -266,6 +332,43 @@ time,
     top: 50%;
     height: 44px;
     transform: translateY(-50%);
+  }
+}
+
+@keyframes glam-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes glam-pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+@keyframes glam-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes glam-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
   }
 }
 

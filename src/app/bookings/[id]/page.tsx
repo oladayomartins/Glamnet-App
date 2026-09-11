@@ -2,12 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { requireUser } from "@/lib/auth/session";
-import { BookingTypeTag, Card, SectionTitle, StatusPill } from "@/components/ui";
+import { BookingTypeTag, Card, SectionTitle, LifecycleChip } from "@/components/ui";
 import {
-  formatDayTime,
+  formatCustomerDayTime,
+  formatCustomerTime,
   formatDuration,
   formatMoney,
-  formatTime,
 } from "@/lib/format";
 import { BOOKING_STATUSES } from "@/lib/domain/types";
 
@@ -82,17 +82,38 @@ export default async function BookingPage({
         <Link href="/" className="tap-44 text-sm text-ink-muted hover:text-brand-700">
           ← Home
         </Link>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h1 className="font-display text-2xl font-bold text-ink">
-            {formatDayTime(booking.appointmentStartAt)}
-          </h1>
-          <BookingTypeTag bookingType={booking.bookingType} />
-          <StatusPill status={booking.status} />
-        </div>
+        <h1 className="mt-1 font-display text-2xl font-bold tracking-[-0.02em] text-ink">
+          {formatCustomerDayTime(booking.appointmentStartAt)}
+        </h1>
         <p className="mt-1 text-sm text-ink-muted">
           {booking.hub.name} · {booking.hub.sector} ·{" "}
           {formatDuration(booking.serviceDurationMinutes)} of services
         </p>
+
+        {/*
+          Status and type are two fields, never merged into one label. The
+          operational chip moves through the lifecycle on its own colour scale
+          while the red EMERGENCY tag rides alongside it the whole way — a
+          single combined label would have to choose between them.
+        */}
+        <dl className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex items-center gap-2">
+            <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+              Status
+            </dt>
+            <dd>
+              <LifecycleChip status={booking.status} />
+            </dd>
+          </div>
+          <div className="flex items-center gap-2">
+            <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+              Type
+            </dt>
+            <dd>
+              <BookingTypeTag bookingType={booking.bookingType} />
+            </dd>
+          </div>
+        </dl>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -109,7 +130,9 @@ export default async function BookingPage({
             ))}
           </ul>
           <dl className="mt-4 space-y-1 border-t border-line pt-3 text-sm">
-            <Row label="Booked">{formatDayTime(booking.bookingCreatedAt)}</Row>
+            <Row label="Booked">
+              {formatCustomerDayTime(booking.bookingCreatedAt)}
+            </Row>
             <Row label="Notice given">
               {formatDuration(Math.max(0, booking.noticePeriodMinutes))}
             </Row>
@@ -117,8 +140,8 @@ export default async function BookingPage({
               {formatDuration(booking.thresholdMinutesUsed)}
             </Row>
             <Row label="Provider time reserved">
-              {formatTime(booking.appointmentStartAt)}–
-              {formatTime(booking.reservedUntilAt)} (
+              {formatCustomerTime(booking.appointmentStartAt)}–
+              {formatCustomerTime(booking.reservedUntilAt)} (
               {formatDuration(booking.reservedDurationMinutes)}, incl. transition)
             </Row>
             {booking.provider ? (
@@ -158,12 +181,12 @@ export default async function BookingPage({
         <ol className="grid gap-1 sm:grid-cols-2">
           {BOOKING_STATUSES.map((status, index) => {
             const reached = reachedIndex >= index;
+            const current = reachedIndex === index;
             return (
               <li
                 key={status}
-                className={`flex items-center gap-2 rounded-glam-sm px-2 py-1 text-sm ${
-                  reached ? "text-ink" : "text-ink-muted/60"
-                }`}
+                aria-current={current ? "step" : undefined}
+                className="flex items-center gap-2 rounded-glam-sm px-2 py-1"
               >
                 <span
                   aria-hidden
@@ -171,7 +194,15 @@ export default async function BookingPage({
                     reached ? "bg-brand-700" : "bg-line"
                   }`}
                 />
-                {status.replaceAll("_", " ").toLowerCase()}
+                {current ? (
+                  <LifecycleChip status={status} size="sm" />
+                ) : (
+                  <span
+                    className={`text-sm ${reached ? "text-ink" : "text-ink-muted/60"}`}
+                  >
+                    {status.replaceAll("_", " ").toLowerCase()}
+                  </span>
+                )}
               </li>
             );
           })}

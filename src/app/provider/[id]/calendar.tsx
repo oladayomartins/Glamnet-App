@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Lightning } from "@phosphor-icons/react/dist/ssr";
-import { BookingTypeTag, EmptyState, StatusPill } from "@/components/ui";
+import { BookingTypeTag, EmptyState, LifecycleChip } from "@/components/ui";
 import { formatDay, formatDuration, formatMoney, formatTime } from "@/lib/format";
 
 export interface CalendarEntry {
@@ -323,7 +323,7 @@ function EntryList({ entries }: { entries: CalendarEntry[] }) {
                   {formatTime(entry.appointmentEndAt)}
                 </span>
                 <BookingTypeTag bookingType={entry.bookingType} size="sm" />
-                <StatusPill status={entry.status} />
+                <LifecycleChip status={entry.status} />
               </div>
               <p className="mt-0.5 text-xs text-ink-muted">
                 {entry.customerName} · {entry.services.join(" + ")} ·{" "}

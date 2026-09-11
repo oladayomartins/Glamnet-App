@@ -12,10 +12,30 @@ export function formatDuration(minutes: number): string {
   return `${hours}h ${mins}m`;
 }
 
-/** "18:00" in the viewer's locale. */
+/**
+ * "18:00" — 24-hour time, for the provider and admin apps.
+ *
+ * The two clocks are separate functions rather than one with a flag because
+ * the choice is not a preference: the brand voice fixes 24-hour time for
+ * providers, who are reading a shift, and 12-hour for customers, who are
+ * reading an appointment. A flag invites a screen to pick the wrong one.
+ */
 export function formatTime(value: Date | string): string {
   const date = typeof value === "string" ? new Date(value) : value;
   return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** "6:00 pm" — 12-hour time, for every customer-facing screen. */
+export function formatCustomerTime(value: Date | string): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return date
+    .toLocaleTimeString("en-GB", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    // en-GB renders "6:00 pm"; some runtimes narrow it to "6:00 p.m.".
+    .replace(/\u202f/g, " ");
 }
 
 /** "Wed 1 Apr", with "Today" and "Tomorrow" called out. */
@@ -39,9 +59,14 @@ export function formatDay(value: Date | string): string {
   });
 }
 
-/** "Today, 6:00 PM" — the format the spec uses on the provider broadcast. */
+/** "Today, 18:00" — the format the spec uses on the provider broadcast. */
 export function formatDayTime(value: Date | string): string {
   return `${formatDay(value)}, ${formatTime(value)}`;
+}
+
+/** "Today, 6:00 pm" — the same thing on a customer screen. */
+export function formatCustomerDayTime(value: Date | string): string {
+  return `${formatDay(value)}, ${formatCustomerTime(value)}`;
 }
 
 /** "YYYY-MM-DD" in local time, for date inputs and calendar query params. */

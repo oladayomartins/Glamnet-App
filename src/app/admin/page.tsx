@@ -3,7 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { requireRole } from "@/lib/auth/session";
 import { buildEmergencyReport } from "@/lib/server/reporting";
 import { getActiveEmergencyConfig } from "@/lib/server/emergency-config";
-import { BookingTypeTag, Card, EmptyState, SectionTitle, StatusPill } from "@/components/ui";
+import { BookingTypeTag, Card, EmptyState, SectionTitle, LifecycleChip } from "@/components/ui";
 import {
   describeSurcharge,
   formatDayTime,
@@ -185,7 +185,7 @@ export default async function AdminPage({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <BookingTypeTag bookingType={booking.bookingType} size="sm" />
-                    <StatusPill status={booking.status} />
+                    <LifecycleChip status={booking.status} />
                     <span className="text-sm font-semibold text-ink">
                       {formatDayTime(booking.appointmentStartAt)}
                     </span>
