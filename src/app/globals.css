@@ -230,11 +230,18 @@
 
   --ease-glam: var(--glam-ease);
 
-  /* Two families only. No third font, ever. [§03]
-     `display` is the same family as `sans` — the display voice comes from
-     weight and tight tracking, not from a second typeface. */
+  /* Three families, and no more: sans for everything human, display for
+     headings only, mono for everything exact. [§03]
+
+     Display was the same family as sans, on the reasoning that the display
+     voice comes from weight and tracking rather than a second face. That
+     reasoning runs out at 700, which is where Instrument Sans stops — so a
+     heading could never be heavier than bold body copy. Bricolage Grotesque
+     is still a grotesque, so this adds a weight the page was missing without
+     adding a second personality. */
   --font-sans: var(--font-brand-sans), Helvetica, ui-sans-serif, sans-serif;
-  --font-display: var(--font-brand-sans), Helvetica, ui-sans-serif, sans-serif;
+  --font-display: var(--font-brand-display), var(--font-brand-sans), Helvetica,
+    ui-sans-serif, sans-serif;
   --font-mono: var(--font-brand-mono), ui-monospace, monospace;
 }
 

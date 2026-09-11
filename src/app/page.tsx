@@ -150,8 +150,22 @@ export default async function MarketingPage() {
           className="aspect-[8/3] w-full object-cover object-[70%_center] lg:absolute lg:inset-0 lg:h-full lg:object-right"
         />
 
-        <Container className="relative py-10 lg:py-28">
-          <div className="max-w-lg">
+        <Container className="relative py-10 lg:py-20 xl:py-24">
+          {/*
+            The copy column is wide rather than clamped to `max-w-lg`. A narrow
+            column inside a full-bleed band reads as floating in the middle of
+            the cream instead of sitting on the page grid, and it was also what
+            kept the search bar short — the bar can only be as wide as the
+            column holding it.
+          */}
+          {/*
+            Widened so the search bar has somewhere to go — a bar can only be as
+            wide as the column holding it — but not to the full band. Between
+            1024px and 1280px the photograph's cream half is at its narrowest
+            relative to the copy, so the column only takes its full width once
+            there is room for it.
+          */}
+          <div className="max-w-[34rem] xl:max-w-[38rem]">
             <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
               {/* Jade means live. One breathing dot, and the words carry the
                   meaning on their own if the motion is switched off. */}
@@ -162,17 +176,19 @@ export default async function MarketingPage() {
               Beauty, at your door
             </p>
 
-            <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-ink sm:text-5xl">
+            {/* 800, which is heavier than Instrument Sans could go at all —
+                the reason the display family exists. */}
+            <h1 className="mt-4 font-display text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
               Find a vetted beauty professional for every occasion
             </h1>
 
-            <p className="mt-4 max-w-md text-[15px] text-ink-muted">
+            <p className="mt-5 max-w-lg text-base text-ink-muted">
               Hair, makeup and nails from professionals who come to you. Real
               availability, an itemised price before you pay, and someone at
               your door — today, if that is what you need.
             </p>
 
-            <div className="mt-7 max-w-xl">
+            <div className="mt-8">
               <SearchBar areas={areas} />
             </div>
 
