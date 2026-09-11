@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { getPricingContext } from "@/lib/server/emergency-config";
+import { requireUser } from "@/lib/auth/session";
 import { BookingFlow } from "./booking-flow";
 
 /**
@@ -14,14 +15,17 @@ export default async function BookPage({
 }) {
   const { hubId } = await params;
 
-  const [hub, services, customers, { config, thresholdMinutes }] =
+  // Booking requires an account: the booking is placed against a real
+  // customer record, and payment is authorised against them.
+  const viewer = await requireUser(`/book/${hubId}`);
+
+  const [hub, services, { config, thresholdMinutes }] =
     await Promise.all([
       prisma.hub.findUnique({ where: { id: hubId } }),
       prisma.service.findMany({
         where: { isActive: true, providers: { some: { provider: { hubId } } } },
         orderBy: [{ kind: "asc" }, { category: "asc" }, { name: "asc" }],
       }),
-      prisma.customer.findMany({ orderBy: { name: "asc" } }),
       getPricingContext(),
     ]);
 
@@ -31,7 +35,8 @@ export default async function BookPage({
     <BookingFlow
       hub={hub}
       services={services}
-      customers={customers}
+      customerId={viewer.customerId}
+      customerName={viewer.email}
       thresholdMinutes={thresholdMinutes}
       surchargeType={config?.surchargeType ?? null}
       surchargeValue={config?.surchargeValue ?? null}

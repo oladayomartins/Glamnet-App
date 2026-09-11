@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
+import { requireUser } from "@/lib/auth/session";
 import { ProviderDashboard } from "./dashboard";
 
 /** Provider PWA dashboard: calendar plus the broadcast inbox (spec §2, §6). */
@@ -10,6 +11,14 @@ export default async function ProviderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // A provider dashboard shows earnings, customer names and addresses, so it
+  // is limited to that provider and to admins.
+  const viewer = await requireUser(`/provider/${id}`);
+  if (viewer.role !== "ADMIN" && viewer.providerId !== id) redirect("/forbidden");
+  if (viewer.role === "PROVIDER" && !viewer.providerApproved) {
+    redirect("/provider/pending");
+  }
 
   const provider = await prisma.provider.findUnique({
     where: { id },

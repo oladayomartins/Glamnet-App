@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
+import { requireUser } from "@/lib/auth/session";
 import { SectionTitle } from "@/components/ui";
 
 /**
@@ -14,6 +16,17 @@ export const dynamic = "force-dynamic";
  * this build lists them so the dashboard and calendar can be demonstrated.
  */
 export default async function ProviderIndexPage() {
+  // This listed every provider so you could click in as any of them. With
+  // real accounts a provider goes straight to their own dashboard; only an
+  // admin sees the roster.
+  const viewer = await requireUser("/provider");
+  if (viewer.role === "PROVIDER") {
+    redirect(
+      viewer.providerApproved ? `/provider/${viewer.providerId}` : "/provider/pending",
+    );
+  }
+  if (viewer.role !== "ADMIN") redirect("/forbidden");
+
   const providers = await prisma.provider.findMany({
     orderBy: [{ rating: "desc" }, { name: "asc" }],
     include: {

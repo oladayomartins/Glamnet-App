@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/server/prisma";
+import { requireRole } from "@/lib/auth/session";
 import { buildEmergencyReport } from "@/lib/server/reporting";
 import { getActiveEmergencyConfig } from "@/lib/server/emergency-config";
 import { BookingTypeTag, Card, EmptyState, SectionTitle, StatusPill } from "@/components/ui";
@@ -35,6 +36,9 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ filter?: string }>;
 }) {
+  // Admin only. Previously this page and its data were public.
+  await requireRole("ADMIN", "/admin");
+
   const { filter: rawFilter } = await searchParams;
   const filter: Filter = (FILTERS as readonly string[]).includes(rawFilter ?? "")
     ? (rawFilter as Filter)
@@ -65,6 +69,12 @@ export default async function AdminPage({
           Emergency performance, commercial configuration and the full booking
           ledger.
         </p>
+        <Link
+          href="/admin/providers"
+          className="mt-3 inline-flex rounded-glam-sm bg-surface px-4 py-2 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-sunken"
+        >
+          Review provider applications →
+        </Link>
       </div>
 
       {/* --- Reporting (spec §10) --------------------------------------- */}

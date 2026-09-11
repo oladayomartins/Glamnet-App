@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
+import { requireUser } from "@/lib/auth/session";
 import { BookingTypeTag, Card, SectionTitle, StatusPill } from "@/components/ui";
 import {
   formatDayTime,
@@ -32,6 +33,16 @@ export default async function BookingPage({
   });
 
   if (!booking) notFound();
+
+  // Ownership, not just sign-in: a booking carries an address and a price.
+  // notFound() rather than a forbidden page, so an outsider cannot learn that
+  // a given booking id exists.
+  const viewer = await requireUser(`/bookings/${id}`);
+  const mayView =
+    viewer.role === "ADMIN" ||
+    viewer.customerId === booking.customerId ||
+    (booking.providerId !== null && viewer.providerId === booking.providerId);
+  if (!mayView) notFound();
 
   const reachedIndex = BOOKING_STATUSES.indexOf(
     booking.status as (typeof BOOKING_STATUSES)[number],

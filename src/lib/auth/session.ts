@@ -47,20 +47,92 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const email = user.email.toLowerCase();
   const shouldBeAdmin = adminEmails().includes(email);
 
-  // First sign-in creates the profile. The role comes from server config,
-  // never from anything the client supplied.
-  const appUser = await prisma.appUser.upsert({
+  // Sign-up intent arrives in Supabase user_metadata, which the user can edit
+  // themselves — so it is treated as a request, not a fact. Only CUSTOMER and
+  // PROVIDER are honoured; ADMIN can never come from here. Self-declaring
+  // PROVIDER grants nothing on its own, because a new provider is PENDING and
+  // the matching query only broadcasts to APPROVED ones.
+  const requested = String(user.user_metadata?.role ?? "").toUpperCase();
+  const requestedRole: Role = requested === "PROVIDER" ? "PROVIDER" : "CUSTOMER";
+  const displayName =
+    String(user.user_metadata?.name ?? "").trim() || email.split("@")[0];
+
+  const existing = await prisma.appUser.findUnique({
     where: { authUserId: user.id },
-    create: {
-      authUserId: user.id,
-      email,
-      role: shouldBeAdmin ? "ADMIN" : "CUSTOMER",
-    },
-    // Keep the admin allowlist authoritative on every sign-in, so revoking an
-    // email in configuration actually removes the role.
-    update: shouldBeAdmin ? { role: "ADMIN", email } : { email },
     include: { customer: true, provider: true },
   });
+
+  let appUser = existing;
+
+  if (!appUser) {
+    // First sign-in: create the login and the matching profile together, so a
+    // signed-in user always has somewhere to hang bookings or work.
+    appUser = await prisma.$transaction(async (tx) => {
+      const created = await tx.appUser.create({
+        data: {
+          authUserId: user.id,
+          email,
+          role: shouldBeAdmin ? "ADMIN" : requestedRole,
+        },
+      });
+
+      if (!shouldBeAdmin && requestedRole === "PROVIDER") {
+        const hubId = String(user.user_metadata?.hubId ?? "");
+        const hub =
+          (hubId ? await tx.hub.findUnique({ where: { id: hubId } }) : null) ??
+          (await tx.hub.findFirst({ orderBy: { name: "asc" } }));
+
+        if (hub) {
+          await tx.provider.create({
+            data: {
+              name: displayName,
+              email,
+              hubId: hub.id,
+              appUserId: created.id,
+              // Never APPROVED on creation: vetting is the point.
+              approvalStatus: "PENDING",
+              isAcceptingWork: false,
+              rating: 5,
+              completedBookings: 0,
+            },
+          });
+        }
+      } else if (!shouldBeAdmin) {
+        // An existing seeded customer with this email adopts the new login
+        // rather than being duplicated.
+        const claimed = await tx.customer.findUnique({ where: { email } });
+        if (claimed && claimed.appUserId === null) {
+          await tx.customer.update({
+            where: { id: claimed.id },
+            data: { appUserId: created.id },
+          });
+        } else if (!claimed) {
+          await tx.customer.create({
+            data: { name: displayName, email, appUserId: created.id },
+          });
+        }
+      }
+
+      return tx.appUser.findUniqueOrThrow({
+        where: { id: created.id },
+        include: { customer: true, provider: true },
+      });
+    });
+  } else if (shouldBeAdmin && appUser.role !== "ADMIN") {
+    // Keep the allowlist authoritative: adding an email promotes on next
+    // sign-in, and removing it demotes.
+    appUser = await prisma.appUser.update({
+      where: { id: appUser.id },
+      data: { role: "ADMIN" },
+      include: { customer: true, provider: true },
+    });
+  } else if (!shouldBeAdmin && appUser.role === "ADMIN") {
+    appUser = await prisma.appUser.update({
+      where: { id: appUser.id },
+      data: { role: "CUSTOMER" },
+      include: { customer: true, provider: true },
+    });
+  }
 
   return {
     appUserId: appUser.id,

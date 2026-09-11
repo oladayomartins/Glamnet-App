@@ -38,11 +38,6 @@ interface Service {
   category: string;
 }
 
-interface Customer {
-  id: string;
-  name: string;
-}
-
 interface Slot {
   startAt: string;
   endAt: string;
@@ -86,14 +81,16 @@ interface Quote {
 export function BookingFlow({
   hub,
   services,
-  customers,
+  customerId,
+  customerName,
   thresholdMinutes,
   surchargeType,
   surchargeValue,
 }: {
   hub: Hub;
   services: Service[];
-  customers: Customer[];
+  customerId: string | null;
+  customerName: string;
   thresholdMinutes: number;
   surchargeType: string | null;
   surchargeValue: number | null;
@@ -115,7 +112,6 @@ export function BookingFlow({
     key: string;
     quote: Quote;
   } | null>(null);
-  const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
   const [addressLine, setAddressLine] = useState("");
   const [notes, setNotes] = useState("");
   const [referenceImageUrl, setReferenceImageUrl] = useState("");
@@ -493,20 +489,10 @@ export function BookingFlow({
             </Card>
 
             <Card className="space-y-3 p-4">
-              <label className="block">
-                <span className="text-sm font-medium text-ink">Booking as</span>
-                <select
-                  value={customerId}
-                  onChange={(event) => setCustomerId(event.target.value)}
-                  className="mt-1 min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
-                >
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <p className="text-sm text-ink-muted">
+                Booking as{" "}
+                <span className="font-medium text-ink">{customerName}</span>
+              </p>
 
               <label className="block">
                 <span className="text-sm font-medium text-ink">Your address</span>

@@ -3,6 +3,7 @@ import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { GlamNetPin } from "@/components/brand";
+import { getSessionUser } from "@/lib/auth/session";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -48,10 +49,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/** Public navigation. Role-specific links are added from the session below. */
 const NAV = [
-  { href: "/", label: "Book" },
-  { href: "/provider", label: "Provider" },
-  { href: "/admin", label: "Admin" },
+  { href: "/search", label: "Find a service" },
+  { href: "/book", label: "Book" },
 ];
 
 /**
@@ -63,7 +64,19 @@ const NAV = [
  * threshold is stated with its live value on the screens where it actually
  * matters (the home page and checkout), which load it themselves.
  */
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // The only data this layout reads is the viewer's own session, which is
+  // request-scoped and cannot be prerendered — so it does not reintroduce the
+  // build-time database dependency that the 404 page was tripping over.
+  const user = await getSessionUser();
+
+  const roleLinks = [
+    ...(user?.role === "PROVIDER"
+      ? [{ href: "/account", label: "My work" }]
+      : []),
+    ...(user?.role === "ADMIN" ? [{ href: "/admin", label: "Admin" }] : []),
+  ];
+
   return (
     <html
       lang="en-GB"
@@ -89,15 +102,32 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </span>
               </Link>
               <nav className="flex items-center gap-1" aria-label="Main">
-                {NAV.map((item) => (
+                {[...NAV, ...roleLinks].map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="tap-44 rounded-glam-sm px-3 py-1.5 text-sm font-medium text-ink-muted transition hover:bg-brand-50 hover:text-brand-700"
+                    className="tap-44 hidden rounded-glam-sm px-3 py-1.5 text-sm font-medium text-ink-muted transition hover:bg-brand-50 hover:text-brand-700 sm:inline-flex"
                   >
                     {item.label}
                   </Link>
                 ))}
+
+                {user ? (
+                  <Link
+                    href="/account"
+                    className="tap-44 rounded-glam-sm px-3 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                  >
+                    Account
+                  </Link>
+                ) : (
+                  <Link
+                    href="/sign-in"
+                    className="tap-44 rounded-glam-sm px-3 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                  >
+                    Sign in
+                  </Link>
+                )}
+
                 <ThemeToggle />
               </nav>
             </div>
