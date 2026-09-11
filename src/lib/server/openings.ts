@@ -20,7 +20,7 @@ const PROBE_STEP_MINUTES = 30;
 /**
  * Whether a provider could still take an hour's work in `[from, to)` today.
  *
- * Both probes below run through exactly the same gate as the customer slot
+ * The probe runs through exactly the same gate as the customer slot
  * picker and the broadcast matcher — working hours, existing reservations
  * (which already carry the 15-minute transition) and blocked periods. That is
  * what stops a card badge or a filter from promising something the
@@ -50,12 +50,4 @@ function hasOpening(
 /** Backs the `Free tonight` badge — this evening specifically, not "today". */
 export function isFreeTonight(schedule: ProviderSchedule, now: Date): boolean {
   return hasOpening(schedule, now, EVENING_FROM_MINUTE, EVENING_TO_MINUTE);
-}
-
-/** Backs the "available today" filter — anywhere in the rest of the day. */
-export function hasOpeningToday(
-  schedule: ProviderSchedule,
-  now: Date,
-): boolean {
-  return hasOpening(schedule, now, 0, 24 * 60);
 }

@@ -146,16 +146,3 @@ export function ProviderCardSkeleton() {
     </div>
   );
 }
-
-/**
- * The grid every list of providers uses. `auto-fill` with a minimum track
- * means it reflows four-up to one-up on its own — there is no breakpoint here
- * to keep in step with the search page's.
- */
-export function ProviderGrid({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(216px,1fr))]">
-      {children}
-    </div>
-  );
-}
