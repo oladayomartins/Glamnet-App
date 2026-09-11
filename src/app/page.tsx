@@ -94,7 +94,7 @@ export default async function MarketingPage() {
   }));
 
   return (
-    <div className="space-y-16 pb-6 sm:space-y-20">
+    <div data-page-width="wide" className="space-y-16 pb-6 sm:space-y-20">
       {/* ================= Block 1 — search hero ====================== */}
       <section className="grid items-center gap-8 lg:grid-cols-[1.1fr_1fr]">
         <div>

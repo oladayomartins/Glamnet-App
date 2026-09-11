@@ -45,7 +45,7 @@ export default async function ProviderProfilePage({
       : null;
 
   return (
-    <div className="space-y-8 pb-6">
+    <div data-page-width="wide" className="space-y-8 pb-6">
       <Link
         href="/search"
         className="tap-44 text-sm text-ink-muted hover:text-brand-700"
