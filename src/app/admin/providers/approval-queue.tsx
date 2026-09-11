@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, EmptyState, StatusPill } from "@/components/ui";
+import { Button, Card, EmptyState, Pill } from "@/components/ui";
 
 export interface QueueProvider {
   id: string;
@@ -75,7 +75,9 @@ export function ApprovalQueue({
                   <h3 className="font-display text-lg font-semibold text-ink">
                     {provider.name}
                   </h3>
-                  <StatusPill status={provider.status} />
+                  <Pill tone={provider.status === "APPROVED" ? "positive" : provider.status === "REJECTED" ? "muted" : "neutral"}>
+                    {provider.status.toLowerCase()}
+                  </Pill>
                 </div>
                 <p className="mt-0.5 font-mono text-xs text-ink-muted">
                   {provider.email}

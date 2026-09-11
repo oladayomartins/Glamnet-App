@@ -124,6 +124,53 @@ export interface SlotOption {
 }
 
 /**
+ * Every start time on `date` that falls inside at least one qualified
+ * provider's working hours — whether or not anyone is actually free to take
+ * it.
+ *
+ * The customer's slot grid needs the unservable times as well as the servable
+ * ones: a grid that silently omits 16:00 reads as "we do not work then",
+ * whereas "no provider free" is the truth and is worth showing. Eligibility is
+ * still decided here, on the server — the client only renders what comes back.
+ */
+export function buildDayGrid(
+  date: Date,
+  serviceDurationMinutes: number,
+  schedules: readonly ProviderSchedule[],
+  notBefore: Date,
+): SlotOption[] {
+  const dayStart = startOfLocalDay(date);
+  const dayEnd = addDays(dayStart, 1);
+  const grid: SlotOption[] = [];
+
+  for (
+    let cursor = dayStart;
+    cursor.getTime() < dayEnd.getTime();
+    cursor = addMinutes(cursor, SLOT_GRANULARITY_MINUTES)
+  ) {
+    if (cursor.getTime() < notBefore.getTime()) continue;
+
+    const required = reservationWindow(cursor, serviceDurationMinutes);
+    const onShift = schedules.filter((schedule) =>
+      withinWorkingHours(required, schedule.workingWindows),
+    );
+    if (onShift.length === 0) continue;
+
+    grid.push({
+      startAt: new Date(cursor),
+      endAt: addMinutes(cursor, serviceDurationMinutes),
+      availableProviderIds: onShift
+        .filter((schedule) =>
+          isProviderAvailable(schedule, cursor, serviceDurationMinutes),
+        )
+        .map((schedule) => schedule.providerId),
+    });
+  }
+
+  return grid;
+}
+
+/**
  * Every start time on `date` that at least one provider can serve for a basket
  * of `serviceDurationMinutes`.
  *
@@ -137,31 +184,7 @@ export function buildSlotOptions(
   schedules: readonly ProviderSchedule[],
   notBefore: Date,
 ): SlotOption[] {
-  const dayStart = startOfLocalDay(date);
-  const dayEnd = addDays(dayStart, 1);
-  const slots: SlotOption[] = [];
-
-  for (
-    let cursor = dayStart;
-    cursor.getTime() < dayEnd.getTime();
-    cursor = addMinutes(cursor, SLOT_GRANULARITY_MINUTES)
-  ) {
-    if (cursor.getTime() < notBefore.getTime()) continue;
-
-    const availableProviderIds = schedules
-      .filter((schedule) =>
-        isProviderAvailable(schedule, cursor, serviceDurationMinutes),
-      )
-      .map((schedule) => schedule.providerId);
-
-    if (availableProviderIds.length === 0) continue;
-
-    slots.push({
-      startAt: new Date(cursor),
-      endAt: addMinutes(cursor, serviceDurationMinutes),
-      availableProviderIds,
-    });
-  }
-
-  return slots;
+  return buildDayGrid(date, serviceDurationMinutes, schedules, notBefore).filter(
+    (slot) => slot.availableProviderIds.length > 0,
+  );
 }

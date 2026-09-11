@@ -1,109 +1,133 @@
 import Link from "next/link";
-import { searchableAreas, searchServices } from "@/lib/server/search";
-import { Card, EmptyState } from "@/components/ui";
-import { SearchBar } from "@/components/search-bar";
-import { formatDuration, formatMoney } from "@/lib/format";
+import { MapPinArea } from "@phosphor-icons/react/dist/ssr";
+import {
+  nearestCoveredArea,
+  searchProviders,
+  searchableAreas,
+} from "@/lib/server/search";
+import { EmptyState } from "@/components/ui";
+import {
+  ProviderCard,
+  ProviderGrid,
+  type ProviderCardData,
+} from "@/components/provider-card";
+import { SearchFilters } from "@/components/search-filters";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Search results: services that someone can actually deliver near you.
+ * Category & search results (§C-02).
  *
- * Each result leads into the existing booking flow at that provider's hub,
- * with the service pre-selected — so search feeds matching rather than
- * replacing it. The customer still gets the top-5 broadcast, not a direct
- * assignment to whoever they clicked.
+ * Results are provider cards, identical to the home page's — a customer is
+ * choosing who comes to their door, so the unit of a result is a person, not a
+ * catalogue row. Each card leads into the booking flow at that provider's hub
+ * with the matched service pre-selected, which keeps search feeding the
+ * broadcast rather than replacing it: the customer still gets the top-five
+ * broadcast, not a direct assignment to whoever they tapped.
  */
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; location?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    location?: string;
+    maxPrice?: string;
+    minRating?: string;
+    availableToday?: string;
+  }>;
 }) {
-  const { q = "", location = "" } = await searchParams;
+  const params = await searchParams;
+  const q = params.q ?? "";
+  const location = params.location ?? "";
+  const maxPrice = params.maxPrice ?? "";
+  const minRating = params.minRating ?? "";
+  const availableToday = params.availableToday === "1";
+
   const [results, areas] = await Promise.all([
-    searchServices(q, location),
+    searchProviders({
+      query: q,
+      location,
+      maxPriceMinor: maxPrice ? Number(maxPrice) : undefined,
+      minRating: minRating ? Number(minRating) : undefined,
+      availableToday,
+    }),
     searchableAreas(),
   ]);
 
-  const total = results.length;
+  const cards: ProviderCardData[] = results.map((provider) => ({
+    id: provider.id,
+    name: provider.name,
+    // The card names a person, so it opens that person's profile — not a hub
+    // booking form with their name nowhere on it.
+    href: `/providers/${provider.id}`,
+    rating: provider.rating,
+    reviewCount: provider.reviewCount,
+    city: provider.city,
+    sector: provider.sector,
+    fromMinor: provider.fromMinor,
+    travelFeeMinor: provider.travelFeeMinor,
+    vetted: provider.vetted,
+    imageUrl: provider.avatarUrl,
+    freeTonight: provider.freeTonight,
+    specialities: provider.specialities,
+  }));
+
+  const nearest = cards.length === 0 ? await nearestCoveredArea(location) : null;
+  const cities = [...new Set(areas.map((area) => area.city))].sort();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Link href="/" className="text-sm text-ink-muted hover:text-brand-700">
-          ← Home
-        </Link>
-        <h1 className="mt-1 font-display text-2xl font-bold text-ink">
-          {q ? `“${q}”` : "All services"}
+    <div>
+      <div className="mb-4">
+        <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink">
+          {q ? `“${q}”` : "All providers"}
           {location ? ` in ${location}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {total} {total === 1 ? "service" : "services"} with someone available
+        <p className="mt-1 text-[15px] text-ink-muted" data-numeric>
+          {cards.length} {cards.length === 1 ? "provider" : "providers"} can take
+          this work
         </p>
       </div>
 
-      <SearchBar areas={areas} initialQuery={q} initialLocation={location} />
+      <SearchFilters
+        cities={cities}
+        initial={{ q, location, maxPrice, minRating, availableToday }}
+      />
 
-      {total === 0 ? (
-        <EmptyState>
-          Nothing matched{q ? ` “${q}”` : ""}
-          {location ? ` in ${location}` : ""}. Try a different service or area —
-          results only include work a vetted professional can actually take.
-        </EmptyState>
-      ) : (
-        <div className="space-y-3">
-          {results.map((result) => (
-            <Card key={result.serviceId} className="p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-display text-lg font-semibold text-ink">
-                    {result.name}
-                    {result.kind === "ADDON" ? (
-                      <span className="ml-2 rounded-full bg-sunken px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
-                        Add-on
-                      </span>
-                    ) : null}
-                  </h2>
-                  <p className="mt-0.5 text-sm text-ink-muted">
-                    {result.description}
-                  </p>
-                  <p className="mt-1 font-mono text-xs text-ink-muted">
-                    {formatDuration(result.durationMinutes)} · {result.category}
-                  </p>
-                </div>
-                <span className="font-mono text-lg font-bold text-ink">
-                  {formatMoney(result.priceMinor)}
-                </span>
-              </div>
-
-              <div className="mt-3 border-t border-line pt-3">
-                <p className="text-xs uppercase tracking-wider text-ink-muted">
-                  Available from
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {result.providers.slice(0, 5).map((provider) => (
-                    <Link
-                      key={provider.id}
-                      href={`/book/${provider.hubId}?service=${result.serviceId}`}
-                      className="rounded-glam-sm border border-line px-3 py-1.5 text-sm text-ink transition hover:border-brand-400"
-                    >
-                      {provider.name}
-                      <span className="ml-1.5 font-mono text-xs text-ink-muted">
-                        {provider.rating.toFixed(1)}★ · {provider.sector}
-                      </span>
-                    </Link>
-                  ))}
-                  {result.providers.length > 5 ? (
-                    <span className="self-center text-xs text-ink-muted">
-                      +{result.providers.length - 5} more
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      <div className="pt-5">
+        {cards.length === 0 ? (
+          <EmptyState
+            icon={<MapPinArea size={24} weight="light" />}
+            title="Nobody covers that yet"
+            action={
+              nearest ? (
+                <Link
+                  href={`/search?location=${encodeURIComponent(nearest.city)}`}
+                  className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
+                >
+                  Try {nearest.city} instead
+                </Link>
+              ) : (
+                <Link
+                  href="/sign-up"
+                  className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
+                >
+                  Become our first provider here
+                </Link>
+              )
+            }
+          >
+            No vetted provider matches{q ? ` “${q}”` : ""}
+            {location ? ` in ${location}` : ""} with these filters.
+            {nearest ? ` ${nearest.city} is the nearest sector we cover.` : ""}
+          </EmptyState>
+        ) : (
+          <ProviderGrid>
+            {cards.map((provider) => (
+              <ProviderCard key={provider.id} provider={provider} />
+            ))}
+          </ProviderGrid>
+        )}
+      </div>
     </div>
   );
 }

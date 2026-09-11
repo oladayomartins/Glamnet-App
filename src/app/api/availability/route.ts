@@ -7,7 +7,7 @@ import { loadCandidates } from "@/lib/server/schedules";
 import { getActiveEmergencyConfig } from "@/lib/server/emergency-config";
 import {
   addDays,
-  buildSlotOptions,
+  buildDayGrid,
   startOfLocalDay,
 } from "@/lib/domain/availability";
 import {
@@ -23,6 +23,12 @@ import { TRANSITION_BUFFER_MINUTES } from "@/lib/domain/constants";
  * The response tags each slot with its NORMAL/EMERGENCY classification, so the
  * date picker can warn the customer that a time falls inside the emergency
  * window *before* they commit to it (spec §1, §4).
+ *
+ * It returns the whole working-hours grid, including start times nobody is
+ * free to take (`providerCount: 0`). The picker renders those struck through
+ * rather than omitting them — an absent 16:00 reads as "they do not work
+ * then", which is a different and untrue statement. Eligibility is decided
+ * here either way; the client never computes it.
  */
 export async function POST(request: Request) {
   try {
@@ -64,7 +70,7 @@ export async function POST(request: Request) {
     const config = await getActiveEmergencyConfig(now);
     const thresholdMinutes = resolveThresholdMinutes(config, now);
 
-    const slots = buildSlotOptions(
+    const slots = buildDayGrid(
       dayStart,
       serviceDurationMinutes,
       qualified.map((candidate) => candidate.schedule),
