@@ -117,7 +117,7 @@ describe("isProviderAvailable", () => {
     ).toBe(false);
   });
 
-  it("rejects a day the provider does not work", () => {
+  it("rejects a day the vendor does not work", () => {
     const weekdaysOnly = schedule({
       workingWindows: [{ dayOfWeek: 1, startMinute: 540, endMinute: 1_080 }],
     });
@@ -129,7 +129,7 @@ describe("isProviderAvailable", () => {
 });
 
 describe("buildSlotOptions", () => {
-  it("offers only slots at least one provider can serve", () => {
+  it("offers only slots at least one vendor can serve", () => {
     const slots = buildSlotOptions(
       local("2026-04-01T00:00:00"),
       120,
@@ -189,7 +189,7 @@ describe("buildDayGrid", () => {
     expect(grid.every((slot) => slot.availableProviderIds.length === 0)).toBe(true);
   });
 
-  it("omits times outside every provider's working hours", () => {
+  it("omits times outside every vendor's working hours", () => {
     const grid = buildDayGrid(
       local("2026-04-01T00:00:00"),
       60,
@@ -244,7 +244,7 @@ describe("selectBroadcastTargets (spec §7, §13)", () => {
     serviceDurationMinutes: 120,
   };
 
-  it("returns at most five providers, best rated first", () => {
+  it("returns at most five vendors, best rated first", () => {
     const candidates = Array.from({ length: 8 }, (_, index) =>
       candidate(`p${index}`, { rating: index / 2 }),
     );
@@ -255,7 +255,7 @@ describe("selectBroadcastTargets (spec §7, §13)", () => {
     expect(targets.map((target) => target.rating)).toEqual([3.5, 3, 2.5, 2, 1.5]);
   });
 
-  it("excludes providers outside the sector", () => {
+  it("excludes vendors outside the sector", () => {
     const targets = selectBroadcastTargets(
       [candidate("p1", { sectors: ["S20"] }), candidate("p2")],
       request,
@@ -263,7 +263,7 @@ describe("selectBroadcastTargets (spec §7, §13)", () => {
     expect(targets.map((target) => target.providerId)).toEqual(["p2"]);
   });
 
-  it("excludes providers who cannot deliver every requested service", () => {
+  it("excludes vendors who cannot deliver every requested service", () => {
     const targets = selectBroadcastTargets(
       [candidate("p1", { serviceIds: ["glam"] }), candidate("p2")],
       request,
@@ -271,7 +271,7 @@ describe("selectBroadcastTargets (spec §7, §13)", () => {
     expect(targets.map((target) => target.providerId)).toEqual(["p2"]);
   });
 
-  it("excludes providers whose calendar conflicts, even for an emergency", () => {
+  it("excludes vendors whose calendar conflicts, even for an emergency", () => {
     const conflicted = candidate("p1", {
       schedule: schedule({
         providerId: "p1",

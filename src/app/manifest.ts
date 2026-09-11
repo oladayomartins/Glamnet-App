@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "GLAMNET",
     short_name: "GLAMNET",
     description:
-      "Book a vetted beauty professional to come to you, with emergency bookings for short notice.",
+      "Book a vetted beauty vendor to come to you, with emergency bookings for short notice.",
     start_url: "/",
     id: "/",
     scope: "/",

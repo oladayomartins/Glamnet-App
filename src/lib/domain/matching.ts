@@ -3,13 +3,13 @@ import { isProviderAvailable, type ProviderSchedule } from "./availability";
 
 export interface MatchCandidate {
   providerId: string;
-  /** Sector code the provider covers, e.g. "S11". */
+  /** Sector code the vendor covers, e.g. "S11". */
   sectors: readonly string[];
-  /** Service ids the provider is qualified to deliver. */
+  /** Service ids the vendor is qualified to deliver. */
   serviceIds: readonly string[];
   /** 0–5 average customer rating; the primary ranking signal. */
   rating: number;
-  /** Completed bookings — the tiebreak, favouring proven providers. */
+  /** Completed bookings — the tiebreak, favouring proven vendors. */
   completedBookings: number;
   schedule: ProviderSchedule;
 }
@@ -24,7 +24,7 @@ export interface MatchRequest {
 }
 
 /**
- * Eligible providers for a request, best first.
+ * Eligible vendors for a request, best first.
  *
  * Eligibility is geographic + skill + calendar. The calendar test uses the same
  * `isProviderAvailable` gate as the customer slot picker, including the
@@ -57,7 +57,7 @@ export function findEligibleProviders(
 
 /**
  * The shortlist a request is broadcast to (spec §13: "Broadcast to Top 5
- * Eligible Providers"). First to accept wins; acceptance is serialised in the
+ * Eligible Vendors"). First to accept wins; acceptance is serialised in the
  * database so a tie cannot double-book.
  */
 export function selectBroadcastTargets(

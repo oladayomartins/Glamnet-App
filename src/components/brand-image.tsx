@@ -9,10 +9,10 @@ const SRCSET_WIDTHS = [480, 768, 1024, 1440];
  * Deliberately not {@link GlamImage}, and the distinction is about where the
  * URL comes from rather than where it points:
  *
- *  · GlamImage renders URLs that arrived from somebody else — a provider's
+ *  · GlamImage renders URLs that arrived from somebody else — a vendor's
  *    upload, a customer's reference photo. Those are checked against the
  *    configured endpoint, because an unchecked one is a tracking pixel that
- *    fires for every provider and admin who opens the booking.
+ *    fires for every vendor and admin who opens the booking.
  *  · This renders URLs written in our own source. There is no untrusted input
  *    to guard, so there is nothing for the check to protect against — and
  *    making the marketing page depend on a runtime variable meant an unset

@@ -5,9 +5,9 @@ import { formatNotice, noticePeriodMinutes } from "@/lib/domain/classification";
 import { getSessionUser } from "@/lib/auth/session";
 
 /**
- * GET /api/providers/:id/requests — the provider's broadcast inbox.
+ * GET /api/providers/:id/requests — the vendor's broadcast inbox.
  *
- * Each open request carries everything spec §6 requires a provider to see
+ * Each open request carries everything spec §6 requires a vendor to see
  * before accepting: the emergency tag, the appointment time, the notice
  * remaining, the services, total duration, sector, earnings and the surge
  * component of those earnings.
@@ -19,7 +19,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    // A provider's broadcast inbox is theirs alone; admins may also view it.
+    // A vendor's broadcast inbox is theirs alone; admins may also view it.
     const viewer = await getSessionUser();
     if (!viewer || (viewer.role !== "ADMIN" && viewer.providerId !== id)) {
       return NextResponse.json(
@@ -63,7 +63,7 @@ export async function GET(
         /**
          * Absolute deadline for the acceptance countdown. Sent as a timestamp
          * rather than a seconds-remaining count so response latency and a
-         * long-lived page cannot skew the clock the provider sees.
+         * long-lived page cannot skew the clock the vendor sees.
          */
         acceptanceExpiresAt: invite.expiresAt.toISOString(),
       };

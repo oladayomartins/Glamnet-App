@@ -52,7 +52,7 @@ export function ProviderCalendar({ calendar }: { calendar: CalendarPayload }) {
  *
  * Each booking is drawn twice over — the solid block is the billable service,
  * the hatched tail is the 15-minute transition period. Both are part of the
- * calendar lock, so the provider can see exactly why a following slot is not
+ * calendar lock, so the vendor can see exactly why a following slot is not
  * offered to them.
  */
 function DayView({ calendar }: { calendar: CalendarPayload }) {

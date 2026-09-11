@@ -5,7 +5,7 @@ import { errorResponse } from "@/lib/api/respond";
 /**
  * GET /api/services?hubId=… — the service catalogue.
  *
- * Filtering by hub returns only services at least one provider there can
+ * Filtering by hub returns only services at least one vendor there can
  * actually deliver, so the basket cannot be built out of unbookable work.
  */
 export async function GET(request: Request) {

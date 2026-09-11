@@ -77,7 +77,7 @@ export default async function AdminPage({
           href="/admin/providers"
           className="mt-3 inline-flex rounded-glam-sm bg-surface px-4 py-2 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-sunken"
         >
-          Review provider applications →
+          Review vendor applications →
         </Link>
       </div>
 
@@ -107,7 +107,7 @@ export default async function AdminPage({
             tone="emergency"
           />
           <Metric
-            label="Provider acceptance"
+            label="Vendor acceptance"
             value={`${report.providerAcceptanceRate}%`}
           />
           <Metric
@@ -131,7 +131,7 @@ export default async function AdminPage({
             value={`${report.emergencyFulfilmentRate}%`}
           />
           <Metric
-            label="Emergency provider earnings"
+            label="Emergency vendor earnings"
             value={formatMoney(report.emergencyProviderEarningsMinor)}
           />
         </div>
@@ -207,7 +207,7 @@ export default async function AdminPage({
                   <Th numeric>Notice</Th>
                   <Th>Type</Th>
                   <Th>Status</Th>
-                  <Th>Provider</Th>
+                  <Th>Vendor</Th>
                   <Th>Customer</Th>
                   <Th numeric>Total</Th>
                   <Th numeric>Surcharge</Th>

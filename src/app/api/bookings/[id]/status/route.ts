@@ -11,7 +11,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Lifecycle transitions belong to the provider running the job, or an admin.
+    // Lifecycle transitions belong to the vendor running the job, or an admin.
     const auth = await requireApiRole(["PROVIDER", "ADMIN"]);
     if ("response" in auth) return auth.response;
 

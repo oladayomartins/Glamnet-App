@@ -10,7 +10,7 @@ import { BROADCAST_ACCEPTANCE_WINDOW_MINUTES } from "@/lib/domain/constants";
 const POLL_MS = 4_000;
 
 /**
- * Searching for a provider (§C-08).
+ * Searching for a vendor (§C-08).
  *
  * A full screen, not a modal: the customer has paid and there is nothing else
  * to do on this page, so a dialog floating over a form they can no longer use
@@ -82,7 +82,7 @@ export function SearchingForProvider({
           Someone has taken it
         </h1>
         <p className="mx-auto mt-3 max-w-md text-[15px] text-ink-muted">
-          Your provider is confirmed. You can follow them from here right up to
+          Your vendor is confirmed. You can follow them from here right up to
           the door.
         </p>
         <Link href={`/bookings/${bookingId}`} className="mt-7 inline-flex">
@@ -131,7 +131,7 @@ export function SearchingForProvider({
       </div>
 
       <h1 className="mt-4 font-display text-3xl font-bold tracking-[-0.02em] text-ink">
-        Finding you a provider
+        Finding you a vendor
       </h1>
       <p className="mx-auto mt-3 max-w-md text-[15px] text-ink-muted">
         We have broadcast your request to
@@ -146,7 +146,7 @@ export function SearchingForProvider({
       {/* A shimmer, not a percentage: we do not know how long this takes. */}
       <div
         role="status"
-        aria-label="Waiting for a provider to accept"
+        aria-label="Waiting for a vendor to accept"
         className="shimmer mx-auto mt-8 h-1.5 w-full max-w-sm rounded-full"
       />
 

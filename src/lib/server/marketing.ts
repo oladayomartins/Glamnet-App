@@ -11,7 +11,7 @@ import { isFreeTonight } from "./openings";
  * Everything the marketing page shows, derived from real records.
  *
  * Nothing here is a hard-coded headline figure. If the marketplace has six
- * providers the page says six — inflating it would be inventing social proof,
+ * vendors the page says six — inflating it would be inventing social proof,
  * and the numbers would contradict the search results one click away.
  */
 export async function getMarketingData() {
@@ -48,7 +48,7 @@ export async function getMarketingData() {
           },
         },
         // Today's calendar only — enough to answer "free tonight?" without
-        // pulling a provider's whole history onto the home page.
+        // pulling a vendor's whole history onto the home page.
         availability: true,
         timeOff: { where: { startAt: { lt: dayEnd }, endAt: { gt: dayStart } } },
         bookings: {
@@ -60,7 +60,7 @@ export async function getMarketingData() {
           select: { appointmentStartAt: true, reservedUntilAt: true },
         },
         // Reviews, not completed jobs: the card shows how many people have
-        // actually rated this provider.
+        // actually rated this vendor.
         _count: { select: { bookings: { where: { rating: { not: null } } } } },
       },
     }),
@@ -111,7 +111,7 @@ export async function getMarketingData() {
     .map(([name, value]) => ({ name, ...value }))
     .sort((a, b) => b.count - a.count);
 
-  // Providers who can deliver each category, so the category tile can state a
+  // Vendors who can deliver each category, so the category tile can state a
   // live count rather than a catalogue size.
   const providerCountByCategory = new Map<string, number>();
   for (const provider of providers) {

@@ -22,7 +22,7 @@ const schema = z.object({ windows: z.array(windowSchema).max(21) });
  *
  * Replace rather than patch: the editor sends the whole week, so there is one
  * obvious meaning for the result and no way for a half-applied update to leave
- * a provider bookable at a time they removed.
+ * a vendor bookable at a time they removed.
  *
  * Shrinking the week is allowed even when a booking already sits outside the
  * new hours. Working hours decide which slots are *offered*; a commitment

@@ -72,8 +72,8 @@ export function BlockHeading({
 /**
  * The EMERGENCY / NORMAL classification tag.
  *
- * Used unchanged on the customer checkout, the provider broadcast ticket, the
- * provider calendar, the admin list and the notification feed, so the tag reads
+ * Used unchanged on the customer checkout, the vendor broadcast ticket, the
+ * vendor calendar, the admin list and the notification feed, so the tag reads
  * identically everywhere the spec requires it (§4, §6, §10, §11).
  */
 export function BookingTypeTag({
@@ -130,7 +130,7 @@ const LIFECYCLE_CHIPS: Record<string, { label: string; tone: string; live?: bool
   ACCEPTED: { label: "Accepted", tone: "rose" },
   CONFIRMED: { label: "Confirmed", tone: "rose" },
   ADDRESS_UNLOCKED: { label: "Address unlocked", tone: "neutral" },
-  PROVIDER_EN_ROUTE: { label: "Provider en route", tone: "jade", live: true },
+  PROVIDER_EN_ROUTE: { label: "Vendor en route", tone: "jade", live: true },
   ARRIVED: { label: "Arrived", tone: "jade" },
   IN_PROGRESS: { label: "In progress", tone: "jade", live: true },
   COMPLETED: { label: "Completed", tone: "neutral" },
@@ -182,7 +182,7 @@ export function LifecycleChip({
 
 /**
  * A plain state pill for things that are not booking lifecycle states —
- * provider vetting, for instance. Kept separate from {@link LifecycleChip} so
+ * vendor vetting, for instance. Kept separate from {@link LifecycleChip} so
  * that "approved" can never accidentally borrow a lifecycle treatment.
  */
 export function Pill({
@@ -242,7 +242,7 @@ export function Button({
  * `2h 00m services + 15m transition = blocks 12:00–14:15`. It is deliberately
  * spelled out as an equation and carried unchanged from the service builder
  * through reference upload, scheduling and checkout — repeating it at every
- * step is how the customer learns that the provider's calendar is locked for
+ * step is how the customer learns that the vendor's calendar is locked for
  * longer than the appointment itself.
  */
 export function DurationStrip({

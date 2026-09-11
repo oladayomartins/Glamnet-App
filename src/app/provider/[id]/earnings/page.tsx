@@ -26,10 +26,10 @@ type PeriodKey = keyof typeof PERIODS;
 const EARNED_STATUSES = ["COMPLETED", "REVIEWED", "PAYMENT_RELEASED"];
 
 /**
- * The provider earnings ledger (§P-06).
+ * The vendor earnings ledger (§P-06).
  *
  * Normal and emergency are reported separately, because the two are different
- * businesses to the provider: emergency work pays more per hour and costs more
+ * businesses to the vendor: emergency work pays more per hour and costs more
  * in disruption, and a single blended figure hides both facts. Every emergency
  * row carries the type tag for the same reason.
  */
@@ -45,7 +45,7 @@ export default async function EarningsPage({
     searchParams,
   ]);
 
-  // Earnings are the provider's own business and nobody else's.
+  // Earnings are the vendor's own business and nobody else's.
   const viewer = await requireUser(`/provider/${id}/earnings`);
   if (viewer.role !== "ADMIN" && viewer.providerId !== id) redirect("/forbidden");
 
@@ -76,7 +76,7 @@ export default async function EarningsPage({
   if (!provider) notFound();
 
   const rows = bookings.map((booking) => {
-    // The platform's cut is whatever the customer paid less what the provider
+    // The platform's cut is whatever the customer paid less what the vendor
     // takes: commission on the service work plus the unshared trust fee.
     const feeMinor =
       booking.totalInvoicePriceMinor - booking.providerEarningsMinor;

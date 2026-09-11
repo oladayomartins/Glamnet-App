@@ -22,7 +22,7 @@ const deleteSchema = z.object({ blockId: z.string().min(1) });
 /**
  * POST /api/providers/:id/time-off — block a period out.
  *
- * Refuses a block that would cover a booking the provider has already
+ * Refuses a block that would cover a booking the vendor has already
  * accepted. Letting it through would leave them committed to a customer and
  * marked unavailable at the same moment, and the customer would find out on
  * the day. Cancel the booking first; that path tells the customer.

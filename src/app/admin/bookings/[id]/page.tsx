@@ -192,7 +192,7 @@ export default async function AdminBookingPage({
               <dd data-numeric>{formatMoney(booking.totalInvoicePriceMinor)}</dd>
             </div>
             <Money
-              label="Provider earnings"
+              label="Vendor earnings"
               amount={booking.providerEarningsMinor}
             />
             <Money
@@ -213,10 +213,10 @@ export default async function AdminBookingPage({
         <Card className="p-4">
           <SectionTitle>Payment</SectionTitle>
           {/* No Stripe reference is shown because there is none: no payment
-              provider is wired up in this build. An "authorised" badge here
+              vendor is wired up in this build. An "authorised" badge here
               would be the single most misleading thing on the admin surface. */}
           <p className="text-[15px] text-ink">
-            No payment provider is connected in this build, so this booking
+            No payment vendor is connected in this build, so this booking
             carries no authorisation reference.
           </p>
           <p className="mt-2 text-sm text-ink-muted">
@@ -248,7 +248,7 @@ export default async function AdminBookingPage({
             <table className="w-full min-w-[640px] text-[13px]">
               <thead>
                 <tr className="border-b border-line text-left">
-                  <Th>Provider</Th>
+                  <Th>Vendor</Th>
                   <Th>Sent</Th>
                   <Th>Expires</Th>
                   <Th>Responded</Th>

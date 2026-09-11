@@ -45,10 +45,10 @@ function bookingUrl(path: string): string {
 }
 
 /**
- * Email the providers a new request was broadcast to.
+ * Email the vendors a new request was broadcast to.
  *
  * One batched call rather than five sequential ones: the acceptance window is
- * ten minutes and every provider should see the request at the same moment,
+ * ten minutes and every vendor should see the request at the same moment,
  * not staggered by however long the previous send took.
  */
 export async function deliverBroadcastEmails(input: {
@@ -88,7 +88,7 @@ export async function deliverBroadcastEmails(input: {
   }
 }
 
-/** Email the customer that a provider has claimed their booking. */
+/** Email the customer that a vendor has claimed their booking. */
 export async function deliverBookingConfirmedEmail(input: {
   bookingId: string;
   customerName: string;
@@ -117,7 +117,7 @@ export async function deliverBookingConfirmedEmail(input: {
   }
 }
 
-/** Email a provider the outcome of their application. */
+/** Email a vendor the outcome of their application. */
 export async function deliverApprovalEmail(input: {
   name: string;
   email: string;

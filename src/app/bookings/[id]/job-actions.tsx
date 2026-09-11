@@ -7,12 +7,12 @@ import { Button, Card, SectionTitle } from "@/components/ui";
 import { NEXT_STATUS, type BookingStatus } from "@/lib/domain/types";
 
 /**
- * The provider action ladder (§P-05).
+ * The vendor action ladder (§P-05).
  *
  * One primary action at a time, and it is always the single legal next step:
  * the lifecycle is strictly linear, so offering a menu would only offer
  * transitions the server is going to refuse. The label names the step in the
- * provider's words — "On my way" rather than "PROVIDER_EN_ROUTE".
+ * vendor's words — "On my way" rather than "PROVIDER_EN_ROUTE".
  */
 const ACTION_LABELS: Partial<Record<BookingStatus, string>> = {
   ACCEPTED: "Confirm this job",
@@ -82,7 +82,7 @@ export function JobActions({
       <SectionTitle>Your next step</SectionTitle>
 
       {/* The address exists on the booking from the moment it is placed, but
-          the provider does not see it until the lifecycle says so. */}
+          the vendor does not see it until the lifecycle says so. */}
       {addressUnlocked && addressLine ? (
         <div className="mb-4 rounded-glam-sm bg-sunken p-3">
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">

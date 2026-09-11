@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import {
+  Bricolage_Grotesque,
+  Instrument_Sans,
+  JetBrains_Mono,
+} from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { GlamNetPin } from "@/components/brand";
@@ -28,6 +32,15 @@ const brandSans = Instrument_Sans({
   variable: "--font-brand-sans",
   subsets: ["latin"],
   axes: ["wdth"],
+  display: "swap",
+});
+
+const brandDisplay = Bricolage_Grotesque({
+  variable: "--font-brand-display",
+  subsets: ["latin"],
+  // Variable axis rather than fixed cuts: headings sit at 800 and the wordmark
+  // at 700, and shipping one file for both is lighter than two.
+  weight: ["700", "800"],
   display: "swap",
 });
 
@@ -71,12 +84,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Obsidian in dark, warm paper in light — the browser chrome follows the
-  // active mode rather than pinning one brand colour.
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfaf7" },
-    { media: "(prefers-color-scheme: dark)", color: "#100f13" },
-  ],
+  // Warm paper, matching the default the app actually starts in. Keyed to the
+  // OS preference before, which now disagrees with the page: a visitor whose
+  // laptop is dark gets a light site, and the browser chrome should say so.
+  themeColor: "#fbfaf7",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -86,7 +97,7 @@ export const viewport: Viewport = {
 const NAV = [
   { href: "/search", label: "Find a service" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/sign-up", label: "Become a provider" },
+  { href: "/become-a-vendor", label: "Become a vendor" },
 ];
 
 /**
@@ -117,7 +128,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       // next-themes writes data-theme here before paint, which React would
       // otherwise flag as a hydration mismatch.
       suppressHydrationWarning
-      className={`${brandSans.variable} ${brandMono.variable} h-full antialiased`}
+      className={`${brandSans.variable} ${brandDisplay.variable} ${brandMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-canvas font-sans text-ink">
         <ThemeProvider>

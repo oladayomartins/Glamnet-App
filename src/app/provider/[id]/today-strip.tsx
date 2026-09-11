@@ -9,11 +9,11 @@ import { formatDayTime, formatMoney } from "@/lib/format";
 import type { ProviderToday } from "@/lib/server/provider-today";
 
 /**
- * The provider's today strip (§P-01): the next job with a countdown, what
+ * The vendor's today strip (§P-01): the next job with a countdown, what
  * today pays, and their acceptance rate.
  *
- * Blunt and factual, as the whole provider app is. No encouragement, no
- * congratulation — a provider opening this at 07:00 wants three numbers.
+ * Blunt and factual, as the whole vendor app is. No encouragement, no
+ * congratulation — a vendor opening this at 07:00 wants three numbers.
  */
 export function TodayStrip({
   providerId,
@@ -120,7 +120,7 @@ function NextJob({ job }: { job: ProviderToday["nextJob"] }) {
  * The availability switch.
  *
  * The copy says exactly what it does — turning work off stops new requests,
- * and does not touch anything already accepted — because a provider tapping
+ * and does not touch anything already accepted — because a vendor tapping
  * this before a hospital appointment needs to know their afternoon booking is
  * still theirs.
  */

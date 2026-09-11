@@ -25,8 +25,8 @@ export async function GET(
 
     if (!booking) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
 
-    // Ownership, not just a role. A signed-in provider must not be able to
-    // read another provider's job, and a customer must not read someone
+    // Ownership, not just a role. A signed-in vendor must not be able to
+    // read another vendor's job, and a customer must not read someone
     // else's booking by guessing an id.
     const viewer = await getSessionUser();
     const mayView =

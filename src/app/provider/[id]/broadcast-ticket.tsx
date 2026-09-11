@@ -26,15 +26,15 @@ export interface BroadcastRequest {
 }
 
 /**
- * The provider broadcast ticket (§P-02).
+ * The vendor broadcast ticket (§P-02).
  *
- * The field order is fixed, because a provider decides on this in seconds and
+ * The field order is fixed, because a vendor decides on this in seconds and
  * always in the same order: what kind of job and how long they have to answer,
  * when it is and how much notice that is, what the work is, how long it blocks,
  * where, what it pays, and only then the button. The tone is blunt and factual
  * throughout — no persuasion, no exclamation marks.
  *
- * The address is deliberately absent. At broadcast stage a provider gets the
+ * The address is deliberately absent. At broadcast stage a vendor gets the
  * sector and nothing more; the street only appears once the booking reaches
  * Address Unlocked.
  */

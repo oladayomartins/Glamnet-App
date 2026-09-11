@@ -15,7 +15,7 @@ export interface ProviderProfile {
   city: string;
   sector: string;
   travelFeeMinor: number;
-  /** Media-library photo. Empty until the provider has uploaded one. */
+  /** Media-library photo. Empty until the vendor has uploaded one. */
   avatarUrl: string;
   freeTonight: boolean;
   /** Minutes from the earliest to the latest shift, per weekday. */
@@ -49,9 +49,9 @@ const WEEKDAYS = [
 ];
 
 /**
- * The customer-facing provider profile (§C-03).
+ * The customer-facing vendor profile (§C-03).
  *
- * Only approved providers who are taking work are returned. A profile for
+ * Only approved vendors who are taking work are returned. A profile for
  * someone the matching engine would never broadcast to is a page whose only
  * possible outcome is a dead end.
  */

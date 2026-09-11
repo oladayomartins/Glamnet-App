@@ -6,18 +6,18 @@ import { SectionTitle } from "@/components/ui";
 
 /**
  * Read live from the database on every request. Without this Next prerenders
- * the page at build time, which would freeze the hub and provider data into
+ * the page at build time, which would freeze the hub and vendor data into
  * the build output.
  */
 export const dynamic = "force-dynamic";
 
 /**
- * Provider picker. A production build would resolve the signed-in provider;
+ * Vendor picker. A production build would resolve the signed-in vendor;
  * this build lists them so the dashboard and calendar can be demonstrated.
  */
 export default async function ProviderIndexPage() {
-  // This listed every provider so you could click in as any of them. With
-  // real accounts a provider goes straight to their own dashboard; only an
+  // This listed every vendor so you could click in as any of them. With
+  // real accounts a vendor goes straight to their own dashboard; only an
   // admin sees the roster.
   const viewer = await requireUser("/provider");
   if (viewer.role === "PROVIDER") {
@@ -39,17 +39,17 @@ export default async function ProviderIndexPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">
-          Provider dashboards
+          Vendor dashboards
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Open a provider to see their calendar, reserved periods and open
+          Open a vendor to see their calendar, reserved periods and open
           booking requests.
         </p>
       </div>
 
       <section>
         <SectionTitle hint={`${providers.length} providers`}>
-          Choose a provider
+          Choose a vendor
         </SectionTitle>
         <div className="grid gap-3 sm:grid-cols-2">
           {providers.map((provider) => (

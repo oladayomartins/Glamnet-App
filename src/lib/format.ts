@@ -13,11 +13,11 @@ export function formatDuration(minutes: number): string {
 }
 
 /**
- * "18:00" — 24-hour time, for the provider and admin apps.
+ * "18:00" — 24-hour time, for the vendor and admin apps.
  *
  * The two clocks are separate functions rather than one with a flag because
  * the choice is not a preference: the brand voice fixes 24-hour time for
- * providers, who are reading a shift, and 12-hour for customers, who are
+ * vendors, who are reading a shift, and 12-hour for customers, who are
  * reading an appointment. A flag invites a screen to pick the wrong one.
  */
 export function formatTime(value: Date | string): string {
@@ -59,7 +59,7 @@ export function formatDay(value: Date | string): string {
   });
 }
 
-/** "Today, 18:00" — the format the spec uses on the provider broadcast. */
+/** "Today, 18:00" — the format the spec uses on the vendor broadcast. */
 export function formatDayTime(value: Date | string): string {
   return `${formatDay(value)}, ${formatTime(value)}`;
 }

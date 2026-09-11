@@ -2,7 +2,7 @@ import { prisma } from "./prisma";
 import { addMinutes, startOfLocalDay } from "@/lib/domain/availability";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 
-/** The three figures a provider checks before anything else (§P-01). */
+/** The three figures a vendor checks before anything else (§P-01). */
 export interface ProviderToday {
   isAcceptingWork: boolean;
   /** The next job that has not started yet, or null. */
@@ -20,7 +20,7 @@ export interface ProviderToday {
   /**
    * Broadcasts accepted over broadcasts received, as a percentage, or null
    * when they have never been sent one — 0% would read as a judgement on a
-   * provider who has simply never been asked.
+   * vendor who has simply never been asked.
    */
   acceptanceRate: number | null;
 }

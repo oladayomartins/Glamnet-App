@@ -41,7 +41,7 @@ interface DayRow {
  * Availability and blocked periods (§P-04).
  *
  * One shift per day, which is what the editor can express honestly: the data
- * model allows several, but a provider who genuinely splits a day is better
+ * model allows several, but a vendor who genuinely splits a day is better
  * served by blocking the gap than by a second pair of time fields they will
  * mis-set. Anything already saved with two shifts still works — this screen
  * shows the widest span and says so rather than silently dropping one.
@@ -236,7 +236,7 @@ export function AvailabilityEditor({
           <p className="text-[15px] text-ink">
             You cover <span className="font-semibold">{sector}</span> in {city}.
           </p>
-          {/* Read-only, because it is: a provider belongs to exactly one hub in
+          {/* Read-only, because it is: a vendor belongs to exactly one hub in
               this build, and their sector is set during vetting. Offering a
               picker that could not be honoured would be worse than saying so. */}
           <p className="mt-2 text-sm text-ink-muted">

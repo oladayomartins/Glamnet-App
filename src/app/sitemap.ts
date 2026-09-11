@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
  *
  * Service searches are included because they are the pages a customer would
  * actually arrive on from a search engine — "knotless braids sheffield" should
- * land on results, not the homepage. Only services with an approved provider
+ * land on results, not the homepage. Only services with an approved vendor
  * are listed, so a crawled page is never an empty result.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -34,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         select: { name: true },
       }),
       prisma.hub.findMany({ select: { id: true, city: true } }),
-      // Only providers a customer can actually reach: the profile route 404s
+      // Only vendors a customer can actually reach: the profile route 404s
       // for anyone pending, rejected or not taking work, and a sitemap full
       // of 404s is worse than a shorter one.
       prisma.provider.findMany({

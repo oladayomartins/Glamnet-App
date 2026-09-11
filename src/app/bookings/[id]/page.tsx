@@ -51,7 +51,7 @@ export default async function BookingPage({
   );
 
   // The same record is two screens: the customer's booking (§C-09) and the
-  // provider's job (§P-05). Which one you get is decided here, from the
+  // vendor's job (§P-05). Which one you get is decided here, from the
   // viewer's relationship to the booking, not from a query parameter.
   const isTheProvider =
     booking.providerId !== null && viewer.providerId === booking.providerId;
@@ -149,7 +149,7 @@ export default async function BookingPage({
             <Row label="Emergency threshold">
               {formatDuration(booking.thresholdMinutesUsed)}
             </Row>
-            <Row label="Provider time reserved">
+            <Row label="Vendor time reserved">
               {formatCustomerTime(booking.appointmentStartAt)}–
               {formatCustomerTime(booking.reservedUntilAt)} (
               {formatDuration(booking.reservedDurationMinutes)}, incl. transition)

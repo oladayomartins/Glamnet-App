@@ -3,7 +3,7 @@ import type { ProviderSchedule } from "@/lib/domain/availability";
 import type { MatchCandidate } from "@/lib/domain/matching";
 
 /**
- * Statuses that hold a provider's calendar. A booking blocks time from the
+ * Statuses that hold a vendor's calendar. A booking blocks time from the
  * moment it is accepted right through to payout; only cancelled, expired and
  * still-broadcasting requests leave the slot free.
  */
@@ -20,7 +20,7 @@ export const CALENDAR_HOLDING_STATUSES = [
 ] as const;
 
 /**
- * Load every provider in `sector` as a match candidate, with their working
+ * Load every vendor in `sector` as a match candidate, with their working
  * windows, calendar reservations and blocked periods over `[from, to)`.
  *
  * Reservations use `reservedUntilAt`, which already includes the 15-minute
@@ -34,7 +34,7 @@ export async function loadCandidates(
 ): Promise<MatchCandidate[]> {
   const providers = await prisma.provider.findMany({
     // Vetting is enforced here, in the matching query, rather than only being
-    // hidden in the UI: an unapproved provider must never be broadcast a job,
+    // hidden in the UI: an unapproved vendor must never be broadcast a job,
     // whatever route the request arrived by.
     where: {
       isAcceptingWork: true,
@@ -83,7 +83,7 @@ export async function loadCandidates(
   }));
 }
 
-/** One provider's schedule, for the provider-facing calendar. */
+/** One vendor's schedule, for the vendor-facing calendar. */
 export async function loadProviderSchedule(
   providerId: string,
   from: Date,

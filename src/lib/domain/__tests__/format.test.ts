@@ -37,7 +37,7 @@ describe("the two clocks", () => {
   const evening = new Date(2026, 3, 1, 18, 0);
   const morning = new Date(2026, 3, 1, 9, 5);
 
-  it("gives providers 24-hour time", () => {
+  it("gives vendors 24-hour time", () => {
     expect(formatTime(evening)).toBe("18:00");
     expect(formatTime(morning)).toBe("09:05");
   });

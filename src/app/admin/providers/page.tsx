@@ -23,9 +23,9 @@ export default async function AdminProvidersPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-2xl font-bold text-ink">Providers</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">Vendors</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Applications are reviewed before a professional can receive work.
+          Applications are reviewed before a vendor can receive work.
         </p>
       </div>
 

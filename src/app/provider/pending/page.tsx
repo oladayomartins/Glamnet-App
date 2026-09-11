@@ -5,7 +5,7 @@ import { Card } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-/** Shown to a provider whose application has not been approved yet. */
+/** Shown to a vendor whose application has not been approved yet. */
 export default async function ProviderPendingPage() {
   const user = await requireRole("PROVIDER", "/provider/pending");
 
@@ -52,7 +52,7 @@ export default async function ProviderPendingPage() {
           </p>
         ) : (
           <p className="mt-2 text-sm text-ink-muted">
-            Thanks for applying to GLAMNET. Every professional is reviewed
+            Thanks for applying to GLAMNET. Every vendor is reviewed
             before going live, because we are sending them into customers&rsquo;
             homes. You will be notified as soon as a decision is made.
           </p>

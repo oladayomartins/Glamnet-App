@@ -144,7 +144,7 @@ export function ApprovalQueue({
                   disabled={busyId === provider.id}
                 >
                   {provider.status === "APPROVED"
-                    ? "Suspend this provider"
+                    ? "Suspend this vendor"
                     : "Approve after all"}
                 </Button>
               </div>
