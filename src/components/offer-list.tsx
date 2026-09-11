@@ -50,10 +50,15 @@ export function OfferList({ offers }: { offers: OfferRow[] }) {
   const confirm = () => {
     if (!selected) return;
     setGoing(true);
-    // Into the existing builder, with the service already chosen. The booking
-    // flow re-prices and re-checks availability from scratch — this only saves
-    // the customer re-picking what they just picked.
-    router.push(`/book/${selected.hubId}?service=${selected.serviceId}`);
+    // Straight to the confirm step, carrying the three things already chosen.
+    // They are claims, not decisions: that page re-verifies the slot and
+    // re-prices it server-side before anything is authorised.
+    const query = new URLSearchParams({
+      service: selected.serviceId,
+      at: selected.startAt,
+      provider: selected.providerId,
+    });
+    router.push(`/book/${selected.hubId}/confirm?${query.toString()}`);
   };
 
   return (
