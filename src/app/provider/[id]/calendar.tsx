@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Lightning } from "@phosphor-icons/react/dist/ssr";
-import { BookingTypeTag, EmptyState, StatusPill } from "@/components/ui";
+import { BookingTypeTag, EmptyState, LifecycleChip } from "@/components/ui";
 import { formatDay, formatDuration, formatMoney, formatTime } from "@/lib/format";
 
 export interface CalendarEntry {
@@ -134,18 +134,20 @@ function DayView({ calendar }: { calendar: CalendarPayload }) {
           />
         ))}
 
-        {/* Blocked periods */}
+        {/* Blocked periods — neutral hatch, never the rose one. */}
         {calendar.blocks.map((block) => (
           <div
             key={block.id}
             title={block.reason}
-            className="absolute left-12 right-2 rounded border border-dashed border-ink-muted/40 bg-ink-muted/10"
+            className="hatch-blocked absolute left-12 right-2 overflow-hidden rounded-glam-sm border border-line"
             style={{
               top: `${percent(minutesInto(dayStart, block.startAt))}%`,
               height: `${spanPercent(dayStart, block.startAt, block.endAt, span)}%`,
             }}
           >
-            <span className="px-1.5 text-[10px] text-ink-muted">{block.reason}</span>
+            <span className="block truncate bg-surface/80 px-1.5 text-[10px] text-ink-muted">
+              Unavailable — {block.reason.toLowerCase()}
+            </span>
           </div>
         ))}
 
@@ -154,35 +156,62 @@ function DayView({ calendar }: { calendar: CalendarPayload }) {
           const isEmergency = entry.bookingType === "EMERGENCY";
           return (
             <div key={entry.id}>
+              {/* The service block: a tint with a 3px left border, not a
+                  solid fill. A solid fill would win the screen from the
+                  hatched tail, and the tail is the part that explains why the
+                  next slot is not on offer. */}
               <Link
                 href={`/bookings/${entry.id}`}
-                className={`absolute left-12 right-2 overflow-hidden rounded-glam-sm px-1.5 py-0.5 text-[11px] font-semibold transition hover:brightness-110 ${
+                className={`absolute left-12 right-2 overflow-hidden rounded-glam-sm border-l-[3px] px-2 py-0.5 text-[11px] leading-tight transition duration-[180ms] hover:brightness-[0.98] ${
                   isEmergency
-                    ? "bg-emergency text-on-emergency"
-                    : "bg-brand-700 text-on-brand"
+                    ? "border-l-emergency bg-emergency-soft text-emergency-ink"
+                    : "border-l-brand-700 bg-brand-50 text-brand-700"
                 }`}
                 style={{
                   top: `${percent(minutesInto(dayStart, entry.appointmentStartAt))}%`,
                   height: `${spanPercent(dayStart, entry.appointmentStartAt, entry.appointmentEndAt, span)}%`,
                 }}
               >
-                {isEmergency ? <Lightning size={11} weight="bold" /> : null}
-                {formatTime(entry.appointmentStartAt)} {entry.customerName}
+                <span className="flex items-center gap-1 truncate font-semibold">
+                  {isEmergency ? (
+                    <>
+                      <Lightning size={11} weight="fill" aria-hidden />
+                      EMERGENCY · {formatTime(entry.appointmentStartAt)}
+                    </>
+                  ) : (
+                    <>
+                      {entry.customerName} ·{" "}
+                      <span data-numeric>
+                        {formatTime(entry.appointmentStartAt)}
+                      </span>
+                    </>
+                  )}
+                </span>
+                <span className="block truncate opacity-80">{entry.sector}</span>
               </Link>
+
+              {/* Hatched, not a flat tint: the hatch is the visual signature
+                  of the availability engine and must stay legible. It is
+                  labelled, because an unlabelled stripe is decoration. [§09] */}
               <div
-                title={`${calendar.transitionBufferMinutes}-minute transition period`}
-                // Hatched, not a flat tint: the hatch is the visual signature
-                // of the availability engine and must stay legible. [§09]
-                className={`absolute left-12 right-2 rounded-b border-b border-l border-r opacity-75 ${
+                className={`absolute left-12 right-2 overflow-hidden rounded-b-glam-sm border-b border-l-[3px] border-r ${
                   isEmergency
-                    ? "border-emergency/50 hatch-transition-emergency"
-                    : "border-brand-700/40 hatch-transition"
+                    ? "border-emergency/50 border-l-emergency hatch-transition-emergency"
+                    : "border-brand-700/40 border-l-brand-700 hatch-transition"
                 }`}
                 style={{
                   top: `${percent(minutesInto(dayStart, entry.appointmentEndAt))}%`,
                   height: `${spanPercent(dayStart, entry.appointmentEndAt, entry.reservedUntilAt, span)}%`,
                 }}
-              />
+              >
+                <span
+                  data-numeric
+                  className="block truncate bg-surface/85 px-1.5 text-[10px] font-medium text-ink-muted"
+                >
+                  {formatTime(entry.appointmentEndAt)}–
+                  {formatTime(entry.reservedUntilAt)} transition · locked
+                </span>
+              </div>
             </div>
           );
         })}
@@ -245,26 +274,38 @@ function WeekView({ calendar }: { calendar: CalendarPayload }) {
                 <Link
                   key={entry.id}
                   href={`/bookings/${entry.id}`}
-                  className={`flex items-center gap-0.5 rounded-glam-sm px-1.5 py-1 text-[10px] font-semibold ${
+                  className={`block rounded-glam-sm border-l-[3px] px-1.5 py-1 text-[10px] font-semibold ${
                     entry.bookingType === "EMERGENCY"
-                      ? "bg-emergency text-on-emergency"
-                      : "bg-brand-700 text-on-brand"
+                      ? "border-l-emergency bg-emergency-soft text-emergency-ink"
+                      : "border-l-brand-700 bg-brand-50 text-brand-700"
                   }`}
-                  title={`Reserved until ${formatTime(entry.reservedUntilAt)} incl. transition`}
                 >
-                  {entry.bookingType === "EMERGENCY" ? (
-                    <Lightning size={10} weight="bold" />
-                  ) : null}
-                  {formatTime(entry.appointmentStartAt)}–
-                  {formatTime(entry.reservedUntilAt)}
+                  <span className="flex items-center gap-0.5" data-numeric>
+                    {entry.bookingType === "EMERGENCY" ? (
+                      <Lightning size={10} weight="fill" aria-hidden />
+                    ) : null}
+                    {formatTime(entry.appointmentStartAt)}–
+                    {formatTime(entry.appointmentEndAt)}
+                  </span>
+                  {/* The transition is written out rather than drawn: at week
+                      scale a 15-minute hatch would be a single pixel. */}
+                  <span
+                    data-numeric
+                    className="mt-0.5 block font-normal opacity-75"
+                  >
+                    +{calendar.transitionBufferMinutes}m to{" "}
+                    {formatTime(entry.reservedUntilAt)}
+                  </span>
                 </Link>
               ))}
               {day.blocks.map((block) => (
                 <p
                   key={block.id}
-                  className="rounded border border-dashed border-line px-1.5 py-1 text-[10px] text-ink-muted"
+                  className="hatch-blocked rounded-glam-sm border border-line px-1.5 py-1 text-[10px] text-ink-muted"
                 >
-                  {block.reason}
+                  <span className="bg-surface/85">
+                    Unavailable — {block.reason.toLowerCase()}
+                  </span>
                 </p>
               ))}
             </div>
@@ -282,10 +323,25 @@ function Legend({ bufferMinutes }: { bufferMinutes: number }) {
   return (
     <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink-muted">
       <span className="flex items-center gap-1.5">
-        <span aria-hidden className="h-2.5 w-2.5 rounded bg-brand-700" /> Normal
+        <span
+          aria-hidden
+          className="h-2.5 w-4 rounded-[3px] border-l-[3px] border-l-brand-700 bg-brand-50"
+        />{" "}
+        Normal
       </span>
       <span className="flex items-center gap-1.5">
-        <span aria-hidden className="h-2.5 w-2.5 rounded bg-emergency" /> Emergency
+        <span
+          aria-hidden
+          className="h-2.5 w-4 rounded-[3px] border-l-[3px] border-l-emergency bg-emergency-soft"
+        />{" "}
+        Emergency
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span
+          aria-hidden
+          className="hatch-blocked h-2.5 w-4 rounded-[3px] ring-1 ring-line"
+        />{" "}
+        Blocked
       </span>
       <span className="flex items-center gap-1.5">
         <span
@@ -323,7 +379,7 @@ function EntryList({ entries }: { entries: CalendarEntry[] }) {
                   {formatTime(entry.appointmentEndAt)}
                 </span>
                 <BookingTypeTag bookingType={entry.bookingType} size="sm" />
-                <StatusPill status={entry.status} />
+                <LifecycleChip status={entry.status} />
               </div>
               <p className="mt-0.5 text-xs text-ink-muted">
                 {entry.customerName} · {entry.services.join(" + ")} ·{" "}

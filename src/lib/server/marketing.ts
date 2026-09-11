@@ -1,4 +1,11 @@
 import { prisma } from "./prisma";
+import {
+  addMinutes,
+  startOfLocalDay,
+  type ProviderSchedule,
+} from "@/lib/domain/availability";
+import { CALENDAR_HOLDING_STATUSES } from "./schedules";
+import { isFreeTonight } from "./openings";
 
 /**
  * Everything the marketing page shows, derived from real records.
@@ -8,6 +15,10 @@ import { prisma } from "./prisma";
  * and the numbers would contradict the search results one click away.
  */
 export async function getMarketingData() {
+  const now = new Date();
+  const dayStart = startOfLocalDay(now);
+  const dayEnd = addMinutes(dayStart, 24 * 60);
+
   const [providers, services, hubs] = await Promise.all([
     prisma.provider.findMany({
       where: { approvalStatus: "APPROVED", isAcceptingWork: true },
@@ -18,9 +29,39 @@ export async function getMarketingData() {
         bio: true,
         rating: true,
         completedBookings: true,
+        approvalStatus: true,
         avatarUrl: true,
-        hub: { select: { id: true, name: true, city: true, sector: true } },
-        services: { select: { service: { select: { category: true } } } },
+        hub: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            sector: true,
+            travelFeeMinor: true,
+          },
+        },
+        services: {
+          select: {
+            service: {
+              select: { category: true, kind: true, priceMinor: true },
+            },
+          },
+        },
+        // Today's calendar only — enough to answer "free tonight?" without
+        // pulling a provider's whole history onto the home page.
+        availability: true,
+        timeOff: { where: { startAt: { lt: dayEnd }, endAt: { gt: dayStart } } },
+        bookings: {
+          where: {
+            status: { in: [...CALENDAR_HOLDING_STATUSES] },
+            appointmentStartAt: { lt: dayEnd },
+            reservedUntilAt: { gt: dayStart },
+          },
+          select: { appointmentStartAt: true, reservedUntilAt: true },
+        },
+        // Reviews, not completed jobs: the card shows how many people have
+        // actually rated this provider.
+        _count: { select: { bookings: { where: { rating: { not: null } } } } },
       },
     }),
     prisma.service.findMany({
@@ -70,6 +111,23 @@ export async function getMarketingData() {
     .map(([name, value]) => ({ name, ...value }))
     .sort((a, b) => b.count - a.count);
 
+  // Providers who can deliver each category, so the category tile can state a
+  // live count rather than a catalogue size.
+  const providerCountByCategory = new Map<string, number>();
+  for (const provider of providers) {
+    const covered = new Set(
+      provider.services
+        .filter((link) => link.service.kind !== "ADDON")
+        .map((link) => link.service.category),
+    );
+    for (const category of covered) {
+      providerCountByCategory.set(
+        category,
+        (providerCountByCategory.get(category) ?? 0) + 1,
+      );
+    }
+  }
+
   const cities = [...new Map(hubs.map((hub) => [hub.city, hub])).values()]
     .map((hub) => ({
       city: hub.city,
@@ -87,21 +145,52 @@ export async function getMarketingData() {
       : null;
 
   return {
-    providers: providers.map((provider) => ({
-      id: provider.id,
-      name: provider.name,
-      bio: provider.bio,
-      rating: provider.rating,
-      completedBookings: provider.completedBookings,
-      avatarUrl: provider.avatarUrl,
-      hubId: provider.hub.id,
-      city: provider.hub.city,
-      sector: provider.hub.sector,
-      specialities: [
-        ...new Set(provider.services.map((link) => link.service.category)),
-      ],
+    providers: providers.map((provider) => {
+      const basePrices = provider.services
+        .filter((link) => link.service.kind !== "ADDON")
+        .map((link) => link.service.priceMinor);
+
+      const schedule: ProviderSchedule = {
+        providerId: provider.id,
+        workingWindows: provider.availability.map((window) => ({
+          dayOfWeek: window.dayOfWeek,
+          startMinute: window.startMinute,
+          endMinute: window.endMinute,
+        })),
+        reservations: provider.bookings.map((booking) => ({
+          startAt: booking.appointmentStartAt,
+          endAt: booking.reservedUntilAt,
+        })),
+        blocks: provider.timeOff.map((block) => ({
+          startAt: block.startAt,
+          endAt: block.endAt,
+        })),
+      };
+
+      return {
+        id: provider.id,
+        name: provider.name,
+        bio: provider.bio,
+        rating: provider.rating,
+        reviewCount: provider._count.bookings,
+        completedBookings: provider.completedBookings,
+        avatarUrl: provider.avatarUrl,
+        hubId: provider.hub.id,
+        city: provider.hub.city,
+        sector: provider.hub.sector,
+        travelFeeMinor: provider.hub.travelFeeMinor,
+        fromMinor: basePrices.length > 0 ? Math.min(...basePrices) : null,
+        vetted: provider.approvalStatus === "APPROVED",
+        freeTonight: isFreeTonight(schedule, now),
+        specialities: [
+          ...new Set(provider.services.map((link) => link.service.category)),
+        ],
+      };
+    }),
+    categories: categories.map((category) => ({
+      ...category,
+      providerCount: providerCountByCategory.get(category.name) ?? 0,
     })),
-    categories,
     cities,
     stats: {
       providerCount: providers.length,

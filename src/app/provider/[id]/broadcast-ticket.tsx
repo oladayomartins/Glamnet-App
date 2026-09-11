@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookingTypeTag, Button, Card } from "@/components/ui";
+import { Lightning } from "@phosphor-icons/react";
+import { BookingTypeTag, Button, Card, DurationStrip } from "@/components/ui";
 import { formatDayTime, formatDuration, formatMoney } from "@/lib/format";
+import {
+  BROADCAST_ACCEPTANCE_WINDOW_MINUTES,
+  TRANSITION_BUFFER_MINUTES,
+} from "@/lib/domain/constants";
 
 export interface BroadcastRequest {
   bookingId: string;
@@ -21,11 +26,17 @@ export interface BroadcastRequest {
 }
 
 /**
- * The provider booking ticket (spec §6). Shows everything a provider needs to
- * judge short-notice work before accepting: the emergency tag, the appointment
- * time, the notice remaining, the services, the total duration, the sector,
- * their earnings, the surge component of those earnings, and the acceptance
- * countdown.
+ * The provider broadcast ticket (§P-02).
+ *
+ * The field order is fixed, because a provider decides on this in seconds and
+ * always in the same order: what kind of job and how long they have to answer,
+ * when it is and how much notice that is, what the work is, how long it blocks,
+ * where, what it pays, and only then the button. The tone is blunt and factual
+ * throughout — no persuasion, no exclamation marks.
+ *
+ * The address is deliberately absent. At broadcast stage a provider gets the
+ * sector and nothing more; the street only appears once the booking reaches
+ * Address Unlocked.
  */
 export function BroadcastTicket({
   request,
@@ -39,58 +50,124 @@ export function BroadcastTicket({
   const isEmergency = request.bookingType === "EMERGENCY";
   const secondsLeft = useCountdown(request.acceptanceExpiresAt);
   const expired = secondsLeft <= 0;
+  const windowSeconds = BROADCAST_ACCEPTANCE_WINDOW_MINUTES * 60;
+  const remaining = Math.min(1, Math.max(0, secondsLeft / windowSeconds));
 
   return (
     <Card
-      className={`p-4 ${isEmergency ? "border-l-4 border-l-emergency" : ""}`}
+      className={`overflow-hidden ${
+        isEmergency ? "border-l-4 border-l-emergency" : ""
+      }`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      {/* 1 — what this is, and how long is left to answer. */}
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${
+          isEmergency ? "bg-emergency-soft" : "bg-sunken"
+        }`}
+      >
+        {isEmergency ? (
+          <p className="flex items-center gap-1.5 font-mono text-xs font-bold uppercase tracking-[0.14em] text-emergency-ink">
+            <span
+              aria-hidden
+              className="breathe-emergency flex h-5 w-5 items-center justify-center rounded-full bg-emergency text-on-emergency"
+            >
+              <Lightning size={12} weight="fill" />
+            </span>
+            Emergency booking
+          </p>
+        ) : (
           <BookingTypeTag bookingType={request.bookingType} />
-          <p className="mt-2 font-display text-lg font-semibold text-ink">
-            {formatDayTime(request.appointmentStartAt)}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs uppercase tracking-wider text-ink-muted">
-            You earn
-          </p>
-          <p className="font-display text-xl font-bold text-ink">
-            {formatMoney(request.earningsMinor)}
-          </p>
-          {request.emergencyEarningsMinor > 0 ? (
-            <p className="text-xs font-semibold text-emergency-ink">
-              incl. {formatMoney(request.emergencyEarningsMinor)} surge
-            </p>
-          ) : null}
-        </div>
+        )}
+
+        <span
+          data-numeric
+          aria-live="polite"
+          className={`inline-flex items-center rounded-full px-3 py-1 font-mono text-sm font-bold ${
+            isEmergency
+              ? "bg-emergency text-on-emergency"
+              : "bg-surface text-ink ring-1 ring-line"
+          }`}
+        >
+          {expired ? "expired" : `${formatCountdown(secondsLeft)} left`}
+        </span>
       </div>
 
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-line pt-3 text-sm sm:grid-cols-4">
-        <Field label="Notice">
-          <span className={isEmergency ? "font-semibold text-emergency-ink" : ""}>
-            {request.noticeLabel}
+      <div className="p-4">
+        {/* 2 — when, and how much notice that is. */}
+        <p className="font-display text-lg font-semibold text-ink">
+          {formatDayTime(request.appointmentStartAt)}
+          <span className="text-ink-muted"> · </span>
+          <span
+            data-numeric
+            className={isEmergency ? "text-emergency-ink" : "text-ink-muted"}
+          >
+            notice {request.noticeLabel}
           </span>
-        </Field>
-        <Field label="Duration">
-          {formatDuration(request.serviceDurationMinutes)}
-        </Field>
-        <Field label="Blocks">
-          {formatDuration(request.reservedDurationMinutes)}
-        </Field>
-        <Field label="Sector">{request.sector}</Field>
-      </dl>
+        </p>
 
-      <p className="mt-3 text-sm text-ink">
-        <span className="text-ink-muted">Services: </span>
-        {request.services.join(" + ")}
-      </p>
+        {/* 3 — the work itself. */}
+        <p className="mt-2 text-[15px] text-ink">
+          {request.services.join(" + ")}
+        </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+        {/* 4 — what it actually blocks out, transition included. */}
+        <DurationStrip
+          className="mt-3"
+          serviceLabel={formatDuration(request.serviceDurationMinutes)}
+          transitionMinutes={TRANSITION_BUFFER_MINUTES}
+          blockLabel={formatDuration(request.reservedDurationMinutes)}
+        />
+
+        {/* 5 and 6 — sector only, and the money. */}
+        <dl className="mt-3 flex flex-wrap items-end justify-between gap-4 border-t border-line pt-3">
+          <div>
+            <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+              Sector
+            </dt>
+            <dd className="mt-0.5 text-[15px] font-medium text-ink">
+              {request.sector}
+            </dd>
+          </div>
+          <div className="text-right">
+            <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+              You earn
+            </dt>
+            <dd
+              data-numeric
+              className="mt-0.5 font-display text-xl font-bold text-ink"
+            >
+              {formatMoney(request.earningsMinor)}
+            </dd>
+            {request.emergencyEarningsMinor > 0 ? (
+              <dd
+                data-numeric
+                className="text-xs font-semibold text-emergency-ink"
+              >
+                incl. {formatMoney(request.emergencyEarningsMinor)} surge
+              </dd>
+            ) : null}
+          </div>
+        </dl>
+
+        {/* 7 — the countdown, drawn. */}
+        <div
+          className="mt-4 h-1 w-full overflow-hidden rounded-full bg-sunken"
+          role="presentation"
+        >
+          <div
+            className={`h-full transition-[width] duration-1000 ease-linear ${
+              isEmergency ? "bg-emergency" : "bg-brand-700"
+            }`}
+            style={{ width: `${remaining * 100}%` }}
+          />
+        </div>
+
+        {/* 8 — the decision. */}
         <Button
           variant={isEmergency ? "emergency" : "primary"}
           onClick={onAccept}
           disabled={busy || expired}
+          className="mt-4 w-full uppercase tracking-wider"
         >
           {busy
             ? "Accepting…"
@@ -100,28 +177,8 @@ export function BroadcastTicket({
                 ? "Accept emergency booking"
                 : "Accept booking"}
         </Button>
-        {!expired ? (
-          <span className="text-xs text-ink-muted" aria-live="polite">
-            {formatCountdown(secondsLeft)} left to respond
-          </span>
-        ) : null}
       </div>
     </Card>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <dt className="text-xs uppercase tracking-wider text-ink-muted">{label}</dt>
-      <dd className="text-ink">{children}</dd>
-    </div>
   );
 }
 

@@ -225,6 +225,9 @@ model Booking {
   /// Revealed to the provider only at ADDRESS_UNLOCKED.
   addressUnlocked      Boolean @default(false)
   rating               Int?
+  /// The customer's written review, kept beside the rating that released
+  /// payment. Empty when they rated without writing anything.
+  reviewNote           String  @default("")
   cancelledReason      String  @default("")
 
   customerId String

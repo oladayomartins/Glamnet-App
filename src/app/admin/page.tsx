@@ -3,12 +3,15 @@ import { prisma } from "@/lib/server/prisma";
 import { requireRole } from "@/lib/auth/session";
 import { buildEmergencyReport } from "@/lib/server/reporting";
 import { getActiveEmergencyConfig } from "@/lib/server/emergency-config";
-import { BookingTypeTag, Card, EmptyState, SectionTitle, StatusPill } from "@/components/ui";
+import { ListMagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
+import { BookingTypeTag, Card, EmptyState, SectionTitle, LifecycleChip } from "@/components/ui";
 import {
   describeSurcharge,
+  formatDay,
   formatDayTime,
   formatDuration,
   formatMoney,
+  formatNotice,
 } from "@/lib/format";
 import { EmergencyConfigForm } from "./config-form";
 
@@ -50,8 +53,9 @@ export default async function AdminPage({
       where: whereFor(filter),
       orderBy: { bookingCreatedAt: "desc" },
       take: 100,
+      // The ledger table names the parties and the money, not the basket —
+      // so the basket is not fetched for a hundred rows.
       include: {
-        items: true,
         customer: { select: { name: true } },
         provider: { select: { name: true } },
       },
@@ -161,9 +165,9 @@ export default async function AdminPage({
               key={option}
               href={option === "ALL" ? "/admin" : `/admin?filter=${option}`}
               aria-current={filter === option ? "page" : undefined}
-              className={`tap-44 rounded-full px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wider transition ${
+              className={`inline-flex min-h-11 items-center rounded-full px-4 font-mono text-xs font-medium uppercase tracking-wider transition duration-[180ms] ease-glam ${
                 filter === option
-                  ? "bg-brand-700 text-on-brand"
+                  ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200"
                   : "bg-surface text-ink-muted ring-1 ring-line hover:bg-sunken"
               }`}
             >
@@ -173,51 +177,139 @@ export default async function AdminPage({
         </nav>
 
         {bookings.length === 0 ? (
-          <EmptyState>No bookings match this filter.</EmptyState>
-        ) : (
-          <div className="space-y-2">
-            {bookings.map((booking) => (
+          <EmptyState
+            icon={<ListMagnifyingGlass size={24} weight="light" />}
+            title="Nothing under this filter"
+            action={
               <Link
-                key={booking.id}
-                href={`/bookings/${booking.id}`}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-glam border border-line bg-surface p-3 shadow-card transition hover:border-brand-400"
+                href="/admin"
+                className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <BookingTypeTag bookingType={booking.bookingType} size="sm" />
-                    <StatusPill status={booking.status} />
-                    <span className="text-sm font-semibold text-ink">
-                      {formatDayTime(booking.appointmentStartAt)}
-                    </span>
-                  </div>
-                  <p className="mt-1 truncate text-xs text-ink-muted">
-                    {booking.customer.name} →{" "}
-                    {booking.provider?.name ?? "awaiting provider"} ·{" "}
-                    {booking.items.map((item) => item.name).join(" + ")} ·{" "}
-                    {booking.sector}
-                  </p>
-                  <p className="text-xs text-ink-muted">
-                    {formatDuration(booking.noticePeriodMinutes)} notice ·{" "}
-                    {formatDuration(booking.reservedDurationMinutes)} reserved
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-sm font-bold tabular-nums text-ink">
-                    {formatMoney(booking.totalInvoicePriceMinor)}
-                  </p>
-                  {booking.emergencySurchargeMinor > 0 ? (
-                    <p className="text-xs font-semibold text-emergency-ink">
-                      +{formatMoney(booking.emergencySurchargeMinor)} surge
-                    </p>
-                  ) : null}
-                </div>
+                Show every booking
               </Link>
-            ))}
-          </div>
+            }
+          >
+            No booking matches {filter.toLowerCase()}.
+          </EmptyState>
+        ) : (
+          /*
+           * A table, not cards. Admin is the one surface in the product where
+           * density beats comfort — the job here is comparing a hundred rows,
+           * and 13px is acceptable here and nowhere in the customer PWA.
+           */
+          <Card className="overflow-x-auto">
+            <table className="w-full min-w-[1040px] text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-left">
+                  <Th>Ref</Th>
+                  <Th>Created</Th>
+                  <Th>Appointment</Th>
+                  <Th numeric>Notice</Th>
+                  <Th>Type</Th>
+                  <Th>Status</Th>
+                  <Th>Provider</Th>
+                  <Th>Customer</Th>
+                  <Th numeric>Total</Th>
+                  <Th numeric>Surcharge</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {bookings.map((booking) => (
+                  <tr
+                    key={booking.id}
+                    className="border-b border-line/70 last:border-0"
+                  >
+                    <Td mono>
+                      <Link
+                        href={`/admin/bookings/${booking.id}`}
+                        className="font-medium text-ink hover:text-brand-700"
+                      >
+                        {booking.id.slice(-8)}
+                      </Link>
+                    </Td>
+                    <Td>{formatDay(booking.bookingCreatedAt)}</Td>
+                    <Td>{formatDayTime(booking.appointmentStartAt)}</Td>
+                    <Td mono numeric>
+                      {formatNotice(booking.noticePeriodMinutes)}
+                    </Td>
+                    <Td>
+                      {/* Every emergency row carries the tag, at every width. */}
+                      <BookingTypeTag
+                        bookingType={booking.bookingType}
+                        size="sm"
+                      />
+                    </Td>
+                    <Td>
+                      <LifecycleChip status={booking.status} size="sm" />
+                    </Td>
+                    <Td>
+                      {booking.provider?.name ?? (
+                        <span className="text-ink-muted">unassigned</span>
+                      )}
+                    </Td>
+                    <Td>{booking.customer.name}</Td>
+                    <Td mono numeric strong>
+                      {formatMoney(booking.totalInvoicePriceMinor)}
+                    </Td>
+                    <Td mono numeric emphasis={booking.emergencySurchargeMinor > 0}>
+                      {booking.emergencySurchargeMinor > 0
+                        ? formatMoney(booking.emergencySurchargeMinor)
+                        : "—"}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         )}
       </section>
     </div>
+  );
+}
+
+function Th({
+  children,
+  numeric,
+}: {
+  children: React.ReactNode;
+  numeric?: boolean;
+}) {
+  return (
+    <th
+      scope="col"
+      className={`whitespace-nowrap px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-ink-muted ${
+        numeric ? "text-right" : ""
+      }`}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({
+  children,
+  mono,
+  numeric,
+  strong,
+  emphasis,
+}: {
+  children: React.ReactNode;
+  mono?: boolean;
+  numeric?: boolean;
+  strong?: boolean;
+  emphasis?: boolean;
+}) {
+  return (
+    <td
+      data-numeric={numeric ? "" : undefined}
+      className={`whitespace-nowrap px-3 py-2.5 text-ink ${mono ? "font-mono" : ""} ${
+        numeric ? "text-right" : ""
+      } ${strong ? "font-bold" : ""} ${
+        emphasis ? "font-semibold text-emergency-ink" : ""
+      }`}
+    >
+      {children}
+    </td>
   );
 }
 

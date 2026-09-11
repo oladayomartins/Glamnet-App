@@ -25,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const [services, hubs] = await Promise.all([
+    const [services, hubs, providers] = await Promise.all([
       prisma.service.findMany({
         where: {
           isActive: true,
@@ -34,6 +34,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         select: { name: true },
       }),
       prisma.hub.findMany({ select: { id: true, city: true } }),
+      // Only providers a customer can actually reach: the profile route 404s
+      // for anyone pending, rejected or not taking work, and a sitemap full
+      // of 404s is worse than a shorter one.
+      prisma.provider.findMany({
+        where: { approvalStatus: "APPROVED", isAcceptingWork: true },
+        select: { id: true },
+      }),
     ]);
 
     const serviceRoutes = services.map((service) => ({
@@ -50,6 +57,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
+    const providerRoutes = providers.map((provider) => ({
+      url: `${base}/providers/${provider.id}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    }));
+
     const hubRoutes = hubs.map((hub) => ({
       url: `${base}/book/${hub.id}`,
       lastModified: now,
@@ -57,7 +71,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
-    return [...staticRoutes, ...serviceRoutes, ...cityRoutes, ...hubRoutes];
+    return [
+      ...staticRoutes,
+      ...serviceRoutes,
+      ...cityRoutes,
+      ...providerRoutes,
+      ...hubRoutes,
+    ];
   } catch {
     // A sitemap that 500s is worse than a short one: never let a database
     // blip take the whole route down.

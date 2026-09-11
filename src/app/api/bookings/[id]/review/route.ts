@@ -15,8 +15,8 @@ export async function POST(
     if ("response" in auth) return auth.response;
 
     const { id } = await params;
-    const { rating } = reviewSchema.parse(await request.json());
-    const booking = await reviewBooking(id, rating);
+    const { rating, note } = reviewSchema.parse(await request.json());
+    const booking = await reviewBooking(id, rating, note ?? "");
     return NextResponse.json({ booking });
   } catch (error) {
     return errorResponse(error);

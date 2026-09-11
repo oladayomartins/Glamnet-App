@@ -97,11 +97,15 @@ export async function transitionBooking(
 export async function reviewBooking(
   bookingId: string,
   rating: number,
+  note = "",
   actor = "CUSTOMER",
 ) {
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     throw new BookingError("Rating must be a whole number from 1 to 5.", "INVALID_TRANSITION");
   }
   await transitionBooking(bookingId, "REVIEWED", actor, `Rated ${rating}/5.`);
-  return prisma.booking.update({ where: { id: bookingId }, data: { rating } });
+  return prisma.booking.update({
+    where: { id: bookingId },
+    data: { rating, reviewNote: note.trim() },
+  });
 }

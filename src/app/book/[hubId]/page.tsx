@@ -11,10 +11,12 @@ import { BookingFlow } from "./booking-flow";
  */
 export default async function BookPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ hubId: string }>;
+  searchParams: Promise<{ service?: string }>;
 }) {
-  const { hubId } = await params;
+  const [{ hubId }, { service }] = await Promise.all([params, searchParams]);
 
   // Booking requires an account: the booking is placed against a real
   // customer record, and payment is authorised against them.
@@ -42,6 +44,9 @@ export default async function BookPage({
       thresholdMinutes={thresholdMinutes}
       surchargeType={config?.surchargeType ?? null}
       surchargeValue={config?.surchargeValue ?? null}
+      // Search hands over the service that matched, so the builder opens on
+      // the thing the customer was looking for rather than an empty basket.
+      initialServiceId={service}
     />
   );
 }

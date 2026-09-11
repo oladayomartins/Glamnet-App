@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDayGrid,
   buildSlotOptions,
   isProviderAvailable,
   overlaps,
@@ -164,6 +165,61 @@ describe("buildSlotOptions", () => {
     expect(
       buildSlotOptions(local("2026-04-01T00:00:00"), 60, [busy], local("2026-04-01T00:00:00")),
     ).toHaveLength(0);
+  });
+});
+
+describe("buildDayGrid", () => {
+  it("keeps start times nobody is free for, so the picker can show them", () => {
+    const busy = schedule({
+      reservations: [
+        { startAt: local("2026-04-01T09:00:00"), endAt: local("2026-04-01T20:00:00") },
+      ],
+    });
+
+    const grid = buildDayGrid(
+      local("2026-04-01T00:00:00"),
+      60,
+      [busy],
+      local("2026-04-01T00:00:00"),
+    );
+
+    // The working day is still described, even though none of it is bookable:
+    // an absent 16:00 would read as "they do not work then".
+    expect(grid.length).toBeGreaterThan(0);
+    expect(grid.every((slot) => slot.availableProviderIds.length === 0)).toBe(true);
+  });
+
+  it("omits times outside every provider's working hours", () => {
+    const grid = buildDayGrid(
+      local("2026-04-01T00:00:00"),
+      60,
+      [schedule()],
+      local("2026-04-01T00:00:00"),
+    );
+
+    expect(grid.every((slot) => slot.startAt.getHours() >= 9)).toBe(true);
+  });
+
+  it("is the superset buildSlotOptions filters", () => {
+    const partlyBusy = schedule({
+      reservations: [
+        { startAt: local("2026-04-01T09:00:00"), endAt: local("2026-04-01T12:00:00") },
+      ],
+    });
+    const args = [
+      local("2026-04-01T00:00:00"),
+      60,
+      [partlyBusy],
+      local("2026-04-01T00:00:00"),
+    ] as const;
+
+    const grid = buildDayGrid(...args);
+    const offered = buildSlotOptions(...args);
+
+    expect(offered).toEqual(
+      grid.filter((slot) => slot.availableProviderIds.length > 0),
+    );
+    expect(offered.length).toBeLessThan(grid.length);
   });
 });
 
