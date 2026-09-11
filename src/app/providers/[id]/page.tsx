@@ -8,6 +8,7 @@ import {
   Star,
 } from "@phosphor-icons/react/dist/ssr";
 import { getProviderProfile } from "@/lib/server/provider-profile";
+import { GlamImage } from "@/components/glam-image";
 import { Card, EmptyState, SectionTitle } from "@/components/ui";
 import { formatDay, formatDuration, formatMoney } from "@/lib/format";
 
@@ -58,10 +59,16 @@ export default async function ProviderProfilePage({
           {/* 4:3 lead image with a thumbnail strip beneath. Real portfolio
               photography drops into these slots; the ratios are fixed now so
               nothing reflows when it arrives. */}
-          <div
-            aria-hidden
-            className="relative aspect-[4/3] w-full overflow-hidden rounded-glam-lg bg-metal shadow-card"
-          >
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-glam-lg shadow-card">
+            <GlamImage
+              src={provider.avatarUrl}
+              alt={`Work by ${provider.name}`}
+              width={880}
+              height={660}
+              sizes="(max-width: 1024px) 100vw, 560px"
+              priority
+              className="h-full w-full object-cover"
+            />
             <span className="absolute left-4 top-4">
               {provider.freeTonight ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emergency px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-on-emergency">

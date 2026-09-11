@@ -18,6 +18,8 @@ export interface ProviderResult {
   city: string;
   sector: string;
   travelFeeMinor: number;
+  /** Media-library photo. Empty until the provider has uploaded one. */
+  avatarUrl: string;
   /** Cheapest service this provider offers that matched the query. */
   fromMinor: number | null;
   vetted: boolean;
@@ -81,6 +83,7 @@ export async function searchProviders(
       bio: true,
       rating: true,
       completedBookings: true,
+      avatarUrl: true,
       hub: {
         select: { id: true, city: true, sector: true, travelFeeMinor: true },
       },
@@ -166,6 +169,7 @@ export async function searchProviders(
         city: provider.hub.city,
         sector: provider.hub.sector,
         travelFeeMinor: provider.hub.travelFeeMinor,
+        avatarUrl: provider.avatarUrl,
         fromMinor: basePrices.length > 0 ? Math.min(...basePrices) : null,
         vetted: true,
         availableToday: hasOpeningToday(schedule, now),

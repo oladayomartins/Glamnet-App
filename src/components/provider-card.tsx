@@ -5,6 +5,7 @@ import {
   ShieldCheck,
   Star,
 } from "@phosphor-icons/react/dist/ssr";
+import { GlamImage } from "@/components/glam-image";
 import { Skeleton } from "@/components/ui";
 import { formatMoney } from "@/lib/format";
 
@@ -22,6 +23,8 @@ export interface ProviderCardData {
   /** Flat travel fee for this sector, in pence. */
   travelFeeMinor: number;
   vetted: boolean;
+  /** Media-library photo. Empty until the provider has uploaded one. */
+  imageUrl: string;
   /**
    * Free for a booking this evening, computed against the real calendar.
    * This is the ONLY place on a card where signal red is allowed.
@@ -48,11 +51,18 @@ export function ProviderCard({ provider }: { provider: ProviderCardData }) {
       href={provider.href}
       className="group flex flex-col overflow-hidden rounded-glam border border-line bg-surface shadow-card transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-raised"
     >
-      {/* 4:3 portfolio image. Until real portfolio photography exists the slot
-          is filled with the brand metal, which is a legitimate fill — the one
-          thing it must not do is collapse, or the grid reflows when photos
-          land. */}
-      <div className="relative aspect-[4/3] w-full bg-metal">
+      {/* 4:3 portfolio image. GlamImage falls back to the brand metal when a
+          provider has no photo yet — a legitimate fill, and the one thing the
+          slot must not do is collapse, or the grid reflows when photos land. */}
+      <div className="relative aspect-[4/3] w-full">
+        <GlamImage
+          src={provider.imageUrl}
+          alt=""
+          width={432}
+          height={324}
+          sizes="(max-width: 640px) 100vw, 216px"
+          className="h-full w-full object-cover"
+        />
         <span className="absolute left-3 top-3">
           {provider.freeTonight ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-emergency px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-on-emergency">

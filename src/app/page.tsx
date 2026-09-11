@@ -16,6 +16,7 @@ import { getMarketingData } from "@/lib/server/marketing";
 import { BlockHeading } from "@/components/ui";
 import { SearchBar } from "@/components/search-bar";
 import { FeaturedProviders } from "@/components/featured-providers";
+import { GlamImage } from "@/components/glam-image";
 import type { ProviderCardData } from "@/components/provider-card";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +83,7 @@ export default async function MarketingPage() {
     fromMinor: provider.fromMinor,
     travelFeeMinor: provider.travelFeeMinor,
     vetted: provider.vetted,
+    imageUrl: provider.avatarUrl,
     freeTonight: provider.freeTonight,
     specialities: provider.specialities,
   }));
@@ -314,12 +316,14 @@ export default async function MarketingPage() {
               numbers here is contradicted by the search page one click away. */}
           <div className="flex items-center gap-3">
             <span aria-hidden className="flex -space-x-3">
-              {Array.from({
-                length: Math.min(4, stats.providerCount),
-              }).map((_, index) => (
-                <span
-                  key={index}
-                  className="h-10 w-10 rounded-full bg-metal ring-2 ring-surface"
+              {cards.slice(0, 4).map((provider) => (
+                <GlamImage
+                  key={provider.id}
+                  src={provider.imageUrl}
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="h-10 w-10 rounded-full object-cover ring-2 ring-surface"
                 />
               ))}
               {stats.providerCount > 4 ? (

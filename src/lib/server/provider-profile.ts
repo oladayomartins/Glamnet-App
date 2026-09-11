@@ -15,6 +15,8 @@ export interface ProviderProfile {
   city: string;
   sector: string;
   travelFeeMinor: number;
+  /** Media-library photo. Empty until the provider has uploaded one. */
+  avatarUrl: string;
   freeTonight: boolean;
   /** Minutes from the earliest to the latest shift, per weekday. */
   workingDays: string[];
@@ -68,6 +70,7 @@ export async function getProviderProfile(
       bio: true,
       rating: true,
       completedBookings: true,
+      avatarUrl: true,
       hub: {
         select: {
           id: true,
@@ -152,6 +155,7 @@ export async function getProviderProfile(
     city: provider.hub.city,
     sector: provider.hub.sector,
     travelFeeMinor: provider.hub.travelFeeMinor,
+    avatarUrl: provider.avatarUrl,
     freeTonight: isFreeTonight(schedule, now),
     workingDays: [
       ...new Set(provider.availability.map((window) => window.dayOfWeek)),

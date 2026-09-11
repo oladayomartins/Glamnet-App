@@ -24,6 +24,7 @@ export const createBookingSchema = quoteSchema.extend({
   addressLine: z.string().max(300).optional(),
   notes: z.string().max(2_000).optional(),
   referenceImageUrl: z.string().max(2_000).optional(),
+  referenceImageFileId: z.string().max(200).optional(),
 });
 
 export const availabilitySchema = z.object({

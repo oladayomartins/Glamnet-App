@@ -67,6 +67,7 @@ export default async function SearchPage({
     fromMinor: provider.fromMinor,
     travelFeeMinor: provider.travelFeeMinor,
     vetted: provider.vetted,
+    imageUrl: provider.avatarUrl,
     freeTonight: provider.freeTonight,
     specialities: provider.specialities,
   }));

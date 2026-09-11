@@ -151,6 +151,7 @@ export interface CreateBookingRequest extends QuoteRequest {
   addressLine?: string;
   notes?: string;
   referenceImageUrl?: string;
+  referenceImageFileId?: string;
 }
 
 /**
@@ -200,6 +201,7 @@ export async function createBooking(
         addressLine: request.addressLine ?? "",
         notes: request.notes ?? "",
         referenceImageUrl: request.referenceImageUrl ?? "",
+        referenceImageFileId: request.referenceImageFileId ?? "",
         customerId: request.customerId,
         hubId: request.hubId,
         items: {

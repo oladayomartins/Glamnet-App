@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle, Clock, Lightning, Plus } from "@phosphor-icons/react";
+import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import {
   BookingTypeTag,
   Button,
@@ -92,6 +93,7 @@ export function BookingFlow({
   services,
   customerId,
   customerName,
+  imageUploadsEnabled,
   thresholdMinutes,
   surchargeType,
   surchargeValue,
@@ -101,6 +103,7 @@ export function BookingFlow({
   services: Service[];
   customerId: string | null;
   customerName: string;
+  imageUploadsEnabled: boolean;
   thresholdMinutes: number;
   surchargeType: string | null;
   surchargeValue: number | null;
@@ -129,7 +132,7 @@ export function BookingFlow({
   } | null>(null);
   const [addressLine, setAddressLine] = useState("");
   const [notes, setNotes] = useState("");
-  const [referenceImageUrl, setReferenceImageUrl] = useState("");
+  const [referenceImage, setReferenceImage] = useState<UploadedImage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<{
@@ -278,7 +281,8 @@ export function BookingFlow({
           customerId,
           addressLine,
           notes,
-          referenceImageUrl,
+          referenceImageUrl: referenceImage?.url ?? "",
+          referenceImageFileId: referenceImage?.fileId ?? "",
         }),
       });
       const payload = await response.json();
@@ -419,20 +423,27 @@ export function BookingFlow({
       <section>
         <SectionTitle hint="Optional">Add a reference</SectionTitle>
         <Card className="p-4">
-          <label className="block">
-            <span className="text-sm font-medium text-ink">Reference image URL</span>
-            <input
-              type="url"
-              value={referenceImageUrl}
-              onChange={(event) => setReferenceImageUrl(event.target.value)}
-              placeholder="https://…"
-              className="mt-1 min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 py-2 text-[15px] outline-none transition duration-[180ms] focus:border-brand-400"
+          {imageUploadsEnabled ? (
+            <ImageUpload
+              folder="reference"
+              value={referenceImage}
+              onChange={setReferenceImage}
+              label="Reference photo"
+              hint="Show the look you want, so your provider arrives prepared."
+              disabled={submitting}
             />
-          </label>
-          <p className="mt-2 text-xs text-ink-muted">
-            A clear photo of the finished look you want, in good light. Your
-            provider sees it the moment they accept, so they arrive with the
-            right kit. You can skip this and add one later.
+          ) : (
+            /* No media library configured: say so rather than showing a
+               control that cannot work. */
+            <p className="text-[15px] text-ink-muted">
+              Photo uploads are unavailable right now. You can describe the look
+              you want in the notes at checkout instead.
+            </p>
+          )}
+          <p className="mt-3 text-xs text-ink-muted">
+            A clear photo of the finished look, in good light. Your provider
+            sees it the moment they accept, so they arrive with the right kit.
+            You can skip this and add one later.
           </p>
         </Card>
       </section>
