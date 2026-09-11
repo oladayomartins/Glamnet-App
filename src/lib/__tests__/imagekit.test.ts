@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   HERO_IMAGE_PATH,
   brandImageUrl,
+  categoryImageUrl,
   isImageKitConfigured,
   isTrustedImageUrl,
 } from "@/lib/imagekit";
@@ -44,5 +45,33 @@ describe("isTrustedImageUrl", () => {
     expect(isTrustedImageUrl("https://evil.example/pixel.png")).toBe(false);
     expect(isTrustedImageUrl("not a url")).toBe(false);
     expect(isTrustedImageUrl("")).toBe(false);
+  });
+});
+
+describe("categoryImageUrl", () => {
+  it("prefers a real uploaded image over the shipped artwork", () => {
+    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = ENDPOINT;
+    const uploaded = `${ENDPOINT}/glamnet/services/braids.png`;
+
+    // Adding photography through the admin must not require a code change
+    // here, so anything uploaded wins.
+    expect(categoryImageUrl("Hair", uploaded)).toBe(uploaded);
+  });
+
+  it("falls back to the shipped artwork for the seeded categories", () => {
+    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = ENDPOINT;
+
+    for (const category of ["Hair", "Nails", "Makeup"]) {
+      const url = categoryImageUrl(category);
+      expect(url).not.toBeNull();
+      // Same silent-fallback trap as the hero: an untrusted URL would leave
+      // the tile showing metal with nothing to explain why.
+      expect(isTrustedImageUrl(url!)).toBe(true);
+    }
+  });
+
+  it("returns null for a category with no artwork, so the tile falls back", () => {
+    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT = ENDPOINT;
+    expect(categoryImageUrl("Massage")).toBeNull();
   });
 });

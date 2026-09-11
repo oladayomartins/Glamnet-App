@@ -40,6 +40,33 @@ export function brandImageUrl(path: string): string | null {
 /** The home page hero: a makeup artist at work, warm low light. */
 export const HERO_IMAGE_PATH = "/GlamNet App Hero Image.png";
 
+/**
+ * Artwork for the category tiles, keyed by the category name as it is stored
+ * on the service.
+ *
+ * A fallback, not an override: a category whose services carry uploaded
+ * photography uses that instead, so adding a real image through the admin
+ * never has to come back here. A category with neither falls through to the
+ * brand metal like every other image slot.
+ */
+export const CATEGORY_IMAGE_PATHS: Record<string, string> = {
+  Hair: "/Glossy Hair.png",
+  Nails: "/Glamnet - Nail Tech.png",
+  // Two trailing spaces before the extension, which is how the file is named
+  // in the library. Written out rather than trimmed: the name has to match.
+  Makeup: "/Glamorous Makeup Application Portrait  .png",
+};
+
+/** The tile image for a category, preferring anything really uploaded. */
+export function categoryImageUrl(
+  category: string,
+  uploadedUrl?: string,
+): string | null {
+  if (uploadedUrl) return uploadedUrl;
+  const path = CATEGORY_IMAGE_PATHS[category];
+  return path ? brandImageUrl(path) : null;
+}
+
 /** Where uploaded files live, keyed by what they are. */
 export const IMAGE_FOLDERS = {
   reference: "/glamnet/booking-references",
