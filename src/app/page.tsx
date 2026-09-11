@@ -9,7 +9,9 @@ import {
   PaintBrush,
   Receipt,
   Scissors,
+  ShieldCheck,
   SquaresFour,
+  Star,
 } from "@phosphor-icons/react/dist/ssr";
 import { getPricingContext } from "@/lib/server/emergency-config";
 import { getMarketingData } from "@/lib/server/marketing";
@@ -18,21 +20,22 @@ import { SearchBar } from "@/components/search-bar";
 import { FeaturedProviders } from "@/components/featured-providers";
 import { GlamImage } from "@/components/glam-image";
 import { BrandImage } from "@/components/brand-image";
+import { Rail } from "@/components/rail";
 import { HERO_IMAGE_PATH, categoryImagePath } from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Category icons. Phosphor, Light weight at 20px — the whole icon set is one
- * stroke width, so a category we have not drawn for falls back to the generic
- * tile icon rather than borrowing a heavier mark from somewhere else.
+ * Category icons. Phosphor, Light weight — the whole icon set is one stroke
+ * width, so a category we have not drawn for falls back to the generic tile
+ * icon rather than borrowing a heavier mark from somewhere else.
  */
 const CATEGORY_ICONS: Record<string, ReactNode> = {
-  Hair: <Scissors size={20} weight="light" />,
-  Makeup: <PaintBrush size={20} weight="light" />,
-  Nails: <Hand size={20} weight="light" />,
-  Skin: <Heart size={20} weight="light" />,
+  Hair: <Scissors size={18} weight="light" />,
+  Makeup: <PaintBrush size={18} weight="light" />,
+  Nails: <Hand size={18} weight="light" />,
+  Skin: <Heart size={18} weight="light" />,
 };
 
 /** §C-01 block 5. Three steps, in the customer's order, one line each. */
@@ -54,6 +57,23 @@ const HOW_IT_WORKS = [
   },
 ];
 
+/** The contained column every block below the hero sits in. */
+function Container({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`mx-auto w-full max-w-[var(--glam-page-max)] px-4 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 /**
  * The customer home is a marketplace, not a dashboard.
  *
@@ -61,6 +81,11 @@ const HOW_IT_WORKS = [
  * cities, how it works — and then the CTA band. Each block gets at most one
  * metal element, which is why the hero's submit, the active filter chip and
  * the CTA's primary button are the only metal on the page.
+ *
+ * The browse blocks are rails rather than wrapping grids: they are a glance,
+ * not a search, and the point is to show there is more without spending four
+ * rows of the page saying so. Search is where everything is, and that stays a
+ * grid.
  */
 export default async function MarketingPage() {
   const [{ providers, categories, cities, stats }, { thresholdMinutes }] =
@@ -91,96 +116,104 @@ export default async function MarketingPage() {
   }));
 
   return (
-    <div data-page-width="wide" className="space-y-16 pb-6 sm:space-y-20">
+    // `full` hands the whole width to the page, which then contains its own
+    // sections — so the hero can run edge to edge without a child trying to
+    // break out of a container it sits inside.
+    <div data-page-width="full" className="-mt-6 pb-6">
       {/* ================= Block 1 — search hero ====================== */}
-      <section className="grid items-center gap-8 lg:grid-cols-[1.1fr_1fr]">
-        <div>
-          <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
-            {/* Jade means live. One breathing dot, and the words carry the
-                meaning on their own if the motion is switched off. */}
-            <span
-              aria-hidden
-              className="breathe h-2 w-2 rounded-full bg-normal"
-            />
-            Beauty, at your door
-          </p>
-
-          <h1 className="mt-4 font-display text-4xl font-bold leading-[1.03] tracking-[-0.03em] text-ink sm:text-5xl">
-            Book a vetted beauty
-            <br />
-            professional to come to you.
-          </h1>
-
-          <p className="mt-4 max-w-lg text-[15px] text-ink-muted">
-            Real availability from real calendars, an itemised price before you
-            pay, and someone at your door — today, if that is what you need.
-          </p>
-
-          <div className="mt-6">
-            <SearchBar areas={areas} />
-          </div>
-
-          {/* Trust figures. Real counts, never rounded up. */}
-          <dl className="mt-7 flex flex-wrap gap-x-10 gap-y-4">
-            <TrustFigure
-              value={String(stats.providerCount)}
-              label={
-                stats.providerCount === 1
-                  ? "Vetted provider"
-                  : "Vetted providers"
-              }
-            />
-            <TrustFigure
-              value={
-                stats.averageRating ? stats.averageRating.toFixed(1) : "—"
-              }
-              label="Average rating"
-            />
-            <TrustFigure
-              value={`${thresholdHours}h`}
-              label="Emergency cover"
-            />
-          </dl>
-        </div>
-
-        {/*
-          The 4:3 hero. No longer hidden on a phone: it was a metal placeholder
-          before, which was noise above the fold, and the column order puts it
-          after the search bar when the grid collapses — so a real photograph
-          costs the customer nothing they were about to use.
-
-          `priority` because on a wide screen this is the largest thing painted,
-          and leaving it to lazy-load is the difference the page is judged on.
-        */}
+      <section className="relative isolate overflow-hidden">
         <BrandImage
           path={HERO_IMAGE_PATH}
-          alt="A makeup artist finishing a client's look at home"
-          width={880}
-          height={660}
-          sizes="(max-width: 1024px) 100vw, 45vw"
+          alt=""
+          width={1440}
+          height={720}
+          sizes="100vw"
           priority
-          className="aspect-[4/3] w-full rounded-glam-lg object-cover shadow-raised"
+          className="absolute inset-0 -z-10 h-full w-full object-cover object-[70%_center]"
         />
+        {/*
+          The scrim is what makes the copy legible, so it is not decoration and
+          it does not change with the theme: the hero is a dark band in both
+          modes, and the text on it is light in both. Angled from the left,
+          where the words are, so the photograph keeps its right-hand side.
+        */}
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 bg-gradient-to-r from-black/85 via-black/65 to-black/25"
+        />
+
+        <Container className="py-16 sm:py-24">
+          <div className="max-w-xl">
+            <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-white/80">
+              {/* Jade means live. One breathing dot, and the words carry the
+                  meaning on their own if the motion is switched off. */}
+              <span
+                aria-hidden
+                className="breathe h-2 w-2 rounded-full bg-normal"
+              />
+              Beauty, at your door
+            </p>
+
+            <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-white sm:text-5xl">
+              Find a vetted beauty professional for every occasion
+            </h1>
+
+            <p className="mt-4 max-w-lg text-[15px] text-white/80">
+              Hair, makeup and nails from professionals who come to you. Real
+              availability, an itemised price before you pay, and someone at
+              your door — today, if that is what you need.
+            </p>
+
+            <div className="mt-7">
+              <SearchBar areas={areas} />
+            </div>
+
+            {/* Trust figures. Real counts, never rounded up. */}
+            <dl className="mt-6 flex flex-wrap items-center gap-x-7 gap-y-3">
+              <HeroFigure
+                icon={<ShieldCheck size={15} weight="fill" aria-hidden />}
+                value={String(stats.providerCount)}
+                label={
+                  stats.providerCount === 1
+                    ? "Vetted provider"
+                    : "Vetted providers"
+                }
+              />
+              <HeroFigure
+                icon={<Star size={15} weight="fill" aria-hidden />}
+                value={
+                  stats.averageRating ? `${stats.averageRating.toFixed(1)}/5` : "—"
+                }
+                label="Average rating"
+              />
+              <HeroFigure
+                value={`${thresholdHours}h`}
+                label="Emergency cover"
+              />
+            </dl>
+          </div>
+        </Container>
       </section>
 
       {/* ================= Block 2 — service categories ================ */}
       {categories.length > 0 ? (
-        <section>
+        <Container className="pt-14 sm:pt-16">
           <BlockHeading
             title="Browse service categories"
-            lede="Every category below has a provider behind it right now."
+            lede="Every category here has a provider behind it right now."
+            action={
+              <SeeAll href="/search" />
+            }
           />
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(138px,1fr))]">
+
+          <Rail label="Service categories">
             {categories.map((category) => (
               <Link
                 key={category.name}
                 href={`/search?q=${encodeURIComponent(category.name)}`}
-                className="overflow-hidden rounded-glam border border-line bg-surface shadow-card transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-raised"
+                className="group w-[180px] shrink-0 snap-start sm:w-[210px]"
               >
-                <span className="relative block">
-                  {/* Empty alt on purpose: the category name is written out
-                      directly below, and announcing the photograph as well
-                      would read the same link twice. */}
+                <span className="relative block overflow-hidden rounded-glam">
                   {/* Anything really uploaded against the service wins; the
                       shipped artwork is the fallback, and a category with
                       neither still falls through to the brand metal. */}
@@ -188,24 +221,24 @@ export default async function MarketingPage() {
                     <GlamImage
                       src={category.imageUrl}
                       alt=""
-                      width={400}
-                      height={250}
-                      sizes="(max-width: 640px) 50vw, 200px"
-                      className="aspect-[16/10] w-full object-cover"
+                      width={420}
+                      height={320}
+                      sizes="210px"
+                      className="aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
                     />
                   ) : categoryImagePath(category.name) ? (
                     <BrandImage
                       path={categoryImagePath(category.name)!}
                       alt=""
-                      width={400}
-                      height={250}
-                      sizes="(max-width: 640px) 50vw, 200px"
-                      className="aspect-[16/10] w-full object-cover"
+                      width={420}
+                      height={320}
+                      sizes="210px"
+                      className="aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
                     />
                   ) : (
                     <span
                       aria-hidden
-                      className="block aspect-[16/10] w-full bg-metal"
+                      className="block aspect-[4/3] w-full bg-metal"
                     />
                   )}
                   {/* The icon survives the photograph rather than being
@@ -213,207 +246,251 @@ export default async function MarketingPage() {
                       whatever the image behind it is doing. */}
                   <span
                     aria-hidden
-                    className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-brand-700 backdrop-blur"
+                    className="absolute left-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 text-brand-700 backdrop-blur"
                   >
                     {CATEGORY_ICONS[category.name] ?? (
-                      <SquaresFour size={16} weight="light" />
+                      <SquaresFour size={18} weight="light" />
                     )}
                   </span>
                 </span>
-                <span className="block p-3">
-                  <span className="block text-sm font-semibold text-ink">
-                    {category.name}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-ink-muted">
-                    {category.providerCount}{" "}
-                    {category.providerCount === 1 ? "provider" : "providers"}
-                  </span>
+
+                {/* Label beneath the image rather than over it: a category
+                    name on a photograph of a face is the one place contrast
+                    cannot be guaranteed. */}
+                <span className="mt-2.5 block text-sm font-semibold text-ink">
+                  {category.name}
+                </span>
+                <span className="mt-0.5 block text-xs text-ink-muted">
+                  {category.providerCount}{" "}
+                  {category.providerCount === 1 ? "provider" : "providers"}
                 </span>
               </Link>
             ))}
 
-            {/* The last tile is the way out of the grid, in the rose tint. */}
+            {/* The last card is the way out of the rail, in the rose tint. */}
             <Link
               href="/search"
-              className="flex flex-col overflow-hidden rounded-glam border border-brand-200 bg-brand-50 transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-card"
+              className="w-[180px] shrink-0 snap-start sm:w-[210px]"
             >
-              <span className="flex aspect-[16/10] w-full items-center justify-center text-brand-700">
+              <span className="flex aspect-[4/3] w-full items-center justify-center rounded-glam border border-brand-200 bg-brand-50 text-brand-700 transition duration-[180ms] ease-glam hover:bg-brand-100">
                 <SquaresFour size={28} weight="light" aria-hidden />
               </span>
-              <span className="block p-3">
-                <span className="block text-sm font-semibold text-brand-700">
-                  All categories
-                </span>
-                <span className="mt-0.5 block text-xs text-brand-700/80">
-                  {stats.serviceCount} services
-                </span>
+              <span className="mt-2.5 block text-sm font-semibold text-brand-700">
+                All categories
+              </span>
+              <span className="mt-0.5 block text-xs text-ink-muted">
+                {stats.serviceCount} services
               </span>
             </Link>
-          </div>
-        </section>
+          </Rail>
+        </Container>
       ) : null}
 
       {/* ================= Block 3 — featured providers ================ */}
       {cards.length > 0 ? (
-        <section>
+        <Container className="pt-14 sm:pt-16">
           <BlockHeading
             title="Featured providers"
             lede="Ranked by rating and completed work, never by what they paid us."
-            action={
-              <Link
-                href="/search"
-                className="tap-44 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline"
-              >
-                See all
-                <ArrowRight size={14} weight="light" aria-hidden />
-              </Link>
-            }
+            action={<SeeAll href="/search" />}
           />
           <FeaturedProviders
             providers={cards}
             categories={categories.map((category) => category.name)}
           />
-        </section>
+        </Container>
       ) : null}
 
       {/* ================= Block 4 — cities ============================ */}
       {cities.length > 0 ? (
-        <section>
-          <BlockHeading title="Browse by city" />
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]">
-            {cities.slice(0, 6).map((city) => (
-              <Link
-                key={city.city}
-                href={`/search?location=${encodeURIComponent(city.city)}`}
-                className="group overflow-hidden rounded-glam border border-line bg-surface shadow-card transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-raised"
-              >
-                <div aria-hidden className="aspect-[16/10] w-full bg-metal" />
-                <div className="p-3.5">
-                  <p className="text-sm font-semibold text-ink">{city.city}</p>
-                  <p className="mt-0.5 text-xs text-ink-muted">
-                    {city.providerCount}{" "}
-                    {city.providerCount === 1 ? "provider" : "providers"} ·{" "}
-                    {city.sector}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+        <section className="mt-14 bg-sunken py-14 sm:mt-16 sm:py-16">
+          <Container>
+            <BlockHeading
+              title="Browse by city"
+              lede="Providers who already cover your area."
+            />
+            <Rail label="Cities">
+              {cities.map((city) => (
+                <Link
+                  key={city.city}
+                  href={`/search?location=${encodeURIComponent(city.city)}`}
+                  className="group relative w-[200px] shrink-0 snap-start overflow-hidden rounded-glam sm:w-[240px]"
+                >
+                  {/* No city photography exists yet, so this is the brand
+                      metal rather than a stock skyline nobody chose. */}
+                  <span
+                    aria-hidden
+                    className="block aspect-[4/3] w-full bg-metal transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                  />
+                  {/* Name over the image, so the scrim is load-bearing and
+                      stays fixed in both themes. */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"
+                  />
+                  <span className="absolute inset-x-0 bottom-0 p-3.5">
+                    <span className="block text-sm font-bold text-white">
+                      {city.city}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-white/80">
+                      {city.providerCount}{" "}
+                      {city.providerCount === 1 ? "provider" : "providers"} ·{" "}
+                      {city.sector}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </Rail>
+          </Container>
         </section>
       ) : null}
 
       {/* ================= Block 5 — how it works ====================== */}
-      <section>
-        <BlockHeading title="How it works" />
-        <ol className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
+      <Container className="pt-14 sm:pt-16">
+        <BlockHeading
+          title="How it works"
+          lede="Three steps to someone at your door."
+        />
+        <ol className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
           {HOW_IT_WORKS.map((step, index) => (
-            <li
-              key={step.title}
-              className="overflow-hidden rounded-glam border border-line bg-surface shadow-card"
-            >
-              <div className="relative aspect-[16/10] w-full bg-sunken">
-                {/* The badge overlaps the bottom-left of the image, half in
-                    and half out — the one metal element in this block. */}
+            <li key={step.title}>
+              {/* The image slot is the brand metal until photography for these
+                  three steps exists. It holds its ratio either way, so the
+                  block does not reflow when pictures arrive. */}
+              <div className="relative overflow-hidden rounded-glam">
                 <span
                   aria-hidden
-                  className="absolute -bottom-5 left-4 flex h-10 w-10 items-center justify-center rounded-full bg-metal text-metal-ink shadow-card"
+                  className="block aspect-[16/10] w-full bg-metal"
+                />
+                <span
+                  aria-hidden
+                  className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-glam-sm bg-surface/90 text-brand-700 backdrop-blur"
                 >
                   {step.icon}
                 </span>
               </div>
-              <div className="px-4 pb-4 pt-8">
-                <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-ink-muted">
-                  Step 0{index + 1}
-                </p>
-                <h3 className="mt-1.5 font-display text-lg font-semibold text-ink">
-                  {step.title}
-                </h3>
-                <p className="mt-1.5 text-[15px] text-ink-muted">{step.body}</p>
-              </div>
+              <p className="mt-3.5 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-ink-muted">
+                Step 0{index + 1}
+              </p>
+              <h3 className="mt-1.5 font-display text-lg font-semibold text-ink">
+                {step.title}
+              </h3>
+              <p className="mt-1.5 text-[15px] text-ink-muted">{step.body}</p>
             </li>
           ))}
         </ol>
-      </section>
+      </Container>
 
       {/* ================= CTA band ==================================== */}
-      <section className="overflow-hidden rounded-glam-lg border border-line bg-surface shadow-card">
-        <div className="grid gap-8 p-7 sm:p-10 lg:grid-cols-[1.2fr_1fr] lg:items-center">
-          <div>
-            <h2 className="font-display text-3xl font-bold tracking-[-0.02em] text-ink">
-              Bring your next occasion to life
-            </h2>
-            <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
-              Whether you need someone this evening or you want to take bookings
-              of your own, it starts in the same place.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/search"
-                className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
-              >
-                Find a provider
-              </Link>
-              <Link
-                href="/sign-up"
-                className="inline-flex min-h-11 items-center rounded-full bg-surface px-6 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] ease-glam hover:bg-sunken active:scale-[0.98]"
-              >
-                Become a provider
-              </Link>
+      <Container className="pt-14 sm:pt-16">
+        {/*
+          A warm gradient band, in the brand's own champagne and rose rather
+          than a borrowed accent. Not the metal gradient: that is reserved for
+          the single primary action, which is the button sitting on top of it.
+        */}
+        <div className="overflow-hidden rounded-glam-lg bg-gradient-to-br from-accent-100 via-accent-100 to-brand-50 p-8 sm:p-12">
+          <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+            <div>
+              <h2 className="font-display text-3xl font-bold tracking-[-0.02em] text-ink sm:text-4xl">
+                Bring your next occasion to life
+              </h2>
+              <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
+                Whether you need someone this evening or you want to take
+                bookings of your own, it starts in the same place.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link
+                  href="/search"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
+                >
+                  Find a provider
+                  <ArrowRight size={15} weight="bold" aria-hidden />
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className="inline-flex min-h-11 items-center rounded-full bg-surface px-6 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] ease-glam hover:bg-sunken active:scale-[0.98]"
+                >
+                  Become a provider
+                </Link>
+              </div>
+            </div>
+
+            {/* Overlapping avatar stack. The overflow chip counts the
+                providers the stack could not show — a marketplace that
+                inflates its own numbers here is contradicted by the search
+                page one click away. */}
+            <div className="flex items-center gap-3">
+              <span aria-hidden className="flex -space-x-3">
+                {cards.slice(0, 4).map((provider) => (
+                  <GlamImage
+                    key={provider.id}
+                    src={provider.imageUrl}
+                    alt=""
+                    width={80}
+                    height={80}
+                    className="h-10 w-10 rounded-full object-cover ring-2 ring-surface"
+                  />
+                ))}
+                {stats.providerCount > 4 ? (
+                  <span className="flex h-10 items-center rounded-full bg-surface px-3 font-mono text-xs font-semibold text-ink ring-2 ring-surface">
+                    +{stats.providerCount - 4}
+                  </span>
+                ) : null}
+              </span>
+              <p className="text-sm text-ink-muted">
+                <span className="font-semibold text-ink">
+                  {stats.providerCount}
+                </span>{" "}
+                vetted {stats.providerCount === 1 ? "provider" : "providers"}{" "}
+                taking work across {stats.cityCount}{" "}
+                {stats.cityCount === 1 ? "city" : "cities"}
+              </p>
             </div>
           </div>
-
-          {/* Overlapping avatar stack. The faces are placeholders, but the
-              overflow chip is not a decorative "+2k": it counts the providers
-              the stack could not show. A marketplace that inflates its own
-              numbers here is contradicted by the search page one click away. */}
-          <div className="flex items-center gap-3">
-            <span aria-hidden className="flex -space-x-3">
-              {cards.slice(0, 4).map((provider) => (
-                <GlamImage
-                  key={provider.id}
-                  src={provider.imageUrl}
-                  alt=""
-                  width={80}
-                  height={80}
-                  className="h-10 w-10 rounded-full object-cover ring-2 ring-surface"
-                />
-              ))}
-              {stats.providerCount > 4 ? (
-                <span className="flex h-10 items-center rounded-full bg-sunken px-3 font-mono text-xs font-semibold text-ink ring-2 ring-surface">
-                  +{stats.providerCount - 4}
-                </span>
-              ) : null}
-            </span>
-            <p className="text-sm text-ink-muted">
-              <span className="font-semibold text-ink">
-                {stats.providerCount}
-              </span>{" "}
-              vetted{" "}
-              {stats.providerCount === 1 ? "provider" : "providers"} taking work
-              across {stats.cityCount}{" "}
-              {stats.cityCount === 1 ? "city" : "cities"}
-            </p>
-          </div>
         </div>
-      </section>
+      </Container>
     </div>
   );
 }
 
-/** A hero trust figure: champagne number, muted label. */
-function TrustFigure({ value, label }: { value: string; label: string }) {
+function SeeAll({ href }: { href: string }) {
   return (
-    <div>
-      <dt className="sr-only">{label}</dt>
-      <dd>
-        <span
-          data-numeric
-          className="block font-display text-3xl font-bold tracking-[-0.02em] text-accent-700"
-        >
-          {value}
-        </span>
-        <span className="mt-0.5 block text-xs text-ink-muted">{label}</span>
-      </dd>
+    <Link
+      href={href}
+      className="tap-44 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline"
+    >
+      See all
+      <ArrowRight size={14} weight="light" aria-hidden />
+    </Link>
+  );
+}
+
+/**
+ * A hero trust figure. Fixed light colours rather than tokens, because the
+ * hero is a dark band in both themes and the token pair would invert
+ * underneath it.
+ */
+function HeroFigure({
+  icon,
+  value,
+  label,
+}: {
+  icon?: ReactNode;
+  value: string;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      {icon ? <span className="text-accent-500">{icon}</span> : null}
+      <div>
+        <dt className="sr-only">{label}</dt>
+        <dd>
+          <span data-numeric className="text-sm font-bold text-white">
+            {value}
+          </span>{" "}
+          <span className="text-sm text-white/70">{label}</span>
+        </dd>
+      </div>
     </div>
   );
 }
