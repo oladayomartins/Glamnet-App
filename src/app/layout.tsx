@@ -4,6 +4,13 @@ import Link from "next/link";
 import "./globals.css";
 import { GlamNetPin } from "@/components/brand";
 import { getSessionUser } from "@/lib/auth/session";
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TAGLINE,
+  isProductionSite,
+  siteUrl,
+} from "@/lib/site";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -30,11 +37,35 @@ const brandMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GLAMNET — beauty, booked to your door",
-  description:
-    "Book vetted beauty professionals at your address, with short-notice emergency availability.",
-  applicationName: "GLAMNET",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "GLAMNET" },
+  // Without a base, Open Graph images and canonical links are emitted as
+  // relative paths, which crawlers and social scrapers discard — so a shared
+  // link would preview as a bare URL.
+  metadataBase: new URL(siteUrl()),
+  title: {
+    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  appleWebApp: { capable: true, statusBarStyle: "default", title: SITE_NAME },
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    locale: "en_GB",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
+  },
+  // Preview deployments must never be indexed alongside the real site.
+  robots: isProductionSite()
+    ? { index: true, follow: true }
+    : { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
