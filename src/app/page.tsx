@@ -21,7 +21,11 @@ import { FeaturedProviders } from "@/components/featured-providers";
 import { GlamImage } from "@/components/glam-image";
 import { BrandImage } from "@/components/brand-image";
 import { Rail } from "@/components/rail";
-import { HERO_IMAGE_PATH, categoryImagePath } from "@/lib/imagekit";
+import {
+  HERO_IMAGE_PATH,
+  REVIEWS_BADGE_PATH,
+  categoryImagePath,
+} from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
 
 export const dynamic = "force-dynamic";
@@ -212,7 +216,7 @@ export default async function MarketingPage() {
           />
         </div>
 
-        <Container className="relative pb-8 pt-9 lg:py-10 xl:py-12">
+        <Container className="relative pb-7 pt-8 lg:py-8 xl:py-10">
           {/*
             The copy column is wide rather than clamped to `max-w-lg`: a narrow
             column inside a full-bleed band reads as floating in the middle of
@@ -262,7 +266,7 @@ export default async function MarketingPage() {
           <div className="max-w-[34rem] xl:max-w-[38rem]">
 
             {/* Trust figures. Real counts, never rounded up. */}
-            <dl className="mt-6 flex flex-wrap items-center gap-x-7 gap-y-3">
+            <dl className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-3">
               <HeroFigure
                 icon={<ShieldCheck size={15} weight="fill" aria-hidden />}
                 value={String(stats.providerCount)}
@@ -278,6 +282,21 @@ export default async function MarketingPage() {
                 label="Emergency cover"
               />
             </dl>
+
+            {/*
+              Google's badge, kept apart from the figures above rather than set
+              among them. Those are counts this platform calculated; this is a
+              third party's mark, and putting it in the same row would read as
+              one more GLAMNET statistic.
+            */}
+            <BrandImage
+              path={REVIEWS_BADGE_PATH}
+              alt="Google Customer Reviews"
+              width={842}
+              height={296}
+              sizes="140px"
+              className="mt-4 h-10 w-auto"
+            />
           </div>
         </Container>
 
