@@ -233,34 +233,38 @@ export default async function MarketingPage() {
         </Container>
 
         {/*
-          The photograph closes the band on a phone and takes its right on a
-          desktop. `object-position` differs between the two because the crops
-          differ: a wide strip wants the subject centred in frame, a tall
-          column wants her held slightly left of it.
+          The photograph belongs to the desktop band only.
+
+          On a phone there is nowhere for it to go that does not cost more
+          than it gives: above the copy it pushes the headline and the booking
+          module down the screen, below them it reads as a picture pasted onto
+          the end of the section, and behind the words it has to be faded far
+          enough to carry text that little of the photograph survives. The
+          reference shows no photograph on a phone for the same reason. The
+          category rail immediately below carries the brand's photography
+          there instead.
+
+          It is `lazy` rather than `priority` deliberately: an eager image
+          inside a `display: none` wrapper is still fetched, so marking it
+          priority would download a hero for every phone that never shows one.
         */}
-        <div className="relative mt-2 lg:absolute lg:inset-y-0 lg:right-0 lg:mt-0 lg:w-[46%]">
+        <div className="hidden lg:absolute lg:inset-y-0 lg:right-0 lg:block lg:w-[46%]">
           <BrandImage
             path={HERO_IMAGE_PATH}
             alt="A client with fresh braids and evening makeup at home"
             width={1600}
             height={600}
-            sizes="(max-width: 1024px) 100vw, 46vw"
-            priority
-            className="h-[15rem] w-full object-cover object-[70%_28%] sm:h-[19rem] lg:h-full lg:object-[60%_center]"
+            sizes="46vw"
+            className="h-full w-full object-cover object-[60%_center]"
           />
-          {/* Phones: the picture begins in the ground colour it was sampled
-              from, so the band reads as one surface rather than a photograph
-              pasted onto the bottom of a cream panel. */}
+          {/* The join is a fade into the ground colour sampled from the
+              photograph's own negative space, not a cut. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[var(--glam-hero-ground)] to-transparent sm:h-28 lg:hidden"
-          />
-          {/* Desktop: the same fade, turned ninety degrees. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 hidden w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent lg:block"
+            className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent"
           />
         </div>
+
       </section>
 
       {/* ================= Block 2 — service categories ================ */}

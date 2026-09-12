@@ -72,7 +72,11 @@ export function BookingLauncher({
   const [when, setWhen] = useState<{ kind: "now" } | { kind: "day"; date: string } | null>(
     null,
   );
-  const [step, setStep] = useState<"where" | "what" | "when" | null>("where");
+  // Nothing is open on arrival. The three rows read as a summary of what will
+  // be asked, which is a calmer first impression than a panel already
+  // demanding an answer — and on a phone an open panel pushed everything
+  // below it off the screen before the page had said anything.
+  const [step, setStep] = useState<"where" | "what" | "when" | null>(null);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
 
