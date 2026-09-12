@@ -48,6 +48,20 @@ export function brandMediaOrigin(): string {
 export const HERO_IMAGE_PATH = "/Hero Banner - Glamnet App.png";
 
 /**
+ * The Google Customer Reviews badge shown in the hero.
+ *
+ * Google's mark, not ours. It is a certification badge: displaying it says
+ * GLAMNET is enrolled in the programme, and it is only true while that stays
+ * so. If the enrolment ever lapses this constant is the thing to remove.
+ *
+ * Google's own badge script renders the live, verified rating; this is the
+ * static asset, so the stars it shows are part of the artwork rather than a
+ * figure this platform has calculated. Nothing on the page presents it as a
+ * GLAMNET statistic.
+ */
+export const REVIEWS_BADGE_PATH = "/629382e030fb025780ee2963.png";
+
+/**
  * Artwork for the category tiles, keyed by the category name as it is stored
  * on the service.
  *
