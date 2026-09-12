@@ -66,6 +66,13 @@ export interface OfferQuery {
    * a booking placed this minute a long-notice one.
    */
   date?: string;
+  /**
+   * A chosen start time, as an ISO instant. Offers are then the first slot
+   * each vendor has AT OR AFTER it on that day — the customer picked a time
+   * from a real grid, so a vendor free later the same day is still an answer,
+   * and one free only earlier is not.
+   */
+  at?: string;
 }
 
 /**
@@ -89,10 +96,15 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
   const from = startOfLocalDay(now);
   const to = addDays(from, HORIZON_DAYS);
 
-  // A requested day cannot pull an offer into the past, so the floor is
-  // whichever is later: this moment, or the start of the day asked for.
-  const requestedDay = parseDay(filters.date);
-  const floor = requestedDay && requestedDay > now ? requestedDay : now;
+  // A requested day or time cannot pull an offer into the past, so the floor
+  // is whichever is latest: this moment, the time asked for, or the start of
+  // the day asked for.
+  const requestedAt = parseInstant(filters.at);
+  const requestedDay = requestedAt
+    ? startOfLocalDay(requestedAt)
+    : parseDay(filters.date);
+  const wanted = requestedAt ?? requestedDay;
+  const floor = wanted && wanted > now ? wanted : now;
 
   const [providers, config] = await Promise.all([
     prisma.provider.findMany({
@@ -305,6 +317,13 @@ export function earliestStart(
     if (slots.length > 0) return slots[0].startAt;
   }
   return null;
+}
+
+/** An ISO instant, or null if it is not one. */
+function parseInstant(value: string | undefined): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 /**

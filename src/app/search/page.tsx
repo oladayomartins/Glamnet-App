@@ -32,6 +32,7 @@ export default async function SearchPage({
     minRating?: string;
     availableToday?: string;
     date?: string;
+    at?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -41,6 +42,7 @@ export default async function SearchPage({
   const minRating = params.minRating ?? "";
   const availableToday = params.availableToday === "1";
   const date = params.date ?? "";
+  const at = params.at ?? "";
 
   const [offers, areas] = await Promise.all([
     searchOffers({
@@ -50,6 +52,7 @@ export default async function SearchPage({
       minRating: minRating ? Number(minRating) : undefined,
       availableToday,
       date: date || undefined,
+      at: at || undefined,
     }),
     searchableAreas(),
   ]);
