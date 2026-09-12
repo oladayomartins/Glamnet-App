@@ -138,12 +138,18 @@ export default async function MarketingPage() {
       */}
       <section
         /*
-          A floor on the band's height, and the copy centred in it. The bar
-          itself no longer changes height — its panels float — so this is the
-          only thing deciding the crop, and 43rem against a 1440 viewport is
-          2.09:1, the proportion the reference band has.
+          A floor on the band's height, and the copy centred in it. The bar's
+          panels float, so the bar never changes height and this is the only
+          thing deciding the crop.
+
+          37rem is arithmetic, not taste. `cover` scales an 8:3 source to the
+          band's height, so the fraction of the picture still visible is
+          540 / bandHeight at a 1440 viewport: 688px showed 78% of it and cut
+          the subject at the right edge, 592px shows 91% — the whole
+          composition, mirror and dressing table included, which is the
+          framing in the reference.
         */
-        className="on-light relative bg-[var(--glam-hero-ground)] text-ink lg:flex lg:min-h-[43rem] lg:items-center"
+        className="on-light relative bg-[var(--glam-hero-ground)] text-ink lg:flex lg:min-h-[37rem] lg:items-center"
       >
         {/*
           The photograph runs the full width of the band from `lg`, with the
@@ -178,20 +184,20 @@ export default async function MarketingPage() {
           `display: none` wrapper is still fetched, so priority would download
           a hero for every phone that never shows one.
         */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[46%] lg:block wide:inset-x-0 wide:w-auto">
+        <div className="hero-picture pointer-events-none hidden lg:block">
           <BrandImage
             path={HERO_IMAGE_PATH}
             alt="A client with fresh braids and evening makeup at home"
             width={1600}
             height={600}
             sizes="(max-width: 1399px) 46vw, 100vw"
-            className="h-full w-full object-cover object-[60%_center] wide:object-[72%_center]"
+            className="h-full w-full object-cover"
           />
           {/* Column arrangement: a narrow fade so the picture's left edge is
               a join rather than a cut. */}
           <div
             aria-hidden
-            className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent wide:hidden"
+            className="hero-fade-edge absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent"
           />
           {/*
             Full-bleed arrangement: a wash of the band's own ground colour
@@ -202,7 +208,7 @@ export default async function MarketingPage() {
           */}
           <div
             aria-hidden
-            className="absolute inset-y-0 left-0 hidden w-[62%] bg-gradient-to-r from-[var(--glam-hero-ground)] from-45% to-transparent wide:block"
+            className="hero-fade-wash absolute inset-y-0 left-0 w-[62%] bg-gradient-to-r from-[var(--glam-hero-ground)] from-45% to-transparent"
           />
         </div>
 
