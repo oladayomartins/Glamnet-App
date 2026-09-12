@@ -8,10 +8,10 @@ import {
   MagnifyingGlass,
   PaintBrush,
   Receipt,
+  Lightning,
   Scissors,
   ShieldCheck,
   SquaresFour,
-  Star,
 } from "@phosphor-icons/react/dist/ssr";
 import { getPricingContext } from "@/lib/server/emergency-config";
 import { getMarketingData } from "@/lib/server/marketing";
@@ -273,13 +273,7 @@ export default async function MarketingPage() {
                 }
               />
               <HeroFigure
-                icon={<Star size={15} weight="fill" aria-hidden />}
-                value={
-                  stats.averageRating ? `${stats.averageRating.toFixed(1)}/5` : "—"
-                }
-                label="Average rating"
-              />
-              <HeroFigure
+                icon={<Lightning size={15} weight="fill" aria-hidden />}
                 value={`${thresholdHours}h`}
                 label="Emergency cover"
               />
