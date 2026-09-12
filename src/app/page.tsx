@@ -138,20 +138,25 @@ export default async function MarketingPage() {
       */}
       <section className="on-light relative bg-[var(--glam-hero-ground)] text-ink">
         {/*
-          Below `lg` the banner is a strip above the copy: 8:3 is 150px tall on
-          a phone, which cannot hold a headline, and cropping it taller would
-          either lose the subject or put the words across her face.
+          One band at every width, with the photograph BEHIND the copy rather
+          than stacked above it.
+
+          On a phone it fills the top of the band: the crop is pulled to the
+          upper right so the subject holds the part of the frame the words
+          never reach, and the words begin below her. The join is a fade into
+          the ground colour rather than a dark wash over the picture — a scrim
+          heavy enough to carry text would be covering the photograph to make
+          room for the words, which is the thing to avoid.
 
           From `lg` the photograph takes the right of the band and the copy
-          takes the left — it no longer lies UNDER the copy. It used to, and
-          that worked only while the band was the height of a headline and a
-          single search bar: the booking module is four times that tall, so an
-          8:3 photograph covering the taller band zoomed in far enough to walk
-          the subject across the words. Giving the picture its own column means
-          the band can be any height without the crop deciding whether the
-          headline is readable.
+          takes the left. It used to lie under the copy at every width, and
+          that worked only while the band was a headline and a single search
+          bar tall: the booking module is four times that, and an 8:3
+          photograph covering the taller band zoomed in far enough to walk the
+          subject across the words. Its own column means the band can be any
+          height without the crop deciding whether the headline is readable.
         */}
-        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-[46%]">
+        <div className="absolute inset-x-0 top-0 h-[22rem] sm:h-[26rem] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-auto lg:w-[46%]">
           <BrandImage
             path={HERO_IMAGE_PATH}
             alt="A client with fresh braids and evening makeup at home"
@@ -159,17 +164,27 @@ export default async function MarketingPage() {
             height={600}
             sizes="(max-width: 1024px) 100vw, 46vw"
             priority
-            className="aspect-[8/3] w-full object-cover object-[70%_center] lg:h-full lg:aspect-auto lg:object-[60%_center]"
+            className="h-full w-full object-cover object-[72%_22%] lg:object-[60%_center]"
           />
-          {/* The join is a fade rather than a cut, into the ground colour
-              sampled from the photograph's own negative space. */}
+          {/* Phones: the picture ends in the ground colour it was sampled
+              from, so the words sit on cream that belongs to the photograph
+              instead of on a panel laid over it. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[var(--glam-hero-ground)] from-40% to-transparent sm:h-64 lg:hidden"
+          />
+          {/* Desktop: the same fade, turned ninety degrees. */}
           <div
             aria-hidden
             className="pointer-events-none absolute inset-y-0 left-0 hidden w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent lg:block"
           />
         </div>
 
-        <Container className="relative py-10 lg:py-14 xl:py-16">
+        {/*
+          The top padding is what keeps the words off the subject on a phone:
+          the copy starts below her, on the faded foot of the picture.
+        */}
+        <Container className="relative pt-[17rem] sm:pt-[21rem] lg:pt-14 lg:pb-14 xl:py-16 pb-10">
           {/*
             The copy column is wide rather than clamped to `max-w-lg`: a narrow
             column inside a full-bleed band reads as floating in the middle of
