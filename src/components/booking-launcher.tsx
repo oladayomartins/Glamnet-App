@@ -177,8 +177,8 @@ export function BookingLauncher({
             appointment, and nothing typed here can change that — so this says
             what will be applied rather than claiming to have applied it.
           */}
-          Appointments starting within {thresholdHours} hours of booking are
-          emergency bookings and are priced accordingly.
+          Within {thresholdHours} hours of booking counts as an emergency
+          booking.
         </p>
       </div>
     </div>
@@ -221,7 +221,7 @@ function Step({
         disabled={disabled}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition duration-[180ms] ease-glam enabled:hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-55"
+        className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left transition duration-[180ms] ease-glam enabled:hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-55"
       >
         <span className="shrink-0 text-ink-muted">{icon}</span>
         <span className="min-w-0 flex-1">
@@ -233,7 +233,7 @@ function Step({
               value ? "font-semibold text-ink" : "text-ink-muted"
             }`}
           >
-            {value ?? placeholder}
+            {value ?? (disabled && disabledNote ? disabledNote : placeholder)}
           </span>
         </span>
         <CaretRight
@@ -246,12 +246,17 @@ function Step({
         />
       </button>
 
-      {disabled && disabledNote ? (
-        <p className="px-4 pb-3 text-xs text-ink-muted">{disabledNote}</p>
-      ) : null}
-
+      {/*
+        The open panel is capped and scrolls inside itself. It used to add its
+        full height to the hero band, and the band's height is what decides how
+        far the photograph behind it has to zoom — so a long list of services
+        could walk the subject across the headline.
+      */}
       {open && !disabled ? (
-        <div id={panelId} className="border-t border-line bg-sunken p-3">
+        <div
+          id={panelId}
+          className="max-h-[17rem] overflow-y-auto border-t border-line bg-sunken p-3"
+        >
           {children}
         </div>
       ) : null}
