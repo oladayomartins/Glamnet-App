@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   CalendarBlank,
   CaretDown,
+  CaretLeft,
+  CaretRight,
   Lightning,
   MagnifyingGlass,
   MapPin,
@@ -141,20 +143,6 @@ export function BookingLauncher({
             className="text-ink-muted"
           />
         </button>
-
-        <Panel
-          open={open === "when"}
-          className="w-[min(24rem,calc(100vw-2rem))]"
-        >
-          <WhenPicker
-            thresholdHours={thresholdHours}
-            value={when}
-            onPick={(picked) => {
-              setWhen(picked);
-              setOpen(null);
-            }}
-          />
-        </Panel>
       </div>
 
       {/*
@@ -207,6 +195,27 @@ export function BookingLauncher({
           />
         </Panel>
 
+        {/*
+          All three panels hang off the BAR, including the timing one whose
+          control sits above it. A panel dropping from the pill landed on top
+          of the bar and covered the two fields the customer had just been
+          reading.
+        */}
+        <Panel
+          open={open === "when"}
+          fit
+          className="left-0 w-[min(23rem,calc(100vw-2rem))]"
+        >
+          <WhenPicker
+            thresholdHours={thresholdHours}
+            value={when}
+            onPick={(picked) => {
+              setWhen(picked);
+              setOpen(null);
+            }}
+          />
+        </Panel>
+
         <Panel open={open === "what"} className="inset-x-0">
           <ServicePicker
             hints={hints}
@@ -239,10 +248,18 @@ export function BookingLauncher({
  */
 function Panel({
   open,
+  fit,
   className = "",
   children,
 }: {
   open: boolean;
+  /**
+   * A panel holding one fixed thing rather than a list — the calendar. It is
+   * given room to show all of itself: a month that scrolls is worse than a
+   * month that is tall, because scrolling hides the weeks a customer is
+   * trying to compare.
+   */
+  fit?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -250,7 +267,9 @@ function Panel({
 
   return (
     <div
-      className={`absolute top-full z-30 mt-2 max-h-[min(22rem,60vh)] overflow-y-auto rounded-glam border border-line bg-surface p-3 shadow-raised ${className}`}
+      className={`absolute top-full z-30 mt-2 overflow-y-auto rounded-glam border border-line bg-surface p-3 shadow-raised ${
+        fit ? "max-h-[min(34rem,85vh)]" : "max-h-[min(22rem,60vh)]"
+      } ${className}`}
     >
       {children}
     </div>
@@ -614,23 +633,27 @@ function WhenPicker({
   value: When;
   onPick: (value: When) => void;
 }) {
-  const days = Array.from({ length: HORIZON_DAYS }, (_, offset) => {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() + offset);
-    return toDayValue(date);
-  });
+  const today = startOfToday();
+  // Offers look HORIZON_DAYS ahead and no further, so that is exactly how far
+  // a day can be chosen. A calendar that accepted a date the matcher cannot
+  // answer would be collecting an answer in order to throw it away.
+  const lastBookable = addDays(today, HORIZON_DAYS - 1);
+
+  const [month, setMonth] = useState(() => startOfMonth(today));
+
+  const canGoBack = month > startOfMonth(today);
+  const canGoForward = month < startOfMonth(lastBookable);
 
   return (
     <div>
       <button
         type="button"
         onClick={() => onPick({ kind: "now" })}
-        aria-pressed={value?.kind === "now"}
+        aria-pressed={value.kind === "now"}
         className={`flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 py-2.5 text-left ring-1 transition duration-[180ms] ${
           value.kind === "now"
-            ? "bg-surface ring-brand-200"
-            : "ring-line hover:bg-surface"
+            ? "bg-brand-50 ring-brand-200"
+            : "ring-line hover:bg-sunken"
         }`}
       >
         <Lightning size={18} weight="light" aria-hidden className="shrink-0" />
@@ -639,38 +662,181 @@ function WhenPicker({
             As soon as someone is free
           </span>
           <span className="block text-xs text-ink-muted">
-            The earliest a vetted vendor can reach you today
+            The earliest a vetted vendor can reach you
           </span>
         </span>
       </button>
 
-      <p className="px-1 pb-1 pt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-        Or pick a day
-      </p>
-      <div className="rail flex gap-2 overflow-x-auto pb-1">
-        {days.map((day) => (
-          <button
-            key={day}
-            type="button"
-            onClick={() => onPick({ kind: "day", date: day })}
-            aria-pressed={value.kind === "day" && value.date === day}
-            className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition duration-[180ms] ${
-              value.kind === "day" && value.date === day
-                ? "bg-metal text-metal-ink"
-                : "bg-surface text-ink-muted ring-1 ring-line hover:text-ink"
-            }`}
+      <div className="mt-3 border-t border-line pt-3">
+        <div className="flex items-center justify-between">
+          <MonthArrow
+            direction="back"
+            disabled={!canGoBack}
+            onClick={() => setMonth(addMonths(month, -1))}
+          />
+          <p
+            aria-live="polite"
+            className="text-sm font-semibold text-ink"
           >
-            {formatDayLabel(day)}
-          </button>
-        ))}
+            {month.toLocaleDateString("en-GB", {
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+          <MonthArrow
+            direction="forward"
+            disabled={!canGoForward}
+            onClick={() => setMonth(addMonths(month, 1))}
+          />
+        </div>
+
+        {/*
+          A real grid, Monday first, so the days sit under the weekday they
+          fall on — a row of pills could never show that, and "Mon 14" in a
+          scrolling strip made the customer read rather than look.
+        */}
+        <div
+          role="grid"
+          aria-label="Choose a day"
+          className="mt-2 grid grid-cols-7 gap-1"
+        >
+          {["M", "T", "W", "T", "F", "S", "S"].map((initial, index) => (
+            <div
+              key={index}
+              role="columnheader"
+              aria-label={WEEKDAY_NAMES[index]}
+              className="pb-1 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted"
+            >
+              {initial}
+            </div>
+          ))}
+
+          {monthGrid(month).map((day, index) => {
+            // Leading blanks before the first of the month. Keyed by position,
+            // which is stable for a given month.
+            if (!day) return <div key={`pad-${index}`} aria-hidden />;
+
+            const dayValue = toDayValue(day);
+            const bookable = day >= today && day <= lastBookable;
+            const selected = value.kind === "day" && value.date === dayValue;
+            const isToday = day.getTime() === today.getTime();
+
+            return (
+              <button
+                key={dayValue}
+                type="button"
+                role="gridcell"
+                disabled={!bookable}
+                aria-selected={selected}
+                aria-label={`${day.toLocaleDateString("en-GB", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}${bookable ? "" : " — not bookable"}`}
+                onClick={() => onPick({ kind: "day", date: dayValue })}
+                className={`flex h-11 items-center justify-center rounded-glam-sm text-sm tabular-nums transition duration-[180ms] ${
+                  selected
+                    ? "bg-metal font-bold text-metal-ink"
+                    : bookable
+                      ? "text-ink hover:bg-sunken"
+                      : "text-ink-muted/45"
+                } ${isToday && !selected ? "font-bold ring-1 ring-brand-200" : ""}`}
+              >
+                {day.getDate()}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <p className="px-1 pt-3 text-xs text-ink-muted">
-        Times come from vendors&rsquo; real calendars on the next screen. A slot
-        within {thresholdHours} hours of booking is an emergency booking.
+      <p className="mt-3 text-xs text-ink-muted">
+        Times come from vendors&rsquo; real calendars on the next screen, and a
+        slot within {thresholdHours} hours of booking is an emergency booking.
+        Days are bookable {HORIZON_DAYS} days ahead.
       </p>
     </div>
   );
+}
+
+/** One month step. Disabled when there is nothing bookable that way. */
+function MonthArrow({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: "back" | "forward";
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const Icon = direction === "back" ? CaretLeft : CaretRight;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={direction === "back" ? "Previous month" : "Next month"}
+      className="flex h-11 w-11 items-center justify-center rounded-full text-ink-muted transition duration-[180ms] enabled:hover:bg-sunken enabled:hover:text-ink disabled:opacity-30"
+    >
+      <Icon size={16} weight="bold" aria-hidden />
+    </button>
+  );
+}
+
+const WEEKDAY_NAMES = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
+/**
+ * The cells of a month, Monday first, padded with nulls to the first weekday.
+ *
+ * Trailing padding is left off deliberately: an empty cell at the end of the
+ * last row shows nothing and costs a row of height in a panel that is already
+ * floating over the page.
+ */
+function monthGrid(month: Date): (Date | null)[] {
+  const first = startOfMonth(month);
+  // getDay() is Sunday-first; the grid is Monday-first.
+  const lead = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(
+    month.getFullYear(),
+    month.getMonth() + 1,
+    0,
+  ).getDate();
+
+  return [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from(
+      { length: daysInMonth },
+      (_, index) => new Date(month.getFullYear(), month.getMonth(), index + 1),
+    ),
+  ];
+}
+
+function startOfToday(): Date {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(date: Date, months: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
 
 /** Local YYYY-MM-DD. `toISOString` would shift the day in any western zone. */
