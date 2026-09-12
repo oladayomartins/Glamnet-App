@@ -35,7 +35,12 @@ interface ServiceOption {
   reason?: "name" | "phrase" | "category";
 }
 
-type When = { kind: "now" } | { kind: "day"; date: string };
+type When =
+  | { kind: "now" }
+  /** A day, with no time yet — what you get before a service is chosen. */
+  | { kind: "day"; date: string }
+  /** A real slot off a vendor's calendar. `label` is what the pill shows. */
+  | { kind: "time"; date: string; at: string; label: string };
 
 interface CategoryGroup {
   name: string;
@@ -115,6 +120,7 @@ export function BookingLauncher({
     });
     if (when.kind === "now") params.set("availableToday", "1");
     if (when.kind === "day") params.set("date", when.date);
+    if (when.kind === "time") params.set("at", when.at);
     router.push(`/search?${params.toString()}`);
   };
 
@@ -135,7 +141,9 @@ export function BookingLauncher({
           )}
           {when.kind === "now"
             ? "As soon as someone is free"
-            : formatDayLabel(when.date)}
+            : when.kind === "time"
+              ? when.label
+              : formatDayLabel(when.date)}
           <CaretDown
             size={13}
             weight="bold"
@@ -208,6 +216,8 @@ export function BookingLauncher({
         >
           <WhenPicker
             thresholdHours={thresholdHours}
+            area={area}
+            service={service}
             value={when}
             onPick={(picked) => {
               setWhen(picked);
@@ -626,10 +636,15 @@ function ServiceRow({
  */
 function WhenPicker({
   thresholdHours,
+  area,
+  service,
   value,
   onPick,
 }: {
   thresholdHours: number;
+  /** Both are needed before real times can be asked for. */
+  area: ServiceArea | null;
+  service: ServiceOption | null;
   value: When;
   onPick: (value: When) => void;
 }) {
@@ -640,9 +655,24 @@ function WhenPicker({
   const lastBookable = addDays(today, HORIZON_DAYS - 1);
 
   const [month, setMonth] = useState(() => startOfMonth(today));
+  // The day being looked at, which is not yet the answer: choosing a day opens
+  // its times, and the answer is the time.
+  const [day, setDay] = useState<string | null>(null);
 
-  const canGoBack = month > startOfMonth(today);
-  const canGoForward = month < startOfMonth(lastBookable);
+  const canAskForTimes = Boolean(area && service);
+
+  if (day && canAskForTimes) {
+    return (
+      <TimePicker
+        day={day}
+        area={area!}
+        service={service!}
+        thresholdHours={thresholdHours}
+        onBack={() => setDay(null)}
+        onPick={onPick}
+      />
+    );
+  }
 
   return (
     <div>
@@ -671,13 +701,10 @@ function WhenPicker({
         <div className="flex items-center justify-between">
           <MonthArrow
             direction="back"
-            disabled={!canGoBack}
+            disabled={month <= startOfMonth(today)}
             onClick={() => setMonth(addMonths(month, -1))}
           />
-          <p
-            aria-live="polite"
-            className="text-sm font-semibold text-ink"
-          >
+          <p aria-live="polite" className="text-sm font-semibold text-ink">
             {month.toLocaleDateString("en-GB", {
               month: "long",
               year: "numeric",
@@ -685,7 +712,7 @@ function WhenPicker({
           </p>
           <MonthArrow
             direction="forward"
-            disabled={!canGoForward}
+            disabled={month >= startOfMonth(lastBookable)}
             onClick={() => setMonth(addMonths(month, 1))}
           />
         </div>
@@ -711,15 +738,17 @@ function WhenPicker({
             </div>
           ))}
 
-          {monthGrid(month).map((day, index) => {
+          {monthGrid(month).map((date, index) => {
             // Leading blanks before the first of the month. Keyed by position,
             // which is stable for a given month.
-            if (!day) return <div key={`pad-${index}`} aria-hidden />;
+            if (!date) return <div key={`pad-${index}`} aria-hidden />;
 
-            const dayValue = toDayValue(day);
-            const bookable = day >= today && day <= lastBookable;
-            const selected = value.kind === "day" && value.date === dayValue;
-            const isToday = day.getTime() === today.getTime();
+            const dayValue = toDayValue(date);
+            const bookable = date >= today && date <= lastBookable;
+            const selected =
+              (value.kind === "day" || value.kind === "time") &&
+              value.date === dayValue;
+            const isToday = date.getTime() === today.getTime();
 
             return (
               <button
@@ -728,12 +757,16 @@ function WhenPicker({
                 role="gridcell"
                 disabled={!bookable}
                 aria-selected={selected}
-                aria-label={`${day.toLocaleDateString("en-GB", {
+                aria-label={`${date.toLocaleDateString("en-GB", {
                   weekday: "long",
                   day: "numeric",
                   month: "long",
                 })}${bookable ? "" : " — not bookable"}`}
-                onClick={() => onPick({ kind: "day", date: dayValue })}
+                onClick={() =>
+                  canAskForTimes
+                    ? setDay(dayValue)
+                    : onPick({ kind: "day", date: dayValue })
+                }
                 className={`flex h-11 items-center justify-center rounded-glam-sm text-sm tabular-nums transition duration-[180ms] ${
                   selected
                     ? "bg-metal font-bold text-metal-ink"
@@ -742,7 +775,7 @@ function WhenPicker({
                       : "text-ink-muted/45"
                 } ${isToday && !selected ? "font-bold ring-1 ring-brand-200" : ""}`}
               >
-                {day.getDate()}
+                {date.getDate()}
               </button>
             );
           })}
@@ -750,13 +783,178 @@ function WhenPicker({
       </div>
 
       <p className="mt-3 text-xs text-ink-muted">
-        Times come from vendors&rsquo; real calendars on the next screen, and a
-        slot within {thresholdHours} hours of booking is an emergency booking.
-        Days are bookable {HORIZON_DAYS} days ahead.
+        {canAskForTimes
+          ? `Pick a day to see the times vendors actually have. Days are bookable ${HORIZON_DAYS} days ahead.`
+          : `Choose where and what first and the times for a day appear here. Days are bookable ${HORIZON_DAYS} days ahead.`}{" "}
+        A slot within {thresholdHours} hours of booking is an emergency
+        booking.
       </p>
     </div>
   );
 }
+
+interface Slot {
+  startAt: string;
+  bookingType: string;
+  providerCount: number;
+}
+
+/**
+ * The times on a chosen day.
+ *
+ * Every one of these comes from the server, off the same grid the booking
+ * flow uses: the vendors who can deliver this service in this sector, their
+ * working hours, their existing appointments and the transition buffer
+ * between jobs. Nothing here is a guess at what a salon day looks like.
+ *
+ * Slots nobody is free for are shown struck through rather than left out —
+ * an absent 16:00 reads as "they do not work then", which is a different and
+ * untrue statement — and the emergency tag on a slot is the server's
+ * classification, not a comparison done here.
+ */
+function TimePicker({
+  day,
+  area,
+  service,
+  thresholdHours,
+  onBack,
+  onPick,
+}: {
+  day: string;
+  area: ServiceArea;
+  service: ServiceOption;
+  thresholdHours: number;
+  onBack: () => void;
+  onPick: (value: When) => void;
+}) {
+  const [state, setState] = useState<
+    { status: "loading" } | { status: "ready"; slots: Slot[] } | { status: "error" }
+  >({ status: "loading" });
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/availability", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            hubId: area.hubId,
+            serviceIds: [service.id],
+            date: new Date(`${day}T00:00:00`).toISOString(),
+          }),
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("unavailable");
+        const payload = await response.json();
+        setState({ status: "ready", slots: payload.slots ?? [] });
+      } catch (cause) {
+        if ((cause as Error).name !== "AbortError") setState({ status: "error" });
+      }
+    })();
+
+    return () => controller.abort();
+  }, [day, area.hubId, service.id]);
+
+  const free =
+    state.status === "ready"
+      ? state.slots.filter((slot) => slot.providerCount > 0)
+      : [];
+
+  return (
+    <div>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition duration-[180ms] hover:bg-sunken hover:text-ink"
+          aria-label="Back to the calendar"
+        >
+          <CaretLeft size={16} weight="bold" aria-hidden />
+        </button>
+        <p className="text-sm font-semibold text-ink">{formatFullDay(day)}</p>
+      </div>
+
+      <p className="mt-1 px-1 text-xs text-ink-muted">
+        {service.name} · {formatDuration(service.durationMinutes)} ·{" "}
+        {area.sector}
+      </p>
+
+      {state.status === "loading" ? (
+        <p className="px-1 py-6 text-center text-sm text-ink-muted">
+          Reading vendors&rsquo; calendars…
+        </p>
+      ) : state.status === "error" ? (
+        <p role="alert" className="px-1 py-6 text-center text-sm text-warning">
+          Could not read the calendars just now. Pick another day, or search
+          without a time.
+        </p>
+      ) : free.length === 0 ? (
+        <p className="px-1 py-6 text-center text-sm text-ink-muted">
+          Nobody is free that day. Try another, or ask for the soonest slot.
+        </p>
+      ) : (
+        <div className="mt-2">
+          {/*
+            Every slot the server returned, split into parts of the day.
+            Nothing is dropped — a working day at this granularity is forty-odd
+            starts, and an unbroken run of them is a wall to scroll rather than
+            a list to read. The headings are orientation, not a filter.
+          */}
+          {groupByPartOfDay(state.slots).map((group) => (
+            <section key={group.label} className="mt-3 first:mt-0">
+              <p className="px-1 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                {group.label}
+              </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {group.slots.map((slot) => {
+                  const taken = slot.providerCount === 0;
+                  const emergency = slot.bookingType === "EMERGENCY";
+
+                  return (
+                    <button
+                      key={slot.startAt}
+                      type="button"
+                      disabled={taken}
+                      onClick={() =>
+                        onPick({
+                          kind: "time",
+                          date: day,
+                          at: slot.startAt,
+                          label: `${formatDayLabel(day)}, ${formatClock(slot.startAt)}`,
+                        })
+                      }
+                      aria-label={`${formatClock(slot.startAt)}${
+                        taken ? " — nobody free" : ""
+                      }${emergency ? " — emergency booking" : ""}`}
+                      className={`flex h-11 items-center justify-center rounded-glam-sm text-sm tabular-nums ring-1 transition duration-[180ms] ${
+                        taken
+                          ? "text-ink-muted/45 line-through ring-line/60"
+                          : emergency
+                            ? "text-emergency-ink ring-emergency/40 hover:bg-emergency-soft"
+                            : "text-ink ring-line hover:bg-sunken"
+                      }`}
+                    >
+                      {formatClock(slot.startAt)}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      <p className="mt-3 text-xs text-ink-muted">
+        Struck-through times are ones nobody is free for. A slot within{" "}
+        {thresholdHours} hours of booking is an emergency booking and is priced
+        accordingly.
+      </p>
+    </div>
+  );
+}
+
 
 /** One month step. Disabled when there is nothing bookable that way. */
 function MonthArrow({
@@ -854,4 +1052,46 @@ function formatDayLabel(value: string): string {
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
   return date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
+}
+
+/** "Tuesday 15 September", for the heading over a day's times. */
+function formatFullDay(value: string): string {
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+/** 24-hour clock: a booking time is a fact, not a conversation. */
+function formatClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * Slots split into morning, afternoon and evening.
+ *
+ * Only for reading order — every slot the server sent is in exactly one
+ * group, and an empty group is left out rather than shown as a heading with
+ * nothing under it.
+ */
+function groupByPartOfDay(
+  slots: Slot[],
+): { label: string; slots: Slot[] }[] {
+  const groups: { label: string; slots: Slot[] }[] = [
+    { label: "Morning", slots: [] },
+    { label: "Afternoon", slots: [] },
+    { label: "Evening", slots: [] },
+  ];
+
+  for (const slot of slots) {
+    const hour = new Date(slot.startAt).getHours();
+    const index = hour < 12 ? 0 : hour < 17 ? 1 : 2;
+    groups[index].slots.push(slot);
+  }
+
+  return groups.filter((group) => group.slots.length > 0);
 }
