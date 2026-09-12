@@ -786,8 +786,7 @@ function WhenPicker({
         {canAskForTimes
           ? `Pick a day to see the times vendors actually have. Days are bookable ${HORIZON_DAYS} days ahead.`
           : `Choose where and what first and the times for a day appear here. Days are bookable ${HORIZON_DAYS} days ahead.`}{" "}
-        A slot within {thresholdHours} hours of booking is an emergency
-        booking.
+        A slot within {thresholdHours} hours of booking is an emergency booking.
       </p>
     </div>
   );
@@ -828,7 +827,9 @@ function TimePicker({
   onPick: (value: When) => void;
 }) {
   const [state, setState] = useState<
-    { status: "loading" } | { status: "ready"; slots: Slot[] } | { status: "error" }
+    | { status: "loading" }
+    | { status: "ready"; slots: Slot[] }
+    | { status: "error" }
   >({ status: "loading" });
 
   useEffect(() => {
@@ -850,17 +851,16 @@ function TimePicker({
         const payload = await response.json();
         setState({ status: "ready", slots: payload.slots ?? [] });
       } catch (cause) {
-        if ((cause as Error).name !== "AbortError") setState({ status: "error" });
+        if ((cause as Error).name !== "AbortError")
+          setState({ status: "error" });
       }
     })();
 
     return () => controller.abort();
   }, [day, area.hubId, service.id]);
 
-  const free =
-    state.status === "ready"
-      ? state.slots.filter((slot) => slot.providerCount > 0)
-      : [];
+  const hours = state.status === "ready" ? hourlyStarts(state.slots) : [];
+  const free = hours.filter((hour) => hour.slot);
 
   return (
     <div>
@@ -895,66 +895,74 @@ function TimePicker({
           Nobody is free that day. Try another, or ask for the soonest slot.
         </p>
       ) : (
-        <div className="mt-2">
+        <div className="mt-3">
           {/*
-            Every slot the server returned, split into parts of the day.
-            Nothing is dropped — a working day at this granularity is forty-odd
-            starts, and an unbroken run of them is a wall to scroll rather than
-            a list to read. The headings are orientation, not a filter.
+            Emergency is never signalled by colour alone. Every hour in this
+            grid that the server classified as emergency carries the bolt, and
+            the band above says the word — the red ring is the third signal,
+            not the only one.
           */}
-          {groupByPartOfDay(state.slots).map((group) => (
-            <section key={group.label} className="mt-3 first:mt-0">
-              <p className="px-1 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-                {group.label}
-              </p>
-              <div className="grid grid-cols-4 gap-1.5">
-                {group.slots.map((slot) => {
-                  const taken = slot.providerCount === 0;
-                  const emergency = slot.bookingType === "EMERGENCY";
+          {hours.some((hour) => hour.slot?.bookingType === "EMERGENCY") ? (
+            <p className="mb-2 flex items-center gap-1.5 rounded-glam-sm bg-emergency-soft px-2.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-emergency-ink">
+              <Lightning size={12} weight="fill" aria-hidden />
+              Emergency — within {thresholdHours} hours
+            </p>
+          ) : null}
 
-                  return (
-                    <button
-                      key={slot.startAt}
-                      type="button"
-                      disabled={taken}
-                      onClick={() =>
-                        onPick({
-                          kind: "time",
-                          date: day,
-                          at: slot.startAt,
-                          label: `${formatDayLabel(day)}, ${formatClock(slot.startAt)}`,
-                        })
-                      }
-                      aria-label={`${formatClock(slot.startAt)}${
-                        taken ? " — nobody free" : ""
-                      }${emergency ? " — emergency booking" : ""}`}
-                      className={`flex h-11 items-center justify-center rounded-glam-sm text-sm tabular-nums ring-1 transition duration-[180ms] ${
-                        taken
-                          ? "text-ink-muted/45 line-through ring-line/60"
-                          : emergency
-                            ? "text-emergency-ink ring-emergency/40 hover:bg-emergency-soft"
-                            : "text-ink ring-line hover:bg-sunken"
-                      }`}
-                    >
-                      {formatClock(slot.startAt)}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+          <div className="grid grid-cols-4 gap-1.5">
+            {hours.map((hour) => {
+              const taken = !hour.slot;
+              const emergency = hour.slot?.bookingType === "EMERGENCY";
+
+              return (
+                <button
+                  key={hour.label}
+                  type="button"
+                  disabled={taken}
+                  onClick={() =>
+                    hour.slot &&
+                    onPick({
+                      kind: "time",
+                      date: day,
+                      at: hour.slot.startAt,
+                      label: `${formatDayLabel(day)}, ${formatClock(hour.slot.startAt)}`,
+                    })
+                  }
+                  aria-label={`${hour.label}${taken ? " — nobody free" : ""}${
+                    emergency ? " — emergency booking" : ""
+                  }`}
+                  className={`flex h-11 items-center justify-center rounded-glam-sm text-sm tabular-nums ring-1 transition duration-[180ms] ${
+                    taken
+                      ? "text-ink-muted/45 line-through ring-line/60"
+                      : emergency
+                        ? "text-emergency-ink ring-emergency/40 hover:bg-emergency-soft"
+                        : "text-ink ring-line hover:bg-sunken"
+                  }`}
+                >
+                  {emergency ? (
+                    <Lightning
+                      size={11}
+                      weight="fill"
+                      aria-hidden
+                      className="mr-1 shrink-0"
+                    />
+                  ) : null}
+                  {hour.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
       <p className="mt-3 text-xs text-ink-muted">
-        Struck-through times are ones nobody is free for. A slot within{" "}
-        {thresholdHours} hours of booking is an emergency booking and is priced
-        accordingly.
+        We show the first appointment from the hour you pick; struck-through
+        hours are ones nobody is free for. A slot within {thresholdHours} hours
+        of booking is an emergency booking.
       </p>
     </div>
   );
 }
-
 
 /** One month step. Disabled when there is nothing bookable that way. */
 function MonthArrow({
@@ -1072,26 +1080,38 @@ function formatClock(iso: string): string {
 }
 
 /**
- * Slots split into morning, afternoon and evening.
+ * One button per working hour, carrying that hour's earliest free slot.
  *
- * Only for reading order — every slot the server sent is in exactly one
- * group, and an empty group is left out rather than shown as a heading with
- * nothing under it.
+ * The server's grid is every quarter hour, which is right for the booking
+ * screen — where a slot is a thing being reserved — and far too much for a
+ * hero dropdown, where the customer is saying roughly when. Forty-odd buttons
+ * is a wall; a dozen is a choice.
+ *
+ * Reducing rather than filtering keeps it honest twice over. An hour is
+ * offered only if a vendor is genuinely free inside it, and the value sent is
+ * that vendor's real start time — never the round hour itself, which might be
+ * a moment nobody is free. An hour with nothing in it is still drawn, struck
+ * through, because an absent 16:00 reads as "they do not work then".
  */
-function groupByPartOfDay(
-  slots: Slot[],
-): { label: string; slots: Slot[] }[] {
-  const groups: { label: string; slots: Slot[] }[] = [
-    { label: "Morning", slots: [] },
-    { label: "Afternoon", slots: [] },
-    { label: "Evening", slots: [] },
-  ];
+function hourlyStarts(slots: Slot[]): { label: string; slot: Slot | null }[] {
+  const byHour = new Map<number, Slot>();
+  let first: number | null = null;
+  let last: number | null = null;
 
   for (const slot of slots) {
     const hour = new Date(slot.startAt).getHours();
-    const index = hour < 12 ? 0 : hour < 17 ? 1 : 2;
-    groups[index].slots.push(slot);
+    if (first === null || hour < first) first = hour;
+    if (last === null || hour > last) last = hour;
+    if (slot.providerCount > 0 && !byHour.has(hour)) byHour.set(hour, slot);
   }
 
-  return groups.filter((group) => group.slots.length > 0);
+  if (first === null || last === null) return [];
+
+  return Array.from({ length: last - first + 1 }, (_, index) => {
+    const hour = first + index;
+    return {
+      label: `${String(hour).padStart(2, "0")}:00`,
+      slot: byHour.get(hour) ?? null,
+    };
+  });
 }
