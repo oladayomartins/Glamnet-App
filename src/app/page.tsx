@@ -138,26 +138,67 @@ export default async function MarketingPage() {
       */}
       <section className="on-light relative bg-[var(--glam-hero-ground)] text-ink">
         {/*
-          The band leads with the words on a phone, the way the reference
-          does: headline, then the booking module, then the photograph closing
-          the band beneath them. Leading with the picture pushed the headline
-          under the fold and made the first thing on the page a thing with
-          nothing to do.
+          The photograph runs the full width of the band from `lg`, with the
+          copy over the cream negative space the composition already leaves on
+          the left. That is the arrangement the band was designed around; it
+          was given its own 46% column for a while because the booking module
+          made the band tall enough to zoom an 8:3 photograph in until the
+          subject walked across the words.
 
-          It is still ONE band, not a picture sitting next to a block of
-          cream — the photograph shares the section's ground colour, sampled
-          from its own negative space, and fades in from it at the top edge
-          rather than starting on a cut.
-
-          From `lg` the photograph takes the right of the band and the copy
-          takes the left, so the two read side by side on a screen wide enough
-          to hold both. The picture keeps its own column there: it used to lie
-          under the copy, which worked only while the band was a headline and
-          a single search bar tall. The booking module is four times that, and
-          an 8:3 photograph covering the taller band zoomed in far enough to
-          walk the subject across the words.
+          The band's HEIGHT is what governs that crop, so the height is what
+          is controlled instead: an open step scrolls inside a capped panel
+          rather than growing the band, and everything above is trimmed to
+          keep the band near 2:1 on a desktop — about the proportion the
+          picture was shot for. There is a measurement in the commit.
         */}
-        <Container className="relative pb-8 pt-9 lg:py-14 xl:py-16">
+        {/*
+          Desktop only, in two arrangements, and the switch between them is
+          measured rather than chosen by eye.
+
+          From 1400px the photograph runs the full width of the band with the
+          copy over the cream negative space the composition already leaves on
+          the left — the arrangement the picture was shot for. Below that it
+          takes its own right-hand column instead. The reason is the crop: the
+          source is 8:3, the band is about 684px tall, and `cover` therefore
+          shows less and less of the source width as the viewport narrows —
+          79% at 1440, 70% at 1280, 57% at 1024. Every percent lost walks the
+          subject further left, into the words. Reading the pixels actually
+          behind the copy gives 5.4:1 at 1440 and 3.3:1 at 1280, so 1400 is
+          roughly where the full-bleed version stops being readable.
+
+          `lazy` rather than `priority`: an eager image inside a
+          `display: none` wrapper is still fetched, so priority would download
+          a hero for every phone that never shows one.
+        */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[46%] lg:block min-[1400px]:inset-x-0 min-[1400px]:w-auto">
+          <BrandImage
+            path={HERO_IMAGE_PATH}
+            alt="A client with fresh braids and evening makeup at home"
+            width={1600}
+            height={600}
+            sizes="(max-width: 1399px) 46vw, 100vw"
+            className="h-full w-full object-cover object-[60%_center] min-[1400px]:object-[72%_center]"
+          />
+          {/* Column arrangement: a narrow fade so the picture's left edge is
+              a join rather than a cut. */}
+          <div
+            aria-hidden
+            className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent min-[1400px]:hidden"
+          />
+          {/*
+            Full-bleed arrangement: a wash of the band's own ground colour
+            across the left, gone before it reaches the subject. Not a scrim
+            over the photograph — the same cream the photograph already has
+            there, held steady so the copy's contrast does not depend on how
+            far the crop happens to zoom at a given width.
+          */}
+          <div
+            aria-hidden
+            className="absolute inset-y-0 left-0 hidden w-[62%] bg-gradient-to-r from-[var(--glam-hero-ground)] from-45% to-transparent min-[1400px]:block"
+          />
+        </div>
+
+        <Container className="relative pb-8 pt-9 lg:py-10 xl:py-12">
           {/*
             The copy column is wide rather than clamped to `max-w-lg`: a narrow
             column inside a full-bleed band reads as floating in the middle of
@@ -165,7 +206,7 @@ export default async function MarketingPage() {
             the photograph's column at every width — 34rem is inside the 54%
             left half from 1024px up, and the extra 2rem at `xl` still is.
           */}
-          <div className="max-w-[34rem] xl:max-w-[36rem]">
+          <div className="max-w-[34rem] lg:max-w-[31rem] min-[1400px]:max-w-[38rem]">
             <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
               {/* Jade means live. One breathing dot, and the words carry the
                   meaning on their own if the motion is switched off. */}
@@ -196,7 +237,7 @@ export default async function MarketingPage() {
             and from `lg` the extra 4rem still lands on the photograph's cream
             half, well clear of the subject.
           */}
-          <div className="mt-7 max-w-[34rem] xl:max-w-[36rem]">
+          <div className="mt-6 max-w-[34rem] lg:max-w-[31rem] min-[1400px]:max-w-[38rem]">
             <BookingLauncher
               areas={areas}
               hints={searchHints}
@@ -231,39 +272,6 @@ export default async function MarketingPage() {
             </dl>
           </div>
         </Container>
-
-        {/*
-          The photograph belongs to the desktop band only.
-
-          On a phone there is nowhere for it to go that does not cost more
-          than it gives: above the copy it pushes the headline and the booking
-          module down the screen, below them it reads as a picture pasted onto
-          the end of the section, and behind the words it has to be faded far
-          enough to carry text that little of the photograph survives. The
-          reference shows no photograph on a phone for the same reason. The
-          category rail immediately below carries the brand's photography
-          there instead.
-
-          It is `lazy` rather than `priority` deliberately: an eager image
-          inside a `display: none` wrapper is still fetched, so marking it
-          priority would download a hero for every phone that never shows one.
-        */}
-        <div className="hidden lg:absolute lg:inset-y-0 lg:right-0 lg:block lg:w-[46%]">
-          <BrandImage
-            path={HERO_IMAGE_PATH}
-            alt="A client with fresh braids and evening makeup at home"
-            width={1600}
-            height={600}
-            sizes="46vw"
-            className="h-full w-full object-cover object-[60%_center]"
-          />
-          {/* The join is a fade into the ground colour sampled from the
-              photograph's own negative space, not a cut. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent"
-          />
-        </div>
 
       </section>
 
