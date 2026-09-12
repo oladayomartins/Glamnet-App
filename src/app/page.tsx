@@ -22,8 +22,9 @@ import { GlamImage } from "@/components/glam-image";
 import { BrandImage } from "@/components/brand-image";
 import { Rail } from "@/components/rail";
 import {
+  GOOGLE_REVIEW_BADGE_PATH,
+  GOOGLE_REVIEW_URL,
   HERO_IMAGE_PATH,
-  REVIEWS_BADGE_PATH,
   categoryImagePath,
 } from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
@@ -271,9 +272,7 @@ export default async function MarketingPage() {
                 icon={<ShieldCheck size={15} weight="fill" aria-hidden />}
                 value={String(stats.providerCount)}
                 label={
-                  stats.providerCount === 1
-                    ? "Vetted vendor"
-                    : "Vetted vendors"
+                  stats.providerCount === 1 ? "Vetted vendor" : "Vetted vendors"
                 }
               />
               <HeroFigure
@@ -281,22 +280,31 @@ export default async function MarketingPage() {
                 value={`${thresholdHours}h`}
                 label="Emergency cover"
               />
-            </dl>
 
-            {/*
-              Google's badge, kept apart from the figures above rather than set
-              among them. Those are counts this platform calculated; this is a
-              third party's mark, and putting it in the same row would read as
-              one more GLAMNET statistic.
-            */}
-            <BrandImage
-              path={REVIEWS_BADGE_PATH}
-              alt="Google Customer Reviews"
-              width={842}
-              height={296}
-              sizes="140px"
-              className="mt-4 h-10 w-auto"
-            />
+              {/*
+                On the same row as the figures, and last in it. Those are
+                counts; this is an invitation, so it reads better after the
+                statements than among them — and it only appears once there is
+                a review form to send people to.
+              */}
+              {GOOGLE_REVIEW_URL ? (
+                <a
+                  href={GOOGLE_REVIEW_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="tap-44 inline-flex items-center transition duration-[180ms] ease-glam hover:opacity-85"
+                >
+                  <BrandImage
+                    path={GOOGLE_REVIEW_BADGE_PATH}
+                    alt="Leave us a review on Google"
+                    width={813}
+                    height={260}
+                    sizes="160px"
+                    className="h-10 w-auto"
+                  />
+                </a>
+              ) : null}
+            </dl>
           </div>
         </Container>
 
