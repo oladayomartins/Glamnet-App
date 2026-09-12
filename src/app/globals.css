@@ -149,6 +149,35 @@
   --glam-page-max: 64rem;
 }
 
+/* --- Hero copy column ----------------------------------------------------
+   The width of the copy and the booking bar in the hero band.
+
+   A token rather than three Tailwind variants on one element. `lg:` and an
+   arbitrary `min-[1400px]:` have equal specificity, and Tailwind emits the
+   arbitrary one FIRST — checked by byte offset in the compiled stylesheet —
+   so `lg:max-w-[31rem]` won at 1440px and the bar's button spilled out of a
+   bar narrower than it was meant to be. Declaring the two media queries here,
+   in this order, settles it: the widths are read in the order written.
+
+   31rem between 1024 and 1400 keeps the copy clear of the photograph's own
+   column; 38rem from 1400 is the full-bleed arrangement, where the bar has
+   the cream half of the band to sit in. */
+:root {
+  --glam-hero-col: 34rem;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --glam-hero-col: 31rem;
+  }
+}
+
+@media (min-width: 1400px) {
+  :root {
+    --glam-hero-col: 38rem;
+  }
+}
+
 [data-theme="dark"] {
   /* Rose inverts to light-on-dark. Anything sitting *on* a brand fill must
      therefore flip too — that is what --glam-on-brand is for. */
@@ -192,6 +221,7 @@
 }
 
 @theme inline {
+
   --color-brand-50: var(--glam-rose-50);
   --color-brand-100: var(--glam-rose-100);
   --color-brand-200: var(--glam-rose-200);
