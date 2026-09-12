@@ -138,53 +138,26 @@ export default async function MarketingPage() {
       */}
       <section className="on-light relative bg-[var(--glam-hero-ground)] text-ink">
         {/*
-          One band at every width, with the photograph BEHIND the copy rather
-          than stacked above it.
+          The band leads with the words on a phone, the way the reference
+          does: headline, then the booking module, then the photograph closing
+          the band beneath them. Leading with the picture pushed the headline
+          under the fold and made the first thing on the page a thing with
+          nothing to do.
 
-          On a phone it fills the top of the band: the crop is pulled to the
-          upper right so the subject holds the part of the frame the words
-          never reach, and the words begin below her. The join is a fade into
-          the ground colour rather than a dark wash over the picture — a scrim
-          heavy enough to carry text would be covering the photograph to make
-          room for the words, which is the thing to avoid.
+          It is still ONE band, not a picture sitting next to a block of
+          cream — the photograph shares the section's ground colour, sampled
+          from its own negative space, and fades in from it at the top edge
+          rather than starting on a cut.
 
           From `lg` the photograph takes the right of the band and the copy
-          takes the left. It used to lie under the copy at every width, and
-          that worked only while the band was a headline and a single search
-          bar tall: the booking module is four times that, and an 8:3
-          photograph covering the taller band zoomed in far enough to walk the
-          subject across the words. Its own column means the band can be any
-          height without the crop deciding whether the headline is readable.
+          takes the left, so the two read side by side on a screen wide enough
+          to hold both. The picture keeps its own column there: it used to lie
+          under the copy, which worked only while the band was a headline and
+          a single search bar tall. The booking module is four times that, and
+          an 8:3 photograph covering the taller band zoomed in far enough to
+          walk the subject across the words.
         */}
-        <div className="absolute inset-x-0 top-0 h-[22rem] sm:h-[26rem] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-auto lg:w-[46%]">
-          <BrandImage
-            path={HERO_IMAGE_PATH}
-            alt="A client with fresh braids and evening makeup at home"
-            width={1600}
-            height={600}
-            sizes="(max-width: 1024px) 100vw, 46vw"
-            priority
-            className="h-full w-full object-cover object-[72%_22%] lg:object-[60%_center]"
-          />
-          {/* Phones: the picture ends in the ground colour it was sampled
-              from, so the words sit on cream that belongs to the photograph
-              instead of on a panel laid over it. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[var(--glam-hero-ground)] from-40% to-transparent sm:h-64 lg:hidden"
-          />
-          {/* Desktop: the same fade, turned ninety degrees. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 hidden w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent lg:block"
-          />
-        </div>
-
-        {/*
-          The top padding is what keeps the words off the subject on a phone:
-          the copy starts below her, on the faded foot of the picture.
-        */}
-        <Container className="relative pt-[17rem] sm:pt-[21rem] lg:pt-14 lg:pb-14 xl:py-16 pb-10">
+        <Container className="relative pb-8 pt-9 lg:py-14 xl:py-16">
           {/*
             The copy column is wide rather than clamped to `max-w-lg`: a narrow
             column inside a full-bleed band reads as floating in the middle of
@@ -258,6 +231,36 @@ export default async function MarketingPage() {
             </dl>
           </div>
         </Container>
+
+        {/*
+          The photograph closes the band on a phone and takes its right on a
+          desktop. `object-position` differs between the two because the crops
+          differ: a wide strip wants the subject centred in frame, a tall
+          column wants her held slightly left of it.
+        */}
+        <div className="relative mt-2 lg:absolute lg:inset-y-0 lg:right-0 lg:mt-0 lg:w-[46%]">
+          <BrandImage
+            path={HERO_IMAGE_PATH}
+            alt="A client with fresh braids and evening makeup at home"
+            width={1600}
+            height={600}
+            sizes="(max-width: 1024px) 100vw, 46vw"
+            priority
+            className="h-[15rem] w-full object-cover object-[70%_28%] sm:h-[19rem] lg:h-full lg:object-[60%_center]"
+          />
+          {/* Phones: the picture begins in the ground colour it was sampled
+              from, so the band reads as one surface rather than a photograph
+              pasted onto the bottom of a cream panel. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[var(--glam-hero-ground)] to-transparent sm:h-28 lg:hidden"
+          />
+          {/* Desktop: the same fade, turned ninety degrees. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 hidden w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent lg:block"
+          />
+        </div>
       </section>
 
       {/* ================= Block 2 — service categories ================ */}
