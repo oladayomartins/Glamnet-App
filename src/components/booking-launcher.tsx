@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarBlank,
-  CaretRight,
+  CaretDown,
   Lightning,
   MagnifyingGlass,
   MapPin,
@@ -33,6 +33,8 @@ interface ServiceOption {
   reason?: "name" | "phrase" | "category";
 }
 
+type When = { kind: "now" } | { kind: "day"; date: string };
+
 interface CategoryGroup {
   name: string;
   services: ServiceOption[];
@@ -42,18 +44,23 @@ interface CategoryGroup {
 const HORIZON_DAYS = 7;
 
 /**
- * The hero booking module (§C-01 block 1).
+ * The hero booking bar (§C-01 block 1).
  *
- * Three questions in the order a customer can actually answer them — where,
- * what, when — each opening only once the one before it has an answer. The
- * old bar asked for a service and a town at once and left the customer to
- * work out that one constrained the other.
+ * A bar of fixed height, not a stack that grows. Each control opens its panel
+ * as an OVERLAY — absolutely positioned, floating over whatever is beneath —
+ * so answering a question never changes the height of anything. That matters
+ * here more than it usually would: the hero band's height decides how far the
+ * photograph behind it has to crop, so a module that grew as it was filled in
+ * re-cropped the picture under the customer's hands while they used it.
  *
- * It deliberately stops at the point of committing to anything. Submitting
- * hands the three answers to /search, which computes real offers from real
- * calendars; this module never prices, never reserves, and never decides
- * whether a booking is an emergency. It says what the rule is and lets the
- * server apply it.
+ * The timing pill sits above the bar, the way the reference puts "Pickup now"
+ * above its fields, and defaults to the soonest slot — which is what most
+ * people want and means the bar needs only two answers before it can search.
+ *
+ * It stops short of committing to anything. Submitting hands the answers to
+ * /search, which computes real offers from real calendars; this never prices,
+ * never reserves, and never decides whether a booking is an emergency. It
+ * states the rule and lets the server apply it.
  */
 export function BookingLauncher({
   areas,
@@ -69,16 +76,34 @@ export function BookingLauncher({
   const router = useRouter();
   const [area, setArea] = useState<ServiceArea | null>(null);
   const [service, setService] = useState<ServiceOption | null>(null);
-  const [when, setWhen] = useState<{ kind: "now" } | { kind: "day"; date: string } | null>(
-    null,
-  );
-  // Nothing is open on arrival. The three rows read as a summary of what will
-  // be asked, which is a calmer first impression than a panel already
-  // demanding an answer — and on a phone an open panel pushed everything
-  // below it off the screen before the page had said anything.
-  const [step, setStep] = useState<"where" | "what" | "when" | null>(null);
+  // Defaulted rather than required. "As soon as someone is free" is both the
+  // commonest answer and the one the marketplace is built around, so asking
+  // for it up front would be asking a question already answered.
+  const [when, setWhen] = useState<When>({ kind: "now" });
+  const [open, setOpen] = useState<"where" | "what" | "when" | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
+
+  // A panel that floats over the page has to close when attention leaves it,
+  // or it sits on top of whatever the customer looks at next.
+  useEffect(() => {
+    if (!open) return;
+
+    const onDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(null);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(null);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const go = () => {
     if (!area || !service) return;
@@ -86,181 +111,191 @@ export function BookingLauncher({
       q: service.name,
       location: area.sector,
     });
-    if (when?.kind === "now") params.set("availableToday", "1");
-    if (when?.kind === "day") params.set("date", when.date);
+    if (when.kind === "now") params.set("availableToday", "1");
+    if (when.kind === "day") params.set("date", when.date);
     router.push(`/search?${params.toString()}`);
   };
 
   return (
-    <div className="overflow-hidden rounded-glam border border-line bg-surface shadow-card">
-      <Step
-        index={1}
-        label="Where should we come?"
-        value={area ? `${area.sector} · ${area.city}` : null}
-        placeholder="Enter your service location"
-        icon={<MapPin size={18} weight="light" aria-hidden />}
-        open={step === "where"}
-        onToggle={() => setStep(step === "where" ? null : "where")}
-      >
-        <AreaPicker
-          areas={areas}
-          onPick={(picked) => {
-            setArea(picked);
-            // Changing where you are can change what is bookable, so the
-            // answer below it is cleared rather than silently carried over.
-            setService(null);
-            setStep("what");
-          }}
-        />
-      </Step>
-
-      <Step
-        index={2}
-        label="What would you like done?"
-        value={service ? service.name : null}
-        placeholder="Search for a service…"
-        icon={<MagnifyingGlass size={18} weight="light" aria-hidden />}
-        open={step === "what"}
-        disabled={!area}
-        disabledNote="Tell us where first — it decides who can reach you."
-        onToggle={() => setStep(step === "what" ? null : "what")}
-      >
-        <ServicePicker
-          hints={hints}
-          onPick={(picked) => {
-            setService(picked);
-            setStep("when");
-          }}
-        />
-      </Step>
-
-      <Step
-        index={3}
-        label="When do you need it?"
-        value={
-          when
-            ? when.kind === "now"
-              ? "As soon as someone is free"
-              : formatDayLabel(when.date)
-            : null
-        }
-        placeholder="Now, or pick a date"
-        icon={<CalendarBlank size={18} weight="light" aria-hidden />}
-        open={step === "when"}
-        disabled={!service}
-        disabledNote="Choose a service first."
-        last
-        onToggle={() => setStep(step === "when" ? null : "when")}
-      >
-        <WhenPicker
-          thresholdHours={thresholdHours}
-          value={when}
-          onPick={(picked) => {
-            setWhen(picked);
-            setStep(null);
-          }}
-        />
-      </Step>
-
-      <div className="border-t border-line p-3">
-        <Button
-          onClick={go}
-          disabled={!area || !service || !when}
-          className="w-full"
+    <div ref={rootRef} className="relative">
+      {/* When — the pill above the bar, already answered. */}
+      <div className="relative inline-block">
+        <button
+          type="button"
+          onClick={() => setOpen(open === "when" ? null : "when")}
+          aria-expanded={open === "when"}
+          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-sm font-semibold text-ink shadow-card ring-1 ring-line transition duration-[180ms] ease-glam hover:bg-sunken"
         >
-          Find my glam
-        </Button>
-        <p className="mt-2 text-center text-xs text-ink-muted">
-          {/*
-            The rule, not a verdict. Whether a booking is an emergency is
-            decided on the server from the gap between placing it and the
-            appointment, and nothing typed here can change that — so this says
-            what will be applied rather than claiming to have applied it.
-          */}
-          Within {thresholdHours} hours of booking counts as an emergency
-          booking.
-        </p>
+          {when.kind === "now" ? (
+            <Lightning size={15} weight="light" aria-hidden />
+          ) : (
+            <CalendarBlank size={15} weight="light" aria-hidden />
+          )}
+          {when.kind === "now"
+            ? "As soon as someone is free"
+            : formatDayLabel(when.date)}
+          <CaretDown
+            size={13}
+            weight="bold"
+            aria-hidden
+            className="text-ink-muted"
+          />
+        </button>
+
+        <Panel
+          open={open === "when"}
+          className="w-[min(24rem,calc(100vw-2rem))]"
+        >
+          <WhenPicker
+            thresholdHours={thresholdHours}
+            value={when}
+            onPick={(picked) => {
+              setWhen(picked);
+              setOpen(null);
+            }}
+          />
+        </Panel>
       </div>
+
+      {/*
+        The bar. One row from `sm`, stacked below it, and its height does not
+        depend on what has been answered — the dividers move, nothing grows.
+      */}
+      {/* The bar and its two panels share a positioning context, so a panel
+          hangs off the BAR rather than off the fine print beneath it. */}
+      <div className="relative mt-3">
+        <div className="flex flex-col gap-2 rounded-glam border border-line bg-surface p-2 shadow-card sm:flex-row sm:items-center sm:gap-0">
+          <Field
+            label="Where"
+            value={area ? `${area.sector} · ${area.city}` : null}
+            placeholder="Your service location"
+            icon={<MapPin size={17} weight="light" aria-hidden />}
+            open={open === "where"}
+            onToggle={() => setOpen(open === "where" ? null : "where")}
+          />
+
+          <div className="hidden h-9 w-px shrink-0 bg-line sm:block" />
+
+          <Field
+            label="What"
+            value={service ? service.name : null}
+            placeholder="Search for a service…"
+            icon={<MagnifyingGlass size={17} weight="light" aria-hidden />}
+            open={open === "what"}
+            onToggle={() => setOpen(open === "what" ? null : "what")}
+          />
+
+          <Button
+            onClick={go}
+            disabled={!area || !service}
+            className="shrink-0 sm:ml-2 sm:w-auto"
+          >
+            Find my glam
+          </Button>
+        </div>
+
+        <Panel open={open === "where"} className="inset-x-0">
+          <AreaPicker
+            areas={areas}
+            onPick={(picked) => {
+              setArea(picked);
+              // Where you are can change what is bookable, so an answer taken
+              // under the old location is cleared rather than carried over.
+              setService(null);
+              setOpen("what");
+            }}
+          />
+        </Panel>
+
+        <Panel open={open === "what"} className="inset-x-0">
+          <ServicePicker
+            hints={hints}
+            onPick={(picked) => {
+              setService(picked);
+              setOpen(null);
+            }}
+          />
+        </Panel>
+      </div>
+
+      <p className="mt-2 text-xs text-ink-muted">
+        {/*
+          The rule, not a verdict. Whether a booking is an emergency is decided
+          on the server from the gap between placing it and the appointment,
+          and nothing chosen here can change that.
+        */}
+        Within {thresholdHours} hours of booking counts as an emergency booking.
+      </p>
     </div>
   );
 }
 
-/** One question in the stack: a row that opens to reveal its own control. */
-function Step({
-  index,
+/**
+ * A floating panel.
+ *
+ * Absolute, so opening one cannot move anything. It is rendered only while
+ * open rather than hidden: a panel that is merely invisible still holds its
+ * contents in the tab order, and this one is full of buttons.
+ */
+function Panel({
+  open,
+  className = "",
+  children,
+}: {
+  open: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className={`absolute top-full z-30 mt-2 max-h-[min(22rem,60vh)] overflow-y-auto rounded-glam border border-line bg-surface p-3 shadow-raised ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** One control in the bar: a label, and either the answer or the prompt. */
+function Field({
   label,
   value,
   placeholder,
   icon,
   open,
-  disabled,
-  disabledNote,
-  last,
   onToggle,
-  children,
 }: {
-  index: number;
   label: string;
   value: string | null;
   placeholder: string;
   icon: React.ReactNode;
   open: boolean;
-  disabled?: boolean;
-  disabledNote?: string;
-  last?: boolean;
   onToggle: () => void;
-  children: React.ReactNode;
 }) {
-  const panelId = useId();
-
   return (
-    <div className={last ? "" : "border-b border-line"}>
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={disabled}
-        aria-expanded={open}
-        aria-controls={panelId}
-        className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left transition duration-[180ms] ease-glam enabled:hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-55"
-      >
-        <span className="shrink-0 text-ink-muted">{icon}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-            {index}. {label}
-          </span>
-          <span
-            className={`block truncate text-[15px] ${
-              value ? "font-semibold text-ink" : "text-ink-muted"
-            }`}
-          >
-            {value ?? (disabled && disabledNote ? disabledNote : placeholder)}
-          </span>
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className={`flex min-h-12 min-w-0 flex-1 items-center gap-2.5 rounded-glam-sm px-3 text-left transition duration-[180ms] ease-glam hover:bg-sunken ${
+        open ? "bg-sunken" : ""
+      }`}
+    >
+      <span className="shrink-0 text-ink-muted">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-ink-muted">
+          {label}
         </span>
-        <CaretRight
-          size={16}
-          weight="light"
-          aria-hidden
-          className={`shrink-0 text-ink-muted transition-transform duration-[180ms] ease-glam ${
-            open ? "rotate-90" : ""
+        <span
+          className={`block truncate text-[15px] leading-tight ${
+            value ? "font-semibold text-ink" : "text-ink-muted"
           }`}
-        />
-      </button>
-
-      {/*
-        The open panel is capped and scrolls inside itself. It used to add its
-        full height to the hero band, and the band's height is what decides how
-        far the photograph behind it has to zoom — so a long list of services
-        could walk the subject across the headline.
-      */}
-      {open && !disabled ? (
-        <div
-          id={panelId}
-          className="max-h-[17rem] overflow-y-auto border-t border-line bg-sunken p-3"
         >
-          {children}
-        </div>
-      ) : null}
-    </div>
+          {value ?? placeholder}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -576,8 +611,8 @@ function WhenPicker({
   onPick,
 }: {
   thresholdHours: number;
-  value: { kind: "now" } | { kind: "day"; date: string } | null;
-  onPick: (value: { kind: "now" } | { kind: "day"; date: string }) => void;
+  value: When;
+  onPick: (value: When) => void;
 }) {
   const days = Array.from({ length: HORIZON_DAYS }, (_, offset) => {
     const date = new Date();
@@ -593,7 +628,7 @@ function WhenPicker({
         onClick={() => onPick({ kind: "now" })}
         aria-pressed={value?.kind === "now"}
         className={`flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 py-2.5 text-left ring-1 transition duration-[180ms] ${
-          value?.kind === "now"
+          value.kind === "now"
             ? "bg-surface ring-brand-200"
             : "ring-line hover:bg-surface"
         }`}
@@ -618,9 +653,9 @@ function WhenPicker({
             key={day}
             type="button"
             onClick={() => onPick({ kind: "day", date: day })}
-            aria-pressed={value?.kind === "day" && value.date === day}
+            aria-pressed={value.kind === "day" && value.date === day}
             className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition duration-[180ms] ${
-              value?.kind === "day" && value.date === day
+              value.kind === "day" && value.date === day
                 ? "bg-metal text-metal-ink"
                 : "bg-surface text-ink-muted ring-1 ring-line hover:text-ink"
             }`}

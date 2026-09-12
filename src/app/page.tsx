@@ -136,7 +136,15 @@ export default async function MarketingPage() {
         palette. Without that, dark mode would invert the copy and the search
         bar to their dark selves on top of a cream photograph.
       */}
-      <section className="on-light relative bg-[var(--glam-hero-ground)] text-ink">
+      <section
+        /*
+          A floor on the band's height, and the copy centred in it. The bar
+          itself no longer changes height — its panels float — so this is the
+          only thing deciding the crop, and 43rem against a 1440 viewport is
+          2.09:1, the proportion the reference band has.
+        */
+        className="on-light relative bg-[var(--glam-hero-ground)] text-ink lg:flex lg:min-h-[43rem] lg:items-center"
+      >
         {/*
           The photograph runs the full width of the band from `lg`, with the
           copy over the cream negative space the composition already leaves on
@@ -170,20 +178,20 @@ export default async function MarketingPage() {
           `display: none` wrapper is still fetched, so priority would download
           a hero for every phone that never shows one.
         */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[46%] lg:block min-[1400px]:inset-x-0 min-[1400px]:w-auto">
+        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[46%] lg:block wide:inset-x-0 wide:w-auto">
           <BrandImage
             path={HERO_IMAGE_PATH}
             alt="A client with fresh braids and evening makeup at home"
             width={1600}
             height={600}
             sizes="(max-width: 1399px) 46vw, 100vw"
-            className="h-full w-full object-cover object-[60%_center] min-[1400px]:object-[72%_center]"
+            className="h-full w-full object-cover object-[60%_center] wide:object-[72%_center]"
           />
           {/* Column arrangement: a narrow fade so the picture's left edge is
               a join rather than a cut. */}
           <div
             aria-hidden
-            className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent min-[1400px]:hidden"
+            className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent wide:hidden"
           />
           {/*
             Full-bleed arrangement: a wash of the band's own ground colour
@@ -194,7 +202,7 @@ export default async function MarketingPage() {
           */}
           <div
             aria-hidden
-            className="absolute inset-y-0 left-0 hidden w-[62%] bg-gradient-to-r from-[var(--glam-hero-ground)] from-45% to-transparent min-[1400px]:block"
+            className="absolute inset-y-0 left-0 hidden w-[62%] bg-gradient-to-r from-[var(--glam-hero-ground)] from-45% to-transparent wide:block"
           />
         </div>
 
@@ -206,7 +214,7 @@ export default async function MarketingPage() {
             the photograph's column at every width — 34rem is inside the 54%
             left half from 1024px up, and the extra 2rem at `xl` still is.
           */}
-          <div className="max-w-[34rem] lg:max-w-[31rem] min-[1400px]:max-w-[38rem]">
+          <div className="max-w-[var(--glam-hero-col)]">
             <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
               {/* Jade means live. One breathing dot, and the words carry the
                   meaning on their own if the motion is switched off. */}
@@ -237,7 +245,7 @@ export default async function MarketingPage() {
             and from `lg` the extra 4rem still lands on the photograph's cream
             half, well clear of the subject.
           */}
-          <div className="mt-6 max-w-[34rem] lg:max-w-[31rem] min-[1400px]:max-w-[38rem]">
+          <div className="mt-6 max-w-[var(--glam-hero-col)]">
             <BookingLauncher
               areas={areas}
               hints={searchHints}
