@@ -57,6 +57,15 @@ export interface OfferQuery {
   maxPriceMinor?: number;
   minRating?: number;
   availableToday?: boolean;
+  /**
+   * A chosen day, as YYYY-MM-DD. Offers are then the first slot each vendor
+   * has ON that day, and a vendor with nothing free that day drops out
+   * entirely rather than being answered with a different day they did not ask
+   * for. Notice — and so the emergency classification — is still measured
+   * from now, never from the day picked: choosing next Tuesday does not make
+   * a booking placed this minute a long-notice one.
+   */
+  date?: string;
 }
 
 /**
@@ -79,6 +88,11 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
   const now = new Date();
   const from = startOfLocalDay(now);
   const to = addDays(from, HORIZON_DAYS);
+
+  // A requested day cannot pull an offer into the past, so the floor is
+  // whichever is later: this moment, or the start of the day asked for.
+  const requestedDay = parseDay(filters.date);
+  const floor = requestedDay && requestedDay > now ? requestedDay : now;
 
   const [providers, config] = await Promise.all([
     prisma.provider.findMany({
@@ -184,8 +198,11 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
       })),
     };
 
-    const startAt = earliestStart(schedule, service.durationMinutes, now);
+    const startAt = earliestStart(schedule, service.durationMinutes, floor);
     if (!startAt) continue;
+
+    // Asked for a specific day, answered with a different one: not an offer.
+    if (requestedDay && startAt >= addDays(startOfLocalDay(floor), 1)) continue;
 
     const notice = noticePeriodMinutes(now, startAt);
     const bookingType = classifyBooking(notice, thresholdMinutes);
@@ -288,4 +305,17 @@ export function earliestStart(
     if (slots.length > 0) return slots[0].startAt;
   }
   return null;
+}
+
+/**
+ * A YYYY-MM-DD day as a local midnight, or null if it is not one.
+ *
+ * Anything unparseable is treated as no day at all rather than as an error:
+ * the parameter arrives from a query string, and a mangled link should still
+ * return the marketplace instead of a stack trace.
+ */
+function parseDay(value: string | undefined): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

@@ -16,7 +16,7 @@ import {
 import { getPricingContext } from "@/lib/server/emergency-config";
 import { getMarketingData } from "@/lib/server/marketing";
 import { BlockHeading } from "@/components/ui";
-import { SearchBar } from "@/components/search-bar";
+import { BookingLauncher } from "@/components/booking-launcher";
 import { FeaturedProviders } from "@/components/featured-providers";
 import { GlamImage } from "@/components/glam-image";
 import { BrandImage } from "@/components/brand-image";
@@ -96,7 +96,7 @@ export default async function MarketingPage() {
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
   const areas = cities.map((city) => ({
-    id: city.hubId,
+    hubId: city.hubId,
     name: city.city,
     city: city.city,
     sector: city.sector,
@@ -138,37 +138,34 @@ export default async function MarketingPage() {
       */}
       <section className="on-light relative bg-[var(--glam-hero-ground)] text-ink">
         {/*
-          Below `lg` the banner is a strip above the copy: 8:3 is 150px tall on
-          a phone, which cannot hold a headline, and cropping it taller would
-          either lose the subject or put the words across her face. From `lg`
-          it fills the band and the copy sits on its cream half.
-        */}
-        <BrandImage
-          path={HERO_IMAGE_PATH}
-          alt="A client with fresh braids and evening makeup at home"
-          width={1600}
-          height={600}
-          sizes="100vw"
-          priority
-          className="aspect-[8/3] w-full object-cover object-[70%_center] lg:absolute lg:inset-0 lg:h-full lg:object-right"
-        />
+          The band leads with the words on a phone, the way the reference
+          does: headline, then the booking module, then the photograph closing
+          the band beneath them. Leading with the picture pushed the headline
+          under the fold and made the first thing on the page a thing with
+          nothing to do.
 
-        <Container className="relative py-10 lg:py-20 xl:py-24">
+          It is still ONE band, not a picture sitting next to a block of
+          cream — the photograph shares the section's ground colour, sampled
+          from its own negative space, and fades in from it at the top edge
+          rather than starting on a cut.
+
+          From `lg` the photograph takes the right of the band and the copy
+          takes the left, so the two read side by side on a screen wide enough
+          to hold both. The picture keeps its own column there: it used to lie
+          under the copy, which worked only while the band was a headline and
+          a single search bar tall. The booking module is four times that, and
+          an 8:3 photograph covering the taller band zoomed in far enough to
+          walk the subject across the words.
+        */}
+        <Container className="relative pb-8 pt-9 lg:py-14 xl:py-16">
           {/*
-            The copy column is wide rather than clamped to `max-w-lg`. A narrow
+            The copy column is wide rather than clamped to `max-w-lg`: a narrow
             column inside a full-bleed band reads as floating in the middle of
-            the cream instead of sitting on the page grid, and it was also what
-            kept the search bar short — the bar can only be as wide as the
-            column holding it.
+            the cream instead of sitting on the page grid. It stops short of
+            the photograph's column at every width — 34rem is inside the 54%
+            left half from 1024px up, and the extra 2rem at `xl` still is.
           */}
-          {/*
-            Widened so the search bar has somewhere to go — a bar can only be as
-            wide as the column holding it — but not to the full band. Between
-            1024px and 1280px the photograph's cream half is at its narrowest
-            relative to the copy, so the column only takes its full width once
-            there is room for it.
-          */}
-          <div className="max-w-[34rem] xl:max-w-[38rem]">
+          <div className="max-w-[34rem] xl:max-w-[36rem]">
             <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
               {/* Jade means live. One breathing dot, and the words carry the
                   meaning on their own if the motion is switched off. */}
@@ -182,11 +179,11 @@ export default async function MarketingPage() {
             {/* 800, which is heavier than Instrument Sans could go at all —
                 the reason the display family exists. */}
             <h1 className="mt-4 font-display text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
-              Find a vetted beauty vendor for every occasion
+              Get glammed wherever you are
             </h1>
 
             <p className="mt-5 max-w-lg text-base text-ink-muted">
-              Hair, makeup and nails from vendors who come to you. Real
+              Hair, beauty and makeup vendors brought to you. Real
               availability, an itemised price before you pay, and someone at
               your door — today, if that is what you need.
             </p>
@@ -199,8 +196,12 @@ export default async function MarketingPage() {
             and from `lg` the extra 4rem still lands on the photograph's cream
             half, well clear of the subject.
           */}
-          <div className="mt-8 max-w-[34rem] lg:max-w-[42rem]">
-            <SearchBar areas={areas} hints={searchHints} />
+          <div className="mt-7 max-w-[34rem] xl:max-w-[36rem]">
+            <BookingLauncher
+              areas={areas}
+              hints={searchHints}
+              thresholdMinutes={thresholdMinutes}
+            />
           </div>
 
           <div className="max-w-[34rem] xl:max-w-[38rem]">
@@ -230,6 +231,40 @@ export default async function MarketingPage() {
             </dl>
           </div>
         </Container>
+
+        {/*
+          The photograph belongs to the desktop band only.
+
+          On a phone there is nowhere for it to go that does not cost more
+          than it gives: above the copy it pushes the headline and the booking
+          module down the screen, below them it reads as a picture pasted onto
+          the end of the section, and behind the words it has to be faded far
+          enough to carry text that little of the photograph survives. The
+          reference shows no photograph on a phone for the same reason. The
+          category rail immediately below carries the brand's photography
+          there instead.
+
+          It is `lazy` rather than `priority` deliberately: an eager image
+          inside a `display: none` wrapper is still fetched, so marking it
+          priority would download a hero for every phone that never shows one.
+        */}
+        <div className="hidden lg:absolute lg:inset-y-0 lg:right-0 lg:block lg:w-[46%]">
+          <BrandImage
+            path={HERO_IMAGE_PATH}
+            alt="A client with fresh braids and evening makeup at home"
+            width={1600}
+            height={600}
+            sizes="46vw"
+            className="h-full w-full object-cover object-[60%_center]"
+          />
+          {/* The join is a fade into the ground colour sampled from the
+              photograph's own negative space, not a cut. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent"
+          />
+        </div>
+
       </section>
 
       {/* ================= Block 2 — service categories ================ */}
