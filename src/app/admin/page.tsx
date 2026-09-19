@@ -64,7 +64,14 @@ export default async function AdminPage({
   ]);
 
   return (
-    <div className="space-y-8">
+    /*
+     * Wide, like the marketplace pages. The booking ledger is ten columns and
+     * asks for 1040px; the app width gives it 992 and it scrolled sideways on
+     * every desktop, which on the one screen built for comparing rows is the
+     * worst place to lose two columns off the edge. Widening the shell is the
+     * fix rather than shrinking the table: the columns are all load-bearing.
+     */
+    <div data-page-width="wide" className="space-y-8">
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">
           Admin dashboard
