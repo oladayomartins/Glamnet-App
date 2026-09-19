@@ -8,9 +8,13 @@
 -- instead, which is why it went unnoticed: nothing built from the history was
 -- ever started.
 --
--- Every statement is guarded. A database that `db push` already brought up to
--- date must be able to record this migration without failing on objects it
--- already has, or the first deploy after this lands is the one that breaks.
+-- Every statement is guarded, so a database that `db push` already brought up
+-- to date steps over the objects it has rather than colliding with them.
+--
+-- Guards are not the whole story on such a database: `migrate deploy` refuses
+-- it outright with P3005 before running any SQL, because there is no
+-- `_prisma_migrations` table to reason from. It has to be baselined once —
+-- see README.md in this folder for the two `migrate resolve` commands.
 
 -- AlterTable
 ALTER TABLE "Booking"

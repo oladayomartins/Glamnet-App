@@ -267,7 +267,7 @@ export default async function MarketingPage() {
           <div className="max-w-[34rem] xl:max-w-[38rem]">
 
             {/* Trust figures. Real counts, never rounded up. */}
-            <dl className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-3">
+            <dl className="mt-5 flex max-w-[var(--glam-hero-col)] flex-wrap items-center gap-x-7 gap-y-3">
               <HeroFigure
                 icon={<ShieldCheck size={15} weight="fill" aria-hidden />}
                 value={String(stats.providerCount)}

@@ -118,7 +118,12 @@ export function BookingLauncher({
       q: service.name,
       location: area.sector,
     });
-    if (when.kind === "now") params.set("availableToday", "1");
+    // "As soon as someone is free" sends NO timing filter. It used to send
+    // availableToday=1, which restricts offers to slots starting before
+    // midnight — so a search after the last appointment of the day returned
+    // "nobody covers that yet" while vendors were free in the morning.
+    // Offers already sort soonest-first over the whole horizon, which is what
+    // the words promise.
     if (when.kind === "day") params.set("date", when.date);
     if (when.kind === "time") params.set("at", when.at);
     router.push(`/search?${params.toString()}`);
@@ -196,8 +201,11 @@ export function BookingLauncher({
             onPick={(picked) => {
               setArea(picked);
               // Where you are can change what is bookable, so an answer taken
-              // under the old location is cleared rather than carried over.
+              // under the old location is cleared rather than carried over —
+              // including the time, which came off one hub's vendors and means
+              // nothing against another's.
               setService(null);
+              setWhen(forgetSlot(when));
               setOpen("what");
             }}
           />
@@ -231,6 +239,10 @@ export function BookingLauncher({
             hints={hints}
             onPick={(picked) => {
               setService(picked);
+              // A slot was free for the old service's duration. A longer one
+              // may not fit in it, so the time goes back to the soonest rather
+              // than submitting a start nobody can take.
+              setWhen(forgetSlot(when));
               setOpen(null);
             }}
           />
@@ -843,7 +855,12 @@ function TimePicker({
           body: JSON.stringify({
             hubId: area.hubId,
             serviceIds: [service.id],
-            date: new Date(`${day}T00:00:00`).toISOString(),
+            // The plain day, not an instant. `new Date(day).toISOString()`
+            // converts the client's midnight to UTC, so a BST browser asking
+            // for the 20th sent 2026-09-19T23:00Z and a UTC server read it
+            // back as the 19th — the previous day's times under the next
+            // day's heading. The booking flow has always sent this form.
+            date: day,
           }),
           signal: controller.signal,
         });
@@ -1114,4 +1131,15 @@ function hourlyStarts(slots: Slot[]): { label: string; slot: Slot | null }[] {
       slot: byHour.get(hour) ?? null,
     };
   });
+}
+
+/**
+ * Drop a chosen slot, keeping anything coarser.
+ *
+ * A time is only meaningful for the hub and service it was picked against: it
+ * came off those vendors' calendars, for that duration. A day survives — it
+ * is a preference, not an offer — and "soonest" always survives.
+ */
+function forgetSlot(value: When): When {
+  return value.kind === "time" ? { kind: "day", date: value.date } : value;
 }
