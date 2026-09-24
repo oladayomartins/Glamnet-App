@@ -28,15 +28,12 @@ export default async function AccountPage({
     searchParams,
   ]);
 
-  // A new pro's first stop is their storefront, not a customer bookings
-  // list with nothing in it. Sign-up and email links land here by default.
-  if (user.role === "PROVIDER" && user.providerId && !user.providerApproved) {
-    const provider = await prisma.provider.findUnique({
-      where: { id: user.providerId },
-      select: { onboardedAt: true },
-    });
-    if (!provider?.onboardedAt) redirect("/provider/onboarding");
-  }
+  // Every sign-in, sign-up and email link lands here, so this is where each
+  // account type is sent to its own dashboard. The role was fixed at sign-up
+  // and is read from the database, never from the URL. /provider picks the
+  // storefront wizard, the review screen or the live dashboard for a pro.
+  if (user.role === "PROVIDER") redirect("/provider");
+  if (user.role === "ADMIN") redirect("/admin");
 
   const tab: Tab = TABS.some((entry) => entry.key === requestedTab)
     ? (requestedTab as Tab)
@@ -87,24 +84,6 @@ export default async function AccountPage({
         >
           Book a service
         </Link>
-        {user.role === "PROVIDER" ? (
-          <Link
-            // /provider routes an applicant to the storefront wizard or the
-            // waiting screen, whichever they need.
-            href={user.providerApproved ? `/provider/${user.providerId}` : "/provider"}
-            className="rounded-glam-sm bg-surface px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line"
-          >
-            Vendor dashboard
-          </Link>
-        ) : null}
-        {user.role === "ADMIN" ? (
-          <Link
-            href="/admin"
-            className="rounded-glam-sm bg-surface px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line"
-          >
-            Admin dashboard
-          </Link>
-        ) : null}
         <form action="/auth/sign-out" method="post">
           <button
             type="submit"
