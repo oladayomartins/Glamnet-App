@@ -491,6 +491,8 @@ export interface DirectoryVendor {
   fromMinor: number | null;
   hubs: string[];
   lookbook: string[];
+  /** Promoted by an admin: listed first, with a badge. */
+  isFeatured: boolean;
 }
 
 /**
@@ -520,6 +522,7 @@ export async function listDirectory(input: {
       completedBookings: true,
       workspaceType: true,
       workspaceSector: true,
+      isFeatured: true,
       hub: { select: { sector: true } },
       lookbook: { orderBy: { position: "asc" }, take: 3, select: { url: true } },
       services: { select: SERVICE_SELECT },
@@ -547,10 +550,12 @@ export async function listDirectory(input: {
         fromMinor: priced.length ? Math.min(...priced.map((service) => service.priceMinor)) : null,
         hubs: [...new Set(menu.map((service) => service.category))],
         lookbook: provider.lookbook.map((image) => image.url),
+        isFeatured: provider.isFeatured,
       };
     })
     .sort(
       (a, b) =>
+        Number(b.isFeatured) - Number(a.isFeatured) ||
         (input.sector ? byDistance(a.distanceKm, b.distanceKm) : 0) ||
         b.rating - a.rating ||
         b.completedBookings - a.completedBookings,

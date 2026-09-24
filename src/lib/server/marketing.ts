@@ -6,6 +6,7 @@ import {
 } from "@/lib/domain/availability";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import { isFreeTonight } from "./openings";
+import { listCategories } from "./categories";
 
 /**
  * Everything the marketing page shows, derived from real records.
@@ -22,7 +23,8 @@ export async function getMarketingData() {
   const [providers, services, hubs] = await Promise.all([
     prisma.provider.findMany({
       where: { approvalStatus: "APPROVED", isAcceptingWork: true },
-      orderBy: [{ rating: "desc" }, { completedBookings: "desc" }],
+      // Admin-featured vendors lead the rail.
+      orderBy: [{ isFeatured: "desc" }, { rating: "desc" }, { completedBookings: "desc" }],
       select: {
         id: true,
         name: true,
@@ -134,9 +136,20 @@ export async function getMarketingData() {
     }
   }
 
-  const categories = [...categoryMap.entries()]
-    .map(([name, value]) => ({ name, ...value }))
-    .sort((a, b) => b.count - a.count);
+  // Only categories an admin has left visible, in the admin's order, with the
+  // admin's tile photo when one is set.
+  const managed = await listCategories();
+  const categories = managed
+    .filter((category) => categoryMap.has(category.name))
+    .map((category) => {
+      const value = categoryMap.get(category.name)!;
+      return {
+        name: category.name,
+        slug: category.slug,
+        ...value,
+        imageUrl: category.imageUrl || value.imageUrl,
+      };
+    });
 
   // Vendors who can deliver each category, so the category tile can state a
   // live count rather than a catalogue size.

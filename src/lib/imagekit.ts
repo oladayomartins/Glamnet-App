@@ -104,6 +104,8 @@ export const IMAGE_FOLDERS = {
   /** The three finished-work photos behind every PIN release. */
   completion: "/glamnet/completion-evidence",
   lookbook: "/glamnet/lookbooks",
+  category: "/glamnet/categories",
+  ad: "/glamnet/ads",
 } as const;
 
 export type ImageFolder = keyof typeof IMAGE_FOLDERS;

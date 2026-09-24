@@ -2,18 +2,14 @@ import Link from "next/link";
 import { prisma } from "@/lib/server/prisma";
 import { requireRole } from "@/lib/auth/session";
 import { buildEmergencyReport } from "@/lib/server/reporting";
-import { getActiveEmergencyConfig } from "@/lib/server/emergency-config";
 import { ListMagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 import { BookingTypeTag, Card, EmptyState, SectionTitle, LifecycleChip } from "@/components/ui";
 import {
-  describeSurcharge,
   formatDay,
   formatDayTime,
-  formatDuration,
   formatMoney,
   formatNotice,
 } from "@/lib/format";
-import { EmergencyConfigForm } from "./config-form";
 
 const FILTERS = [
   "ALL",
@@ -30,24 +26,25 @@ type Filter = (typeof FILTERS)[number];
 function whereFor(filter: Filter) {
   if (filter === "NORMAL" || filter === "EMERGENCY") return { bookingType: filter };
   if (filter === "ALL") return {};
+  // A payment dispute lives on settlementStatus; a lifecycle one on status.
+  if (filter === "DISPUTED") return { OR: [{ status: "DISPUTED" }, { settlementStatus: "DISPUTED" }] };
   return { status: filter };
 }
 
-/** Admin dashboard: filtering, emergency identification and reporting (spec §10). */
-export default async function AdminPage({
+/** Booking ledger: filtering, emergency identification and reporting (spec §10). */
+export default async function AdminBookingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ filter?: string }>;
 }) {
-  // Admin only. Previously this page and its data were public.
-  await requireRole("ADMIN", "/admin");
+  await requireRole("ADMIN", "/admin/bookings");
 
   const { filter: rawFilter } = await searchParams;
   const filter: Filter = (FILTERS as readonly string[]).includes(rawFilter ?? "")
     ? (rawFilter as Filter)
     : "ALL";
 
-  const [report, bookings, config] = await Promise.all([
+  const [report, bookings] = await Promise.all([
     buildEmergencyReport(),
     prisma.booking.findMany({
       where: whereFor(filter),
@@ -60,7 +57,6 @@ export default async function AdminPage({
         provider: { select: { name: true } },
       },
     }),
-    getActiveEmergencyConfig(),
   ]);
 
   return (
@@ -73,19 +69,10 @@ export default async function AdminPage({
      */
     <div data-page-width="wide" className="space-y-8">
       <div>
-        <h1 className="font-display text-2xl font-bold text-ink">
-          Admin dashboard
-        </h1>
+        <h1 className="font-display text-2xl font-bold text-ink">Bookings</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Emergency performance, commercial configuration and the full booking
-          ledger.
+          Every booking on the platform, with emergency performance. Open a booking to step in on it.
         </p>
-        <Link
-          href="/admin/providers"
-          className="mt-3 inline-flex rounded-glam-sm bg-surface px-4 py-2 text-sm font-semibold text-ink ring-1 ring-line transition hover:bg-sunken"
-        >
-          Review vendor applications →
-        </Link>
       </div>
 
       {/* --- Reporting (spec §10) --------------------------------------- */}
@@ -144,24 +131,6 @@ export default async function AdminPage({
         </div>
       </section>
 
-      {/* --- Commercial configuration (spec §5) ------------------------- */}
-      <section>
-        <SectionTitle
-          hint={
-            config
-              ? `Currently ${describeSurcharge(config.surchargeType, config.surchargeValue)} over ${formatDuration(config.thresholdMinutes)}`
-              : "Not configured"
-          }
-        >
-          Emergency pricing
-        </SectionTitle>
-        <EmergencyConfigForm
-          thresholdMinutes={config?.thresholdMinutes ?? 720}
-          surchargeType={config?.surchargeType ?? "PERCENTAGE"}
-          surchargeValue={config?.surchargeValue ?? 2_500}
-        />
-      </section>
-
       {/* --- Booking ledger (spec §10) ---------------------------------- */}
       <section>
         <SectionTitle hint={`${bookings.length} shown`}>Bookings</SectionTitle>
@@ -170,7 +139,7 @@ export default async function AdminPage({
           {FILTERS.map((option) => (
             <Link
               key={option}
-              href={option === "ALL" ? "/admin" : `/admin?filter=${option}`}
+              href={option === "ALL" ? "/admin/bookings" : `/admin/bookings?filter=${option}`}
               aria-current={filter === option ? "page" : undefined}
               className={`inline-flex min-h-11 items-center rounded-full px-4 font-mono text-xs font-medium uppercase tracking-wider transition duration-[180ms] ease-glam ${
                 filter === option
@@ -189,7 +158,7 @@ export default async function AdminPage({
             title="Nothing under this filter"
             action={
               <Link
-                href="/admin"
+                href="/admin/bookings"
                 className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
               >
                 Show every booking

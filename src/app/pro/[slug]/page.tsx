@@ -9,6 +9,7 @@ import { Card, EmptyState, SectionTitle } from "@/components/ui";
 import { formatDay } from "@/lib/format";
 import { siteUrl } from "@/lib/site";
 import { StorefrontBooking } from "./storefront-booking";
+import { AdSlot } from "@/components/ad-slot";
 
 export const dynamic = "force-dynamic";
 
@@ -186,6 +187,8 @@ export default async function StorefrontPage({
           </ul>
         )}
       </section>
+
+      <AdSlot slot="STOREFRONT_FOOTER" />
 
       <p className="text-center text-xs text-ink-muted">
         <Link href={`/${store.hub.city.toLowerCase()}/salons`} className="hover:text-accent-700">

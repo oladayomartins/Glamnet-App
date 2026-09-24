@@ -5,7 +5,7 @@ import { onboardingGaps } from "@/lib/server/provider-portal";
 import { paymentGateway } from "@/lib/server/payments";
 import { isImageKitConfigured } from "@/lib/imagekit";
 import { siteUrl } from "@/lib/site";
-import { SPECIALTY_HUBS } from "@/lib/domain/specialty-hubs";
+import { listCategories } from "@/lib/server/categories";
 import { OnboardingWizard } from "./wizard";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export default async function OnboardingPage({
   if (!user.providerId) redirect("/forbidden");
   const { step, payouts } = await searchParams;
 
-  const [provider, catalogue, gaps] = await Promise.all([
+  const [provider, catalogue, gaps, categories] = await Promise.all([
     prisma.provider.findUniqueOrThrow({
       where: { id: user.providerId },
       include: {
@@ -41,9 +41,10 @@ export default async function OnboardingPage({
       orderBy: [{ category: "asc" }, { kind: "asc" }, { name: "asc" }],
     }),
     onboardingGaps(user.providerId),
+    listCategories(),
   ]);
 
-  const hubOrder = SPECIALTY_HUBS.map((hub) => hub.name);
+  const hubOrder = categories.map((hub) => hub.name);
 
   return (
     <OnboardingWizard
@@ -55,6 +56,7 @@ export default async function OnboardingPage({
       approved={user.providerApproved}
       submitted={provider.onboardedAt !== null}
       gaps={gaps}
+      categories={categories.map(({ slug, name, emoji, blurb, imageUrl }) => ({ slug, name, emoji, blurb, imageUrl }))}
       profile={{
         name: provider.name,
         phone: provider.phone,
@@ -71,6 +73,8 @@ export default async function OnboardingPage({
           : null,
       }}
       catalogue={catalogue
+        // A hidden category is closed to new picks.
+        .filter((service) => hubOrder.includes(service.category))
         .map((service) => ({
           id: service.id,
           name: service.name,

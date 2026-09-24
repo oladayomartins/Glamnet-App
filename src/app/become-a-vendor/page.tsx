@@ -26,7 +26,7 @@ import {
   decideCommission,
   settle,
 } from "@/lib/domain/settlement";
-import { SPECIALTY_HUBS } from "@/lib/domain/specialty-hubs";
+import { listCategories } from "@/lib/server/categories";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +59,7 @@ function Container({ children, className = "" }: { children: ReactNode; classNam
  * would go, the page states the platform's own terms instead.
  */
 export default async function BecomeVendorPage() {
-  const { thresholdMinutes } = await getPricingContext();
+  const [{ thresholdMinutes }, categories] = await Promise.all([getPricingContext(), listCategories()]);
   const thresholdHours = Math.round(thresholdMinutes / 60);
 
   // Worked example on a £100 service, through the real settlement engine.
@@ -118,7 +118,7 @@ export default async function BecomeVendorPage() {
                 good looks like, and is looking for you.
               </p>
               <ul className="mt-5 space-y-2.5">
-                {SPECIALTY_HUBS.map((hub) => (
+                {categories.map((hub) => (
                   <CheckItem key={hub.slug}>
                     <span className="font-semibold text-ink">{hub.name}</span> — {hub.blurb.toLowerCase()}
                   </CheckItem>
@@ -379,8 +379,8 @@ export default async function BecomeVendorPage() {
             prices before they book.
           </Faq>
           <Faq q="What kinds of services can I list?">
-            Anything across the five hubs:{" "}
-            {SPECIALTY_HUBS.map((hub) => hub.name).join(", ")}. You set your own price and duration
+            Anything across our hubs:{" "}
+            {categories.map((hub) => hub.name).join(", ")}. You set your own price and duration
             for each one.
           </Faq>
           <Faq q="How do I receive bookings and get paid?">

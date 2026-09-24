@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { getSessionUser } from "@/lib/auth/session";
+import { AdSlot } from "@/components/ad-slot";
+import { CampaignBanner } from "@/components/campaign-banner";
 import type { ReactNode } from "react";
 import {
   ArrowRight,
@@ -29,7 +32,6 @@ import {
   HERO_IMAGE_PATH,
   categoryImagePath,
 } from "@/lib/imagekit";
-import { hubByName } from "@/lib/domain/specialty-hubs";
 import type { ProviderCardData } from "@/components/provider-card";
 
 export const dynamic = "force-dynamic";
@@ -119,8 +121,9 @@ export default async function MarketingPage() {
   const [
     { providers, categories, cities, searchHints, stats },
     { thresholdMinutes },
+    viewer,
   ] =
-    await Promise.all([getMarketingData(), getPricingContext()]);
+    await Promise.all([getMarketingData(), getPricingContext(), getSessionUser()]);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
   const areas = cities.map((city) => ({
@@ -351,12 +354,18 @@ export default async function MarketingPage() {
 
       </section>
 
+      {/* ================= Announcements and sponsored slot ============= */}
+      <Container className="space-y-4 pt-8 empty:hidden">
+        <CampaignBanner viewer={viewer?.role ?? null} />
+        <AdSlot slot="HOME_BANNER" />
+      </Container>
+
       {/* ================= Block 2 — service categories ================ */}
       {categories.length > 0 ? (
         <Container className="pt-14 sm:pt-16">
           <BlockHeading
             title="Browse by specialty"
-            lede="Five hubs, each with pros who specialise in exactly that craft."
+            lede="Each hub has pros who specialise in exactly that craft."
             action={<SeeAll href="/sheffield/salons" />}
           />
 
@@ -364,13 +373,9 @@ export default async function MarketingPage() {
             {categories.map((category) => (
               <Link
                 key={category.name}
-                href={
-                  // A Specialty Hub opens the directory filtered to it; any
-                  // other category falls back to search.
-                  hubByName(category.name)
-                    ? `/sheffield/salons?hub=${hubByName(category.name)!.slug}`
-                    : `/search?q=${encodeURIComponent(category.name)}`
-                }
+                // Every tile is an admin-managed category, so it opens the
+                // directory filtered to it.
+                href={`/sheffield/salons?hub=${category.slug}`}
                 className="group w-[180px] shrink-0 snap-start sm:w-[210px]"
               >
                 <span className="relative block overflow-hidden rounded-glam">

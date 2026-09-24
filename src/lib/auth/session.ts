@@ -38,7 +38,27 @@ function adminEmails(): string[] {
  * with Supabase, while a session read trusts a cookie the browser could have
  * tampered with. Authorisation must not rest on an unverified cookie.
  */
-export const getSessionUser = cache(loadSessionUser);
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+  const account = await loadAccount();
+  // A suspended account is treated as signed out everywhere; the places that
+  // need to explain why ask isSessionSuspended().
+  return account && !account.suspended ? account.user : null;
+});
+
+/** Whether the browser holds a valid login for an account an admin suspended. */
+export async function isSessionSuspended(): Promise<boolean> {
+  return (await loadAccount())?.suspended ?? false;
+}
+
+const loadAccount = cache(
+  async (): Promise<{ user: SessionUser; suspended: boolean } | null> => {
+    const loaded = await loadSessionUser();
+    if (!loaded) return null;
+    const { suspendedAt, ...user } = loaded;
+    // Admins come from the allowlist and cannot be locked out from the console.
+    return { user, suspended: user.role !== "ADMIN" && suspendedAt !== null };
+  },
+);
 
 /**
  * The work behind {@link getSessionUser}.
@@ -49,7 +69,7 @@ export const getSessionUser = cache(loadSessionUser);
  * to create one, and the loser crashed the page with a unique-constraint
  * error.
  */
-async function loadSessionUser(): Promise<SessionUser | null> {
+async function loadSessionUser(): Promise<(SessionUser & { suspendedAt: Date | null }) | null> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -174,12 +194,14 @@ async function loadSessionUser(): Promise<SessionUser | null> {
     customerId: appUser.customer?.id ?? null,
     providerId: appUser.provider?.id ?? null,
     providerApproved: appUser.provider?.approvalStatus === "APPROVED",
+    suspendedAt: appUser.suspendedAt,
   };
 }
 
 /** Require a signed-in user, or bounce to sign-in with a return path. */
 export async function requireUser(returnTo: string): Promise<SessionUser> {
   const user = await getSessionUser();
+  if (!user && (await isSessionSuspended())) redirect("/suspended");
   if (!user) redirect(`/sign-in?next=${encodeURIComponent(returnTo)}`);
   return user;
 }
@@ -190,7 +212,7 @@ export async function requireRole(
   returnTo: string,
 ): Promise<SessionUser> {
   // Staff pages send a signed-out visitor to the staff door.
-  if (role === "ADMIN" && !(await getSessionUser())) {
+  if (role === "ADMIN" && !(await getSessionUser()) && !(await isSessionSuspended())) {
     redirect(`/admin/login?next=${encodeURIComponent(returnTo)}`);
   }
   const user = await requireUser(returnTo);

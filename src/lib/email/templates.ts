@@ -289,3 +289,26 @@ export function providerApprovalEmail(
 
   return { subject: copy.subject, html, text };
 }
+
+/** A marketing campaign email, written by an admin in the console. */
+export function campaignEmail(input: {
+  title: string;
+  message: string;
+  cta?: { label: string; url: string };
+}): EmailBody {
+  const paragraphs = input.message.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  const html = shell({
+    preheader: paragraphs[0] ?? input.title,
+    heading: input.title,
+    body: paragraphs.map(paragraph).join(""),
+    cta: input.cta,
+    footerNote: "You are receiving this because you have a GLAMNET account.",
+  });
+  const text = textBlock([
+    input.title,
+    "",
+    ...paragraphs.flatMap((block) => [block, ""]),
+    input.cta ? `${input.cta.label}: ${input.cta.url}` : null,
+  ]);
+  return { subject: input.title, html, text };
+}

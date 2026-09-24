@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/auth/session";
+import { getSessionUser, isSessionSuspended } from "@/lib/auth/session";
 import { safeNext } from "@/lib/auth/safe-next";
 import { AuthLayout } from "@/components/auth-layout";
 import { SignInForm } from "./sign-in-form";
@@ -60,6 +60,7 @@ export async function SignInScreen({
   const isAdminDoor = audience === "admin";
   const next = safeNext(params.next, isAdminDoor ? "/admin" : "/account");
   const viewer = await getSessionUser();
+  if (!viewer && (await isSessionSuspended())) redirect("/suspended");
   // Someone already signed in goes straight on — except a non-admin at the
   // admin door, who would only bounce off /admin. Tell them instead.
   if (viewer && !(isAdminDoor && viewer.role !== "ADMIN")) redirect(next);
