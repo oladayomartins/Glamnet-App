@@ -1,3 +1,4 @@
+import { citySlug } from "@/lib/domain/postcode";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/server/prisma";
 import { siteUrl } from "@/lib/site";
@@ -19,6 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: base, lastModified: now, changeFrequency: "weekly", priority: 1 },
     { url: `${base}/search`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/salons`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/book`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/sign-up`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/sign-in`, lastModified: now, changeFrequency: "monthly", priority: 0.3 },
@@ -33,7 +35,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         select: { name: true },
       }),
-      prisma.hub.findMany({ select: { id: true, city: true } }),
+      // Only cities with a live pro: an empty directory page is not worth indexing.
+      prisma.hub.findMany({
+        where: { providers: { some: { approvalStatus: "APPROVED" } } },
+        select: { id: true, city: true },
+      }),
       // Only vendors a customer can actually reach: the profile route 404s
       // for anyone pending, rejected or not taking work, and a sitemap full
       // of 404s is worse than a shorter one.
@@ -51,7 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
 
     const cityRoutes = [...new Set(hubs.map((hub) => hub.city))].map((city) => ({
-      url: `${base}/search?location=${encodeURIComponent(city)}`,
+      url: `${base}/${citySlug(city)}/salons`,
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.7,

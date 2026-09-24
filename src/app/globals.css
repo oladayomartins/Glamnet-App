@@ -655,3 +655,36 @@ time,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* --- Map pins (components/map-view.tsx) ---------------------------------- */
+.glam-map-pin {
+  position: relative;
+  display: block;
+  border-radius: 999px 999px 999px 4px;
+  transform: rotate(-45deg);
+  background: linear-gradient(135deg, #f0d898, #d9b061 55%, #b8923f);
+  border: 2px solid #121212;
+  box-shadow: 0 6px 14px rgba(18, 18, 18, 0.35);
+}
+.glam-map-pin::after {
+  content: "";
+  position: absolute;
+  inset: 30%;
+  border-radius: 999px;
+  background: #121212;
+}
+.glam-map-pin--hi {
+  border-color: #fff;
+}
+.leaflet-container {
+  font-family: var(--font-brand-sans), system-ui, sans-serif;
+}
+.glam-map-link {
+  font-weight: 700;
+  color: #121212;
+}
+.glam-map-sub {
+  margin-top: 2px;
+  color: #555;
+  font-size: 12px;
+}

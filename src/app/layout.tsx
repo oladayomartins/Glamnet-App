@@ -94,7 +94,7 @@ export const viewport: Viewport = {
 
 /** Public navigation. Role-specific links are added from the session below. */
 const NAV = [
-  { href: "/sheffield/salons", label: "Salons" },
+  { href: "/salons", label: "Salons" },
   { href: "/search", label: "Find a service" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/become-a-vendor", label: "Become a vendor" },

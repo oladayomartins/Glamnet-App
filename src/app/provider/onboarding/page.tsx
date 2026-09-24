@@ -65,7 +65,7 @@ export default async function OnboardingPage({
         instagramHandle: provider.instagramHandle,
         tiktokHandle: provider.tiktokHandle,
         workspaceType: provider.workspaceType,
-        workspacePostcode: provider.workspaceSector,
+        workspacePostcode: provider.basePostcode || provider.workspaceSector,
         travelsToClients: provider.travelsToClients,
         payoutsEnabled: provider.payoutsEnabled,
         avatar: provider.avatarUrl

@@ -6,6 +6,7 @@ import { Lightning } from "@phosphor-icons/react";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import { BookingTypeTag, Button, Card, DurationStrip } from "@/components/ui";
 import { SearchingForProvider } from "../searching";
+import { AddressFields, EMPTY_ADDRESS, formatAddress, type AddressValue } from "@/components/address-fields";
 import {
   formatCustomerDayTime,
   formatCustomerTime,
@@ -70,7 +71,8 @@ export function ConfirmBooking({
   quote: ConfirmQuote;
 }) {
   const router = useRouter();
-  const [addressLine, setAddressLine] = useState("");
+  const [address, setAddress] = useState<AddressValue>(EMPTY_ADDRESS);
+  const addressLine = formatAddress(address);
   const [notes, setNotes] = useState("");
   const [referenceImage, setReferenceImage] = useState<UploadedImage | null>(
     null,
@@ -221,18 +223,10 @@ export function ConfirmBooking({
           Booking as <span className="font-medium text-ink">{customerName}</span>
         </p>
 
-        <label className="block">
-          <span className="text-sm font-medium text-ink">Your address</span>
-          <input
-            value={addressLine}
-            onChange={(event) => setAddressLine(event.target.value)}
-            placeholder="Street, town, postcode"
-            className="mt-1 min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 py-2 text-[15px] outline-none transition duration-[180ms] focus:border-brand-400"
-          />
-          <span className="mt-1 block text-xs text-ink-muted">
-            Only released to your vendor once they are on their way.
-          </span>
-        </label>
+        <div>
+          <AddressFields value={address} onChange={setAddress} />
+          <p className="mt-1 text-xs text-ink-muted">Only released to your vendor once they are on their way.</p>
+        </div>
 
         <label className="block">
           <span className="text-sm font-medium text-ink">

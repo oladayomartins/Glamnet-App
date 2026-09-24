@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
 import { createSupabaseServerClient } from "./supabase-server";
+import { hubForPlace, lookupPostcode } from "@/lib/server/geo";
 
 export type Role = "CUSTOMER" | "PROVIDER" | "ADMIN";
 
@@ -97,6 +98,16 @@ async function loadSessionUser(): Promise<(SessionUser & { suspendedAt: Date | n
 
   let appUser = existing;
 
+  // A new vendor's area comes from the postcode they signed up with, anywhere
+  // in the UK. Looked up before the transaction: a network call must not hold
+  // a database transaction open.
+  const signupPostcode = String(user.user_metadata?.postcode ?? "");
+  const signupPlace =
+    !existing && !shouldBeAdmin && requestedRole === "PROVIDER" && signupPostcode
+      ? await lookupPostcode(signupPostcode)
+      : null;
+  const signupHub = signupPlace ? await hubForPlace(signupPlace) : null;
+
   const createAppUser = () =>
     prisma.$transaction(async (tx) => {
       const created = await tx.appUser.create({
@@ -110,6 +121,7 @@ async function loadSessionUser(): Promise<(SessionUser & { suspendedAt: Date | n
       if (!shouldBeAdmin && requestedRole === "PROVIDER") {
         const hubId = String(user.user_metadata?.hubId ?? "");
         const hub =
+          signupHub ??
           (hubId ? await tx.hub.findUnique({ where: { id: hubId } }) : null) ??
           (await tx.hub.findFirst({ orderBy: { name: "asc" } }));
 
@@ -120,6 +132,14 @@ async function loadSessionUser(): Promise<(SessionUser & { suspendedAt: Date | n
               email,
               hubId: hub.id,
               appUserId: created.id,
+              ...(signupPlace
+                ? {
+                    basePostcode: signupPlace.postcode ?? "",
+                    workspaceSector: signupPlace.outcode,
+                    latitude: signupPlace.lat,
+                    longitude: signupPlace.lng,
+                  }
+                : {}),
               // Never APPROVED on creation: vetting is the point.
               approvalStatus: "PENDING",
               isAcceptingWork: false,

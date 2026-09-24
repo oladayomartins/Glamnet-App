@@ -6,21 +6,13 @@ import { Check, EnvelopeSimple, Eye, EyeSlash, Scissors, ShoppingBag } from "@ph
 import { createSupabaseBrowserClient } from "@/lib/auth/supabase-browser";
 import { Button } from "@/components/ui";
 import { callbackUrl, FormError, GoogleButton, inputClass } from "@/components/auth-controls";
-
-interface Hub {
-  id: string;
-  name: string;
-  sector: string;
-  city: string;
-}
+import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
 
 type Intent = "CUSTOMER" | "PROVIDER";
 
 export function SignUpForm({
-  hubs,
   initialIntent = "CUSTOMER",
 }: {
-  hubs: Hub[];
   /** Preselected when arriving from the vendor landing page. */
   initialIntent?: Intent;
 }) {
@@ -30,10 +22,10 @@ export function SignUpForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  // Sheffield is where the directory is live, so it is the sensible default.
-  const [hubId, setHubId] = useState(
-    (hubs.find((hub) => hub.city === "Sheffield") ?? hubs[0])?.id ?? "",
-  );
+  // A pro's base postcode: any in the UK. It places them in the directory;
+  // only the area (e.g. "S10") is ever shown publicly.
+  const [postcode, setPostcode] = useState("");
+  const [place, setPlace] = useState<ResolvedPlace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
@@ -48,6 +40,10 @@ export function SignUpForm({
       setError("Use at least 8 characters for your password.");
       return;
     }
+    if (isVendor && !place?.postcode) {
+      setError("Enter the postcode you work from, so clients near you can find you.");
+      return;
+    }
 
     setBusy(true);
     setError(null);
@@ -58,7 +54,7 @@ export function SignUpForm({
       options: {
         // A request, not a grant. The server only honours CUSTOMER or
         // PROVIDER from here, and a new vendor starts PENDING.
-        data: { role: intent, name: name.trim(), hubId },
+        data: { role: intent, name: name.trim(), ...(isVendor && place?.postcode ? { postcode: place.postcode } : {}) },
         emailRedirectTo: callbackUrl(destination),
       },
     });
@@ -179,21 +175,14 @@ export function SignUpForm({
           </p>
         </div>
 
-        {isVendor && hubs.length > 1 ? (
-          <label className="block">
-            <span className="text-xs font-medium text-ink-muted">Where are you based?</span>
-            <select
-              value={hubId}
-              onChange={(event) => setHubId(event.target.value)}
-              className={inputClass}
-            >
-              {hubs.map((hub) => (
-                <option key={hub.id} value={hub.id}>
-                  {hub.city} — {hub.name} ({hub.sector})
-                </option>
-              ))}
-            </select>
-          </label>
+        {isVendor ? (
+          <PostcodeField
+            label="The postcode you work from"
+            value={postcode}
+            onChange={setPostcode}
+            onResolved={setPlace}
+            hint="Anywhere in the UK. Clients only ever see your area, like S10 — never your address."
+          />
         ) : null}
 
         <FormError>{error}</FormError>

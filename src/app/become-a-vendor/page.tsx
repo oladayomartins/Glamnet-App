@@ -243,7 +243,7 @@ export default async function BecomeVendorPage() {
               <Eyebrow>The directory</Eyebrow>
               <Heading>Get discovered by clients ready to book</Heading>
               <p className="mt-4 text-[15px] text-ink-muted">
-                Verified storefronts appear in the Sheffield directory under the hubs you work in,
+                Verified storefronts appear in the UK directory under the hubs you work in,
                 sorted by distance from the client&rsquo;s postcode. Short-notice bookings inside{" "}
                 {thresholdHours} hours carry an emergency rate, shown to the client before they pay.
               </p>
@@ -374,7 +374,7 @@ export default async function BecomeVendorPage() {
             client who found you through GLAMNET.
           </Faq>
           <Faq q="Who are the clients on GLAMNET?">
-            People in and around Sheffield looking for a specific craft — protective styling,
+            People near you, anywhere in the UK, looking for a specific craft — protective styling,
             bridal and gele, BIAB, blow-dries, sports massage — who want to see your work and your
             prices before they book.
           </Faq>

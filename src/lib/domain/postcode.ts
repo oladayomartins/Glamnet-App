@@ -1,12 +1,14 @@
 /**
- * Sheffield "S" postcode sectors, for the directory's proximity sort
- * (Open Marketplace Directory §A).
+ * UK postcodes and distance (Open Marketplace Directory §A, now UK-wide).
  *
- * Strictly these are postcode *districts* (S1, S10, S11…), which is what the
- * spec calls a sector and what the rest of the app stores in `Hub.sector`.
- * Centroids are approximate — good to a few hundred metres — which is all a
- * "nearest first" sort needs. Anything outside this table sorts last rather
- * than being dropped.
+ * The directory, search and broadcast work anywhere in the UK. Real
+ * coordinates come from the ONS postcode directory (via postcodes.io, see
+ * lib/server/geo.ts); this module is the pure part: recognising and tidying
+ * what people type, and measuring between points.
+ *
+ * Privacy rule, unchanged: a vendor's full postcode is private. Publicly they
+ * are placed at their *outward code* (the "S10" of "S10 2HN"), so a map or a
+ * distance can never be used to find someone's home salon.
  */
 
 export interface LatLng {
@@ -14,35 +16,37 @@ export interface LatLng {
   lng: number;
 }
 
-export const SHEFFIELD_SECTORS: Record<string, LatLng> = {
-  S1: { lat: 53.3807, lng: -1.4702 },
-  S2: { lat: 53.3693, lng: -1.4556 },
-  S3: { lat: 53.3884, lng: -1.4777 },
-  S4: { lat: 53.4007, lng: -1.4501 },
-  S5: { lat: 53.4225, lng: -1.4617 },
-  S6: { lat: 53.3968, lng: -1.5132 },
-  S7: { lat: 53.3509, lng: -1.4943 },
-  S8: { lat: 53.3380, lng: -1.4746 },
-  S9: { lat: 53.4007, lng: -1.4107 },
-  S10: { lat: 53.3786, lng: -1.5237 },
-  S11: { lat: 53.3634, lng: -1.5051 },
-  S12: { lat: 53.3448, lng: -1.4094 },
-  S13: { lat: 53.3693, lng: -1.3826 },
-  S14: { lat: 53.3501, lng: -1.4413 },
-  S17: { lat: 53.3219, lng: -1.5397 },
-  S20: { lat: 53.3339, lng: -1.3590 },
-  S35: { lat: 53.4513, lng: -1.4985 },
-  S36: { lat: 53.4895, lng: -1.6040 },
-};
+/** A full UK postcode, loosely: outward code, optional space, inward code. */
+const FULL = /^([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})$/;
+/** An outward code on its own: "S10", "SW1A", "BT1". */
+const OUTWARD = /^[A-Z]{1,2}\d[A-Z\d]?$/;
+
+function clean(input: string): string {
+  return input.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+/** "s102hn" → "S10 2HN"; null if it is not shaped like a full postcode. */
+export function formatPostcode(input: string): string | null {
+  const match = clean(input).match(FULL);
+  return match ? `${match[1]} ${match[2]}` : null;
+}
 
 /**
- * Normalise free text to an outward code: "s10 2hn" → "S10", " S1" → "S1".
- * Returns null for anything that is not an S postcode.
+ * The outward code of a full postcode or of an outward code typed alone:
+ * "s10 2hn" → "S10", " sw1a " → "SW1A". Null for anything else.
  */
-export function normaliseSector(input: string): string | null {
-  const match = input.trim().toUpperCase().match(/^(S\d{1,2})(?:\s*\d[A-Z]{0,2})?$/);
-  return match ? match[1] : null;
+export function outwardCode(input: string): string | null {
+  const compact = clean(input);
+  const full = compact.match(FULL);
+  if (full) return full[1];
+  if (OUTWARD.test(compact)) return compact;
+  // A half-typed postcode with its space, "S11 8", still names its area.
+  const first = clean(input.trim().split(/\s+/)[0] ?? "");
+  return OUTWARD.test(first) ? first : null;
 }
+
+/** Kept for existing callers: an outward code, anywhere in the UK. */
+export const normaliseSector = outwardCode;
 
 /** Great-circle distance in kilometres. */
 export function distanceKm(a: LatLng, b: LatLng): number {
@@ -55,29 +59,37 @@ export function distanceKm(a: LatLng, b: LatLng): number {
   return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 
-/** The known sector whose centroid is closest to a point. */
-export function nearestSector(point: LatLng): string {
-  let best = "S1";
-  let bestDistance = Infinity;
-  for (const [sector, centroid] of Object.entries(SHEFFIELD_SECTORS)) {
-    const distance = distanceKm(point, centroid);
-    if (distance < bestDistance) {
-      best = sector;
-      bestDistance = distance;
-    }
-  }
-  return best;
+export const KM_PER_MILE = 1.609344;
+
+export function kmToMiles(km: number): number {
+  return km / KM_PER_MILE;
+}
+
+export function milesToKm(miles: number): number {
+  return miles * KM_PER_MILE;
+}
+
+/** "0.4 miles", "3 miles", "12 miles". */
+export function formatMiles(km: number): string {
+  const miles = kmToMiles(km);
+  if (miles < 0.95) return `${miles.toFixed(1)} miles`;
+  const rounded = Math.round(miles);
+  return `${rounded} mile${rounded === 1 ? "" : "s"}`;
 }
 
 /**
- * Distance between two sectors' centroids, or null when either is unknown.
- * Same sector is zero.
+ * A lat/lng box around a point, for a cheap database pre-filter before the
+ * exact great-circle check.
  */
-export function sectorDistanceKm(from: string, to: string): number | null {
-  if (from === to) return 0;
-  const a = SHEFFIELD_SECTORS[from];
-  const b = SHEFFIELD_SECTORS[to];
-  return a && b ? distanceKm(a, b) : null;
+export function boundingBox(centre: LatLng, radiusKm: number) {
+  const dLat = radiusKm / 111.32;
+  const dLng = radiusKm / (111.32 * Math.max(0.01, Math.cos((centre.lat * Math.PI) / 180)));
+  return {
+    minLat: centre.lat - dLat,
+    maxLat: centre.lat + dLat,
+    minLng: centre.lng - dLng,
+    maxLng: centre.lng + dLng,
+  };
 }
 
 /** Sort key helper: unknown distances sort after every known one. */
@@ -86,4 +98,35 @@ export function byDistance(a: number | null, b: number | null): number {
   if (a === null) return 1;
   if (b === null) return -1;
   return a - b;
+}
+
+/**
+ * The town a postcode belongs to, for directory pages. London is one city
+ * rather than 33 boroughs; ONS names like "Bristol, City of" lose the suffix.
+ */
+export function cityFor(place: { adminDistrict: string | null; region: string | null }): string {
+  if (place.region === "London") return "London";
+  const district = (place.adminDistrict ?? "")
+    .replace(/,\s*(City|County) of$/i, "")
+    .replace(/^City of\s+/i, "")
+    .replace(/\s+City$/i, "")
+    .trim();
+  return district || "United Kingdom";
+}
+
+/** Radius choices offered in the directory, in miles. */
+export const RADIUS_MILES = [2, 5, 10, 25] as const;
+export const DEFAULT_RADIUS_MILES = 10;
+
+/** How far a broadcast request reaches from the customer's area. */
+export const BROADCAST_RADIUS_KM = milesToKm(10);
+
+/** A city's directory URL segment: "Stoke-on-Trent" → "stoke-on-trent". */
+export function citySlug(city: string): string {
+  return city
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }

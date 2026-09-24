@@ -16,10 +16,11 @@ import {
 import { Button } from "@/components/ui";
 import { formatDuration, formatMoney } from "@/lib/format";
 import { useTypedPlaceholder } from "@/components/use-typed-placeholder";
+import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
 
 export interface ServiceArea {
   hubId: string;
-  /** Postcode sector, e.g. "S11" — the unit coverage is actually sold in. */
+  /** Outward code, e.g. "S11" — searched by distance from its centre. */
   sector: string;
   city: string;
   name: string;
@@ -169,7 +170,7 @@ export function BookingLauncher({
           <Field
             label="Where"
             value={area ? `${area.sector} · ${area.city}` : null}
-            placeholder="Your service location"
+            placeholder="Your postcode"
             icon={<MapPin size={17} weight="light" aria-hidden />}
             open={open === "where"}
             onToggle={() => setOpen(open === "where" ? null : "where")}
@@ -341,14 +342,13 @@ function Field({
 }
 
 /**
- * Where the vendor is coming to.
+ * Where the vendor is coming to: any UK postcode.
  *
- * The list is the areas GLAMNET actually covers, not an address book. Until
- * there is a geocoder behind this, the honest unit is the postcode sector the
- * marketplace is sold in — offering a free address field would accept a
- * street nobody can be matched to and fail at the point of booking instead of
- * here. The exact door is taken later, on the confirm screen, where it is
- * held back from the vendor until the job is under way.
+ * Typed (with suggestions), or taken from the phone's location. It resolves
+ * to the Beauty Hub for that outward code — created on first use — so the
+ * rest of the flow, and the search behind it, can measure distance from a
+ * real point. Areas that already have pros are offered underneath as quick
+ * picks. The exact door is taken later, on the confirm screen.
  */
 function AreaPicker({
   areas,
@@ -357,69 +357,61 @@ function AreaPicker({
   areas: ServiceArea[];
   onPick: (area: ServiceArea) => void;
 }) {
-  const [filter, setFilter] = useState("");
-  const needle = filter.trim().toLowerCase();
+  const [postcode, setPostcode] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const shown = needle
-    ? areas.filter((area) =>
-        [area.sector, area.city, area.name].some((field) =>
-          field.toLowerCase().includes(needle),
-        ),
-      )
-    : areas;
+  const resolve = async (place: ResolvedPlace | null) => {
+    if (!place) return;
+    try {
+      const response = await fetch(`/api/geo/lookup?q=${encodeURIComponent(place.postcode ?? place.outcode)}&hub=1`);
+      const payload = await response.json();
+      if (!response.ok || !payload.hub) throw new Error(payload.error?.message);
+      setError(null);
+      onPick({ hubId: payload.hub.id, sector: payload.hub.sector, city: payload.hub.city, name: payload.hub.name });
+    } catch {
+      setError("We couldn't look that postcode up just now. Try again in a moment.");
+    }
+  };
+
+  const cities = [...new Map(areas.map((area) => [area.city, area])).values()].slice(0, 6);
 
   return (
     <div>
-      <label className="flex items-center gap-2 rounded-glam-sm border border-line bg-surface px-3">
-        <MagnifyingGlass
-          size={16}
-          weight="light"
-          className="shrink-0 text-ink-muted"
-          aria-hidden
-        />
-        <span className="sr-only">Search areas</span>
-        <input
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          placeholder="Town or postcode sector"
-          autoComplete="off"
-          className="min-h-11 w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-muted"
-        />
-      </label>
+      <PostcodeField
+        label="Your postcode"
+        value={postcode}
+        onChange={setPostcode}
+        onResolved={(place) => void resolve(place)}
+        allowOutcode
+        autoFocus
+        inlineSuggestions
+        placeholder="e.g. M1 1AE or LS1"
+        hint="Anywhere in the UK — we'll find pros near you."
+      />
+      {error ? <p className="mt-1 text-xs text-warning">{error}</p> : null}
 
-      {shown.length === 0 ? (
-        <p className="px-1 pt-3 text-sm text-ink-muted">
-          Nobody covers that yet. GLAMNET is in{" "}
-          {[...new Set(areas.map((area) => area.city))].join(", ")} so far.
-        </p>
-      ) : (
-        <ul className="mt-2 space-y-1">
-          {shown.map((area) => (
-            <li key={area.hubId}>
-              <button
-                type="button"
-                onClick={() => onPick(area)}
-                className="flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 text-left transition duration-[180ms] hover:bg-surface"
-              >
-                <MapPin
-                  size={16}
-                  weight="light"
-                  className="shrink-0 text-ink-muted"
-                  aria-hidden
-                />
-                <span className="min-w-0">
-                  <span className="block truncate text-[15px] text-ink">
-                    {area.name}
+      {cities.length > 0 ? (
+        <>
+          <p className="mt-3 px-1 text-xs font-medium text-ink-muted">Or pick an area with pros already on GLAMNET</p>
+          <ul className="mt-1 grid gap-1 sm:grid-cols-2">
+            {cities.map((area) => (
+              <li key={area.hubId}>
+                <button
+                  type="button"
+                  onClick={() => onPick(area)}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 text-left transition duration-[180ms] hover:bg-surface"
+                >
+                  <MapPin size={16} weight="light" className="shrink-0 text-ink-muted" aria-hidden />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[15px] text-ink">{area.city}</span>
+                    <span className="block truncate text-xs text-ink-muted">{area.sector}</span>
                   </span>
-                  <span className="block truncate text-xs text-ink-muted">
-                    {area.sector} · {area.city}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </div>
   );
 }

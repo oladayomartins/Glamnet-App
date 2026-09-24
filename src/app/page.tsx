@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { citySlug } from "@/lib/domain/postcode";
 import { getSessionUser } from "@/lib/auth/session";
 import { AdSlot } from "@/components/ad-slot";
 import { CampaignBanner } from "@/components/campaign-banner";
@@ -264,7 +265,7 @@ export default async function MarketingPage() {
                 aria-hidden
                 className="breathe h-2 w-2 rounded-full bg-normal"
               />
-              Sheffield&rsquo;s beauty marketplace
+              The UK&rsquo;s beauty marketplace
             </p>
 
             {/* 800, which is heavier than Instrument Sans could go at all —
@@ -299,7 +300,7 @@ export default async function MarketingPage() {
           <div className="max-w-[34rem] xl:max-w-[38rem]">
 
             <Link
-              href="/sheffield/salons"
+              href="/salons"
               className="tap-44 mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ink underline-offset-4 hover:underline"
             >
               Or browse every salon, chair and studio near you
@@ -367,7 +368,7 @@ export default async function MarketingPage() {
           <BlockHeading
             title="Browse by specialty"
             lede="Each hub has pros who specialise in exactly that craft."
-            action={<SeeAll href="/sheffield/salons" />}
+            action={<SeeAll href="/salons" />}
           />
 
           <Rail label="Service categories">
@@ -376,7 +377,7 @@ export default async function MarketingPage() {
                 key={category.name}
                 // Every tile is an admin-managed category, so it opens the
                 // directory filtered to it.
-                href={`/sheffield/salons?hub=${category.slug}`}
+                href={`/salons?hub=${category.slug}`}
                 className="group w-[180px] shrink-0 snap-start sm:w-[210px]"
               >
                 <span className="relative block overflow-hidden rounded-glam">
@@ -435,7 +436,7 @@ export default async function MarketingPage() {
 
             {/* The last card is the way out of the rail, in the rose tint. */}
             <Link
-              href="/sheffield/salons"
+              href="/salons"
               className="w-[180px] shrink-0 snap-start sm:w-[210px]"
             >
               <span className="flex aspect-[4/3] w-full items-center justify-center rounded-glam border border-brand-200 bg-brand-50 text-brand-700 transition duration-[180ms] ease-glam hover:bg-brand-100">
@@ -458,7 +459,7 @@ export default async function MarketingPage() {
           <BlockHeading
             title="Featured pros"
             lede="Ranked by rating and completed work, never by what they paid us."
-            action={<SeeAll href="/sheffield/salons" />}
+            action={<SeeAll href="/salons" />}
           />
           <FeaturedProviders
             providers={cards}
@@ -479,7 +480,7 @@ export default async function MarketingPage() {
               {cities.map((city) => (
                 <Link
                   key={city.city}
-                  href={`/${city.city.toLowerCase().replace(/\s+/g, "-")}/salons`}
+                  href={`/${citySlug(city.city)}/salons`}
                   className="group relative w-[200px] shrink-0 snap-start overflow-hidden rounded-glam sm:w-[240px]"
                 >
                   {/* No city photography exists yet, so this is the brand
@@ -598,7 +599,7 @@ export default async function MarketingPage() {
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
-                  href="/sheffield/salons"
+                  href="/salons"
                   className="inline-flex min-h-11 items-center gap-2 rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
                 >
                   Find a pro

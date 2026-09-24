@@ -111,7 +111,7 @@ function BrandPanel() {
       </div>
 
       <p className="relative mt-8 text-center font-display text-lg font-bold tracking-[-0.01em] text-metal-ink">
-        Sheffield&rsquo;s independent beauty pros, in one place.
+        The UK&rsquo;s independent beauty pros, in one place.
       </p>
     </aside>
   );

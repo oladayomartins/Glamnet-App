@@ -28,6 +28,10 @@ model Hub {
   /// Fixed travel fee for bookings in this sector, in pence.
   travelFeeMinor Int      @default(500)
   createdAt      DateTime @default(now())
+  /// Centroid of the outward code, from the ONS postcode directory. Hubs are
+  /// created on demand for any UK outward code.
+  latitude       Float?
+  longitude      Float?
 
   providers Provider[]
   bookings  Booking[]
@@ -134,6 +138,11 @@ model Provider {
   workspaceSector  String    @default("")
   /// Whether the vendor also travels to the client's address.
   travelsToClients Boolean   @default(true)
+  /// The vendor's full base postcode and its coordinates. PRIVATE: used only
+  /// for distance. Publicly a vendor is shown at their outward code.
+  basePostcode     String    @default("")
+  latitude         Float?
+  longitude        Float?
   /// Set when the vendor finishes the onboarding wizard.
   onboardedAt      DateTime?
   /// is_verified: approved by an admin with compliance documents on file.

@@ -207,7 +207,7 @@ export async function quoteBooking(
     now,
   );
 
-  const candidates = await loadCandidates(hub.sector, window.startAt, window.endAt);
+  const candidates = await loadCandidates(hub, window.startAt, window.endAt);
   const eligible = selectBroadcastTargets(candidates, {
     sector: hub.sector,
     requiredServiceIds: basket
