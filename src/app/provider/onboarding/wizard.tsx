@@ -763,6 +763,13 @@ export function OnboardingWizard(props: {
                     <span className="block text-xs text-ink-muted">Secured by Stripe — GLAMNET never sees your bank details.</span>
                   </span>
                 </div>
+                {props.payoutsNotice === "unavailable" ? (
+                  <p role="alert" className="rise-in rounded-glam border-l-4 border-warning bg-sunken p-3 text-sm text-ink">
+                    Bank linking isn&rsquo;t available right now — our payments setup is still being
+                    finished. You can carry on and submit your storefront; we&rsquo;ll email you as
+                    soon as you can link your bank.
+                  </p>
+                ) : null}
                 {props.payoutsNotice === "incomplete" ? (
                   <p className="text-sm text-warning">Stripe still needs a few details. Pick up where you left off.</p>
                 ) : null}
@@ -788,7 +795,7 @@ export function OnboardingWizard(props: {
                     ["Menu with at least one service", chosenItems.some((item) => item.kind !== "ADDON")],
                     ["Storefront link and bio", Boolean(profile.slug) && profile.bio.trim().length >= 20],
                     ["Insurance or licence uploaded", props.documents.length > 0],
-                    ["Bank linked for payouts", profile.payoutsEnabled],
+                    ["Bank linked for payouts (needed before you're paid)", profile.payoutsEnabled],
                   ].map(([label, done], at) => (
                     <li
                       key={String(label)}

@@ -219,7 +219,9 @@ export async function onboardingGaps(providerId: string): Promise<string[]> {
   }
   if (provider._count.services === 0) gaps.push("Add at least one service to your menu.");
   if (provider._count.documents === 0) gaps.push("Upload your insurance certificate or licence.");
-  if (!provider.payoutsEnabled) gaps.push("Link your bank account for payouts.");
+  // A linked bank is not needed to submit: it is needed to be *paid*, and
+  // releasing a payment already refuses without one. Requiring it here left
+  // pros stuck whenever bank linking itself was unavailable.
   return gaps;
 }
 
