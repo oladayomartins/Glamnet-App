@@ -31,11 +31,11 @@ export function SectionTitle({
   hint?: ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-baseline justify-between gap-3">
-      <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
+    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <h2 className="shrink-0 font-display text-lg font-semibold tracking-tight text-ink">
         {children}
       </h2>
-      {hint ? <span className="text-xs text-ink-muted">{hint}</span> : null}
+      {hint ? <span className="min-w-0 text-xs text-ink-muted">{hint}</span> : null}
     </div>
   );
 }

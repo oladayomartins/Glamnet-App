@@ -36,7 +36,7 @@ export function AdminNav({ email }: { email: string }) {
   const active = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href));
 
   return (
-    <aside className="lg:sticky lg:top-20 lg:self-start">
+    <aside className="min-w-0 lg:sticky lg:top-20 lg:self-start">
       <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-accent-700">
         <ChartLineUp size={12} aria-hidden /> Admin console
       </p>

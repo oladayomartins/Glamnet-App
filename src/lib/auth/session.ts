@@ -187,6 +187,18 @@ async function loadSessionUser(): Promise<(SessionUser & { suspendedAt: Date | n
           include: { customer: true, provider: true },
         });
         if (created) return created;
+        // The email is taken by an older login: the person's Supabase account
+        // was deleted and they signed up again. Supabase has verified they
+        // own this address, so the new login takes over the old profile —
+        // bookings, storefront and all — instead of the page crashing.
+        const previous = await prisma.appUser.findUnique({ where: { email } });
+        if (previous) {
+          return prisma.appUser.update({
+            where: { id: previous.id },
+            data: { authUserId: user.id },
+            include: { customer: true, provider: true },
+          });
+        }
       }
       throw error;
     });

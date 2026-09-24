@@ -39,6 +39,86 @@ export default async function ProviderPendingPage() {
   const suspended = provider?.approvalStatus === "SUSPENDED";
   const rejected = provider?.approvalStatus === "REJECTED" || suspended;
 
+  // Under review: a warm, clear "what happens next", not a dead end.
+  if (!rejected && provider) {
+    const firstName = provider.name.trim().split(/\s+/)[0] || "there";
+    const submitted = provider.onboardedAt !== null;
+    const stages = [
+      { title: "Storefront built", body: "Your menu, photos and link are saved.", state: submitted ? "done" : "now" },
+      { title: "Documents checked", body: "We check your insurance or licence — usually within 1–2 working days.", state: submitted ? "now" : "next" },
+      { title: "You're live", body: "Clients near you can find and book you, and we email you straight away.", state: "next" },
+    ] as const;
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 py-4">
+        <section className="rise-in overflow-hidden rounded-glam-lg border border-accent-500/40 bg-[radial-gradient(90%_120%_at_0%_0%,color-mix(in_oklab,var(--glam-gold)_22%,transparent),transparent_70%)] bg-surface p-6 sm:p-8">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent-700">
+            {submitted ? "Application received" : "Almost there"}
+          </p>
+          <h1 className="mt-2 font-display text-3xl font-bold leading-tight tracking-[-0.02em] text-ink">
+            {submitted ? `Thank you, ${firstName}! You're in the queue.` : `Nearly done, ${firstName}.`}
+          </h1>
+          <p className="mt-2 text-[15px] text-ink-muted">
+            {submitted
+              ? "Every pro on GLAMNET is checked before going live, so clients can book with confidence. We'll email you as soon as you're approved."
+              : "Finish setting up your storefront and submit it, and we'll check your documents."}
+          </p>
+          <Link
+            href="/provider/onboarding"
+            className="mt-5 inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition hover:brightness-105"
+          >
+            {submitted ? "Edit my storefront" : "Finish my storefront"}
+          </Link>
+        </section>
+
+        <ol className="space-y-3">
+          {stages.map((stage, at) => (
+            <li
+              key={stage.title}
+              style={{ animationDelay: `${at * 90}ms` }}
+              className={`rise-in flex gap-4 rounded-glam border p-4 ${
+                stage.state === "now" ? "border-accent-500 bg-accent-100/20" : "border-line bg-surface"
+              }`}
+            >
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-mono text-sm font-bold ${
+                  stage.state === "done"
+                    ? "bg-normal text-on-obsidian"
+                    : stage.state === "now"
+                      ? "bg-metal text-metal-ink"
+                      : "bg-sunken text-ink-muted"
+                }`}
+                aria-hidden
+              >
+                {stage.state === "done" ? "✓" : at + 1}
+              </span>
+              <div>
+                <p className="font-display font-semibold text-ink">
+                  {stage.title}
+                  {stage.state === "now" ? <span className="ml-2 text-xs font-medium text-accent-700">In progress</span> : null}
+                </p>
+                <p className="mt-0.5 text-sm text-ink-muted">{stage.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        <Card className="p-5">
+          <p className="font-display font-semibold text-ink">While you wait</p>
+          <ul className="mt-2 space-y-1.5 text-sm text-ink-muted">
+            <li>• Add your best three looks — storefronts with photos get far more bookings.</li>
+            <li>• Link your bank so the first payment reaches you without delay.</li>
+            {provider.slug ? (
+              <li>
+                • Your link will be <span className="font-mono text-ink">glamnetapp.com/pro/{provider.slug}</span> — get ready to
+                share it in your bio.
+              </li>
+            ) : null}
+          </ul>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-lg py-8">
       <Card className={`p-6 ${rejected ? "border-l-4 border-l-warning" : ""}`}>

@@ -18,6 +18,7 @@ import {
 } from "@/lib/site";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MobileMenu } from "@/components/mobile-menu";
 import { OfflineNotice } from "@/components/offline-notice";
 
 /**
@@ -135,7 +136,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <OfflineNotice />
 
           <header className="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur">
-            <div className="mx-auto flex w-full max-w-[var(--glam-page-max)] items-center justify-between gap-4 px-4 py-3">
+            <div className="mx-auto flex w-full max-w-[var(--glam-page-max)] items-center justify-between gap-2 px-4 py-3">
               <Link
                 href="/"
                 aria-label="GLAMNET home"
@@ -149,11 +150,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 </span>
               </Link>
               <nav className="flex items-center gap-1" aria-label="Main">
-                {[...(user ? NAV.filter((i) => i.href !== "/sign-up") : NAV), ...roleLinks].map((item) => (
+                {/* The full link row from large screens; below that the links
+                    live in the menu sheet so the header never wraps. */}
+                {[...NAV, ...roleLinks].map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="tap-44 hidden rounded-glam-sm px-3 py-1.5 text-sm font-medium text-ink-muted transition hover:bg-brand-50 hover:text-brand-700 sm:inline-flex"
+                    className="tap-44 hidden rounded-glam-sm px-3 py-1.5 text-sm font-medium text-ink-muted transition hover:bg-sunken hover:text-ink lg:inline-flex"
                   >
                     {item.label}
                   </Link>
@@ -162,20 +165,32 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 {user ? (
                   <Link
                     href="/account"
-                    className="tap-44 rounded-glam-sm px-3 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                    className="tap-44 ml-1 inline-flex min-h-10 items-center rounded-full bg-metal px-4 text-sm font-bold text-metal-ink transition hover:brightness-105"
                   >
                     Account
                   </Link>
                 ) : (
-                  <Link
-                    href="/sign-in"
-                    className="tap-44 rounded-glam-sm px-3 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
-                  >
-                    Sign in
-                  </Link>
+                  <>
+                    {/* Sign up is the quiet option, Sign in the button. */}
+                    <Link
+                      href="/sign-up"
+                      className="tap-44 hidden rounded-glam-sm px-3 py-1.5 text-sm font-semibold text-ink transition hover:text-accent-700 sm:inline-flex"
+                    >
+                      Sign up
+                    </Link>
+                    <Link
+                      href="/sign-in"
+                      className="tap-44 ml-1 inline-flex min-h-10 items-center rounded-full bg-metal px-4 text-sm font-bold text-metal-ink shadow-card transition hover:brightness-105"
+                    >
+                      Sign in
+                    </Link>
+                  </>
                 )}
 
-                <ThemeToggle />
+                <span className="hidden lg:inline-flex">
+                  <ThemeToggle />
+                </span>
+                <MobileMenu links={[...NAV, ...roleLinks]} signedIn={Boolean(user)} />
               </nav>
             </div>
           </header>

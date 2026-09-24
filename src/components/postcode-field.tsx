@@ -214,7 +214,7 @@ export function PostcodeField({
                 setOpen(false);
               }
             }}
-            className={`min-h-11 w-full rounded-glam-input border border-line bg-surface py-2 pl-9 pr-9 font-mono text-[15px] uppercase tracking-wider text-ink outline-none transition focus:border-accent-500 ${inputClassName}`}
+            className={`min-h-11 w-full rounded-glam-input border border-line bg-surface py-2 pl-9 pr-9 font-mono text-[15px] uppercase tracking-wider text-ink outline-none transition placeholder:font-sans placeholder:normal-case placeholder:tracking-normal focus:border-accent-500 ${inputClassName}`}
           />
           {status.kind === "checking" ? (
             <span className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-line border-t-accent-500" aria-hidden />

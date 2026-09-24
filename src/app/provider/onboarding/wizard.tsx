@@ -30,6 +30,7 @@ import { Pill } from "@/components/ui";
 import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
 import { MapView } from "@/components/map-view";
 import { formatPostcode } from "@/lib/domain/postcode";
+import { WelcomeIntro } from "./welcome";
 import { BioLink } from "@/components/bio-link";
 import { BrandImage } from "@/components/brand-image";
 import { DocumentUpload } from "@/components/document-upload";
@@ -121,6 +122,8 @@ async function send(url: string, method: string, body?: unknown) {
  */
 export function OnboardingWizard(props: {
   initialStep: string | null;
+  /** A brand-new pro: open with the welcome instead of step one. */
+  welcome?: boolean;
   payoutsNotice: string | null;
   siteOrigin: string;
   testPayments: boolean;
@@ -153,6 +156,7 @@ export function OnboardingWizard(props: {
   const [looks, setLooks] = useState<Look[]>(() => [0, 1, 2].map((at) => props.lookbook[at] ?? null));
   const [docKind, setDocKind] = useState<string>("INSURANCE");
   const [area, setArea] = useState<ResolvedPlace | null>(null);
+  const [showWelcome, setShowWelcome] = useState(Boolean(props.welcome));
   const [slugState, setSlugState] = useState<"idle" | "checking" | "free" | "taken">(
     props.profile.slug ? "free" : "idle",
   );
@@ -329,8 +333,12 @@ export function OnboardingWizard(props: {
     review: props.submitted || props.approved,
   };
 
+  if (showWelcome) {
+    return <WelcomeIntro name={profile.name} onStart={() => setShowWelcome(false)} />;
+  }
+
   return (
-    <div data-page-width="wide" className="mx-auto grid gap-10 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+    <div data-page-width="wide" className="mx-auto grid grid-cols-1 gap-10 pb-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div>
         {/* --- Progress --------------------------------------------------- */}
         <div className="flex items-center justify-between gap-4 text-xs text-ink-muted">
