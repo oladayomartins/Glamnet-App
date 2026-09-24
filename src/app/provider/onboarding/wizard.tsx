@@ -809,35 +809,58 @@ export function OnboardingWizard(props: {
 
             {step.key === "review" ? (
               <div className="max-w-lg space-y-5">
+                {/* Each unfinished item is a shortcut straight to the step that
+                    finishes it. */}
                 <ul className="space-y-2">
-                  {[
-                    ["Profile photo", Boolean(profile.avatar)],
-                    ["Specialties chosen", hubs.length > 0],
-                    ["Menu with at least one service", chosenItems.some((item) => item.kind !== "ADDON")],
-                    ["Storefront link and bio", Boolean(profile.slug) && profile.bio.trim().length >= 20],
-                    ["Insurance or licence uploaded", props.documents.length > 0],
-                    ["Bank linked for payouts (needed before you're paid)", profile.payoutsEnabled],
-                  ].map(([label, done], at) => (
-                    <li
-                      key={String(label)}
-                      style={{ animationDelay: `${at * 70}ms` }}
-                      className="rise-in flex items-center gap-3 rounded-glam border border-line bg-surface p-3.5 text-sm"
-                    >
-                      {done ? (
-                        <CheckCircle size={20} weight="fill" className="pop-in shrink-0 text-normal" aria-hidden />
-                      ) : (
-                        <Circle size={20} className="shrink-0 text-ink-muted" aria-hidden />
-                      )}
-                      <span className={done ? "text-ink" : "text-ink-muted"}>{label}</span>
-                    </li>
-                  ))}
+                  {(
+                    [
+                      ["Profile photo", Boolean(profile.avatar), "profile"],
+                      ["Specialties chosen", done.specialties, "specialties"],
+                      ["Menu with at least one service", done.menu, "menu"],
+                      ["Storefront link and bio", done.storefront, "storefront"],
+                      ["Workspace", done.workspace, "workspace"],
+                      ["Insurance or licence uploaded", done.compliance, "compliance"],
+                      ["Bank linked for payouts (needed before you're paid)", done.payouts, "payouts"],
+                    ] as const
+                  ).map(([label, finished, target], at) => {
+                    const row = (
+                      <>
+                        {finished ? (
+                          <CheckCircle size={20} weight="fill" className="pop-in shrink-0 text-normal" aria-hidden />
+                        ) : (
+                          <Circle size={20} className="shrink-0 text-accent-500" aria-hidden />
+                        )}
+                        <span className={`flex-1 ${finished ? "text-ink" : "text-ink-muted"}`}>{label}</span>
+                        {finished ? null : (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-accent-700 transition duration-[180ms] ease-glam group-hover:translate-x-0.5">
+                            Finish <ArrowRight size={12} weight="bold" aria-hidden />
+                          </span>
+                        )}
+                      </>
+                    );
+                    const base = "rise-in flex w-full items-center gap-3 rounded-glam border bg-surface p-3.5 text-left text-sm";
+                    return (
+                      <li key={label} style={{ animationDelay: `${at * 70}ms` }}>
+                        {finished ? (
+                          <div className={`${base} border-line`}>{row}</div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => go(STEPS.findIndex((candidate) => candidate.key === target))}
+                            className={`group ${base} border-accent-500/40 transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:border-accent-500 hover:shadow-card`}
+                          >
+                            {row}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
                 {props.gaps.length > 0 && !props.approved ? (
-                  <ul className="space-y-1 text-sm text-warning">
-                    {props.gaps.map((gap) => (
-                      <li key={gap}>• {gap}</li>
-                    ))}
-                  </ul>
+                  <p className="text-sm text-warning">
+                    {props.gaps.length === 1 ? "One thing" : `${props.gaps.length} things`} left before you can
+                    submit — tap an item above to finish it.
+                  </p>
                 ) : null}
                 {profile.slug ? <BioLink origin={props.siteOrigin} slug={profile.slug} /> : null}
                 <p className="text-sm text-ink-muted">
