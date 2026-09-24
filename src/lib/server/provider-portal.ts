@@ -185,8 +185,16 @@ export async function startPayoutOnboarding(providerId: string, origin: string) 
 
   let accountId = provider.stripeAccountId;
   if (!accountId) {
-    accountId = await gateway.createConnectedAccount({ email: provider.email, providerId });
-    await prisma.provider.update({ where: { id: providerId }, data: { stripeAccountId: accountId } });
+    const created = await gateway.createConnectedAccount({ email: provider.email, providerId });
+    // Claim only if still unset: a double-click can race two creations, and
+    // the vendor must end up with one account that every later link reuses.
+    const claimed = await prisma.provider.updateMany({
+      where: { id: providerId, stripeAccountId: "" },
+      data: { stripeAccountId: created },
+    });
+    accountId = claimed.count === 1
+      ? created
+      : (await prisma.provider.findUniqueOrThrow({ where: { id: providerId } })).stripeAccountId;
   }
 
   return gateway.createOnboardingLink({
