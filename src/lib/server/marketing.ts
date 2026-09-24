@@ -31,6 +31,8 @@ export async function getMarketingData() {
         completedBookings: true,
         approvalStatus: true,
         avatarUrl: true,
+        slug: true,
+        isVerified: true,
         hub: {
           select: {
             id: true,
@@ -206,6 +208,8 @@ export async function getMarketingData() {
         travelFeeMinor: provider.hub.travelFeeMinor,
         fromMinor: basePrices.length > 0 ? Math.min(...basePrices) : null,
         vetted: provider.approvalStatus === "APPROVED",
+        /** Set when the vendor has a live storefront to link to. */
+        storefrontSlug: provider.isVerified && provider.slug ? provider.slug : null,
         freeTonight: isFreeTonight(schedule, now),
         specialities: [
           ...new Set(provider.services.map((link) => link.service.category)),

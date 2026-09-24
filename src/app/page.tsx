@@ -9,6 +9,8 @@ import {
   PaintBrush,
   Receipt,
   Lightning,
+  LockKey,
+  SealCheck,
   Scissors,
   ShieldCheck,
   SquaresFour,
@@ -49,18 +51,37 @@ const CATEGORY_ICONS: Record<string, ReactNode> = {
 const HOW_IT_WORKS = [
   {
     icon: <MagnifyingGlass size={20} weight="light" />,
-    title: "Search your sector",
-    body: "You only ever see services a vetted vendor can actually deliver where you are.",
-  },
-  {
-    icon: <Receipt size={20} weight="light" />,
-    title: "Compare the full price",
-    body: "Every line is itemised — services, travel, any emergency rate — before you authorise a penny.",
+    title: "Find your pro",
+    body: "Pick a hub, add your postcode, and browse verified pros nearest first — their looks, menus and reviews.",
   },
   {
     icon: <CalendarCheck size={20} weight="light" />,
-    title: "Book and track",
-    body: "The first matched vendor to accept takes the job, and you follow them to the door.",
+    title: "Book a real slot",
+    body: "Choose services and an open time from their own calendar. You see the full price, and your card is only held.",
+  },
+  {
+    icon: <LockKey size={20} weight="light" />,
+    title: "Pay with your PIN",
+    body: "Happy with the result? Read your pro a 4-digit PIN and the payment is released. Not happy? Keep it, and tell us.",
+  },
+];
+
+/** The platform's own promises — shown where a marketplace would put reviews. */
+const PROMISES = [
+  {
+    icon: <SealCheck size={22} weight="fill" />,
+    title: "Every pro is checked",
+    body: "Insurance or practitioner licence reviewed before a storefront ever goes live.",
+  },
+  {
+    icon: <Receipt size={22} weight="light" />,
+    title: "One honest price",
+    body: "Every line itemised before you book — services, any travel, any short-notice rate.",
+  },
+  {
+    icon: <LockKey size={22} weight="fill" />,
+    title: "Paid only when you're happy",
+    body: "Your card is held, not charged, until you give your pro the PIN — with 24 hours to raise a problem after.",
   },
 ];
 
@@ -112,7 +133,11 @@ export default async function MarketingPage() {
   const cards: ProviderCardData[] = providers.map((provider) => ({
     id: provider.id,
     name: provider.name,
-    href: `/providers/${provider.id}`,
+    // A live storefront is where the booking happens now; vendors without
+    // one yet still have their broadcast profile.
+    href: provider.storefrontSlug
+      ? `/pro/${provider.storefrontSlug}?via=directory`
+      : `/providers/${provider.id}`,
     rating: provider.rating,
     reviewCount: provider.reviewCount,
     city: provider.city,
@@ -235,19 +260,20 @@ export default async function MarketingPage() {
                 aria-hidden
                 className="breathe h-2 w-2 rounded-full bg-normal"
               />
-              Beauty, at your door
+              Sheffield&rsquo;s beauty marketplace
             </p>
 
             {/* 800, which is heavier than Instrument Sans could go at all —
                 the reason the display family exists. */}
             <h1 className="mt-4 font-display text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
-              Get glammed wherever you are
+              Find trusted beauty pros for every occasion
             </h1>
 
             <p className="mt-5 max-w-lg text-base text-ink-muted">
-              Hair, beauty and makeup vendors brought to you. Real
-              availability, an itemised price before you pay, and someone at
-              your door — today, if that is what you need.
+              Braids, bridal glam, BIAB and massage from verified independent
+              pros — at their home salon, studio or chair, or at your door.
+              Real availability, one honest price, paid only when you&rsquo;re
+              happy.
             </p>
           </div>
 
@@ -268,6 +294,14 @@ export default async function MarketingPage() {
 
           <div className="max-w-[34rem] xl:max-w-[38rem]">
 
+            <Link
+              href="/sheffield/salons"
+              className="tap-44 mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ink underline-offset-4 hover:underline"
+            >
+              Or browse every salon, chair and studio near you
+              <ArrowRight size={14} weight="bold" aria-hidden />
+            </Link>
+
             {/* Trust figures. Real counts, never rounded up. */}
             <dl className="mt-5 flex max-w-[var(--glam-hero-col)] flex-wrap items-center gap-x-7 gap-y-3">
               <HeroFigure
@@ -276,6 +310,11 @@ export default async function MarketingPage() {
                 label={
                   stats.providerCount === 1 ? "Vetted vendor" : "Vetted vendors"
                 }
+              />
+              <HeroFigure
+                icon={<LockKey size={15} weight="fill" aria-hidden />}
+                value="PIN"
+                label="Paid only when you're happy"
               />
               <HeroFigure
                 icon={<Lightning size={15} weight="fill" aria-hidden />}
@@ -316,11 +355,9 @@ export default async function MarketingPage() {
       {categories.length > 0 ? (
         <Container className="pt-14 sm:pt-16">
           <BlockHeading
-            title="Browse service categories"
-            lede="Every category here has a vendor behind it right now."
-            action={
-              <SeeAll href="/search" />
-            }
+            title="Browse by specialty"
+            lede="Five hubs, each with pros who specialise in exactly that craft."
+            action={<SeeAll href="/sheffield/salons" />}
           />
 
           <Rail label="Service categories">
@@ -392,14 +429,14 @@ export default async function MarketingPage() {
 
             {/* The last card is the way out of the rail, in the rose tint. */}
             <Link
-              href="/search"
+              href="/sheffield/salons"
               className="w-[180px] shrink-0 snap-start sm:w-[210px]"
             >
               <span className="flex aspect-[4/3] w-full items-center justify-center rounded-glam border border-brand-200 bg-brand-50 text-brand-700 transition duration-[180ms] ease-glam hover:bg-brand-100">
                 <SquaresFour size={28} weight="light" aria-hidden />
               </span>
               <span className="mt-2.5 block text-sm font-semibold text-brand-700">
-                All categories
+                All salons
               </span>
               <span className="mt-0.5 block text-xs text-ink-muted">
                 {stats.serviceCount} services
@@ -413,9 +450,9 @@ export default async function MarketingPage() {
       {cards.length > 0 ? (
         <Container className="pt-14 sm:pt-16">
           <BlockHeading
-            title="Featured vendors"
+            title="Featured pros"
             lede="Ranked by rating and completed work, never by what they paid us."
-            action={<SeeAll href="/search" />}
+            action={<SeeAll href="/sheffield/salons" />}
           />
           <FeaturedProviders
             providers={cards}
@@ -430,13 +467,13 @@ export default async function MarketingPage() {
           <Container>
             <BlockHeading
               title="Browse by city"
-              lede="Vendors who already cover your area."
+              lede="Verified pros close to home, sorted by distance from your postcode."
             />
             <Rail label="Cities">
               {cities.map((city) => (
                 <Link
                   key={city.city}
-                  href={`/search?location=${encodeURIComponent(city.city)}`}
+                  href={`/${city.city.toLowerCase().replace(/\s+/g, "-")}/salons`}
                   className="group relative w-[200px] shrink-0 snap-start overflow-hidden rounded-glam sm:w-[240px]"
                 >
                   {/* No city photography exists yet, so this is the brand
@@ -472,7 +509,7 @@ export default async function MarketingPage() {
       <Container className="pt-14 sm:pt-16">
         <BlockHeading
           title="How it works"
-          lede="Three steps to someone at your door."
+          lede="Three steps from browsing to beautiful."
         />
         <ol className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
           {HOW_IT_WORKS.map((step, index) => (
@@ -504,6 +541,37 @@ export default async function MarketingPage() {
         </ol>
       </Container>
 
+      {/* ================= Promises ==================================== */}
+      {/* Where a marketplace would show customer reviews. GLAMNET does not
+          have enough yet to show honestly, so it shows what it guarantees. */}
+      <section className="mt-14 bg-sunken py-14 sm:mt-16 sm:py-16">
+        <Container>
+          <BlockHeading
+            title="Why book through GLAMNET"
+            lede="Three promises that hold for every booking, with every pro."
+          />
+          <ul className="grid gap-4 md:grid-cols-3">
+            {PROMISES.map((promise) => (
+              <li
+                key={promise.title}
+                className="rounded-glam-lg border border-line bg-surface p-6"
+              >
+                <span
+                  aria-hidden
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-100 text-accent-700"
+                >
+                  {promise.icon}
+                </span>
+                <h3 className="mt-4 font-display text-lg font-semibold text-ink">
+                  {promise.title}
+                </h3>
+                <p className="mt-1.5 text-[15px] text-ink-muted">{promise.body}</p>
+              </li>
+            ))}
+          </ul>
+        </Container>
+      </section>
+
       {/* ================= CTA band ==================================== */}
       <Container className="pt-14 sm:pt-16">
         {/*
@@ -511,29 +579,29 @@ export default async function MarketingPage() {
           than a borrowed accent. Not the metal gradient: that is reserved for
           the single primary action, which is the button sitting on top of it.
         */}
-        <div className="overflow-hidden rounded-glam-lg bg-gradient-to-br from-accent-100 via-accent-100 to-brand-50 p-8 sm:p-12">
+        <div className="overflow-hidden rounded-glam-lg border border-accent-500/40 bg-[radial-gradient(80%_120%_at_0%_0%,color-mix(in_oklab,var(--glam-gold)_22%,transparent),transparent_70%)] bg-surface p-8 sm:p-12">
           <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
             <div>
               <h2 className="font-display text-3xl font-bold tracking-[-0.02em] text-ink sm:text-4xl">
                 Bring your next occasion to life
               </h2>
               <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
-                Whether you need someone this evening or you want to take
-                bookings of your own, it starts in the same place.
+                Book a pro for this evening or next season — or, if you are the
+                pro, claim a free storefront with 0% commission on your own link.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
-                  href="/search"
+                  href="/sheffield/salons"
                   className="inline-flex min-h-11 items-center gap-2 rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
                 >
-                  Find a vendor
+                  Find a pro
                   <ArrowRight size={15} weight="bold" aria-hidden />
                 </Link>
                 <Link
                   href="/become-a-vendor"
                   className="inline-flex min-h-11 items-center rounded-full bg-surface px-6 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] ease-glam hover:bg-sunken active:scale-[0.98]"
                 >
-                  Become a vendor
+                  List your business free
                 </Link>
               </div>
             </div>
