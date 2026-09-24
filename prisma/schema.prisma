@@ -115,25 +115,96 @@ model Provider {
   hubId String
   hub   Hub    @relation(fields: [hubId], references: [id])
 
+  // --- Storefront (Open Marketplace Directory §B, §C) ---------------------
+  /// Public storefront handle: glamnet.co/pro/:slug. Null until the vendor
+  /// claims one in the onboarding wizard.
+  slug            String? @unique
+  phone           String  @default("")
+  instagramHandle String  @default("")
+  tiktokHandle    String  @default("")
+  /// "HOME_SALON" | "PRIVATE_ROOM" | "CHAIR" | "MOBILE". Where clients come
+  /// to; MOBILE vendors only travel.
+  workspaceType   String  @default("MOBILE")
+  /// Outward postcode sector of the workspace (e.g. "S10"), used for the
+  /// directory's proximity sort. Empty falls back to the hub's sector.
+  workspaceSector String  @default("")
+  /// Whether the vendor also travels to the client's address.
+  travelsToClients Boolean @default(true)
+  /// Set when the vendor finishes the onboarding wizard.
+  onboardedAt     DateTime?
+  /// is_verified: approved by an admin with compliance documents on file.
+  /// Only verified vendors have a live storefront and booking calendar.
+  isVerified      Boolean @default(false)
+
+  // --- Payouts (Stripe Connect Express) -----------------------------------
+  stripeAccountId String  @default("")
+  payoutsEnabled  Boolean @default(false)
+
   services     ProviderService[]
   availability ProviderAvailability[]
   timeOff      ProviderTimeOff[]
   bookings     Booking[]
   broadcasts   BookingBroadcast[]
+  lookbook     ProviderLookbookImage[]
+  documents    ProviderDocument[]
 
   @@index([hubId])
   @@index([approvalStatus])
 }
 
-/// Which services a provider is qualified to deliver.
+/// Which services a provider is qualified to deliver, and at what price on
+/// their own storefront.
 model ProviderService {
   providerId String
   serviceId  String
+  /// The vendor's own price in pence; null uses the catalogue price. Only the
+  /// storefront (direct) booking uses it — a broadcast is priced before any
+  /// vendor is chosen, so it can only use the catalogue.
+  priceMinor      Int?
+  /// The vendor's own duration; null uses the catalogue duration.
+  durationMinutes Int?
   provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
   service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@id([providerId, serviceId])
   @@index([serviceId])
+}
+
+/// One of up to three "look transformation" photos on a storefront.
+model ProviderLookbookImage {
+  id         String   @id @default(cuid())
+  providerId String
+  url        String
+  fileId     String   @default("")
+  caption    String   @default("")
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, position])
+}
+
+/// Insurance certificate or practitioner licence, uploaded for admin review.
+model ProviderDocument {
+  id         String    @id @default(cuid())
+  providerId String
+  /// "INSURANCE" | "LICENCE" | "CERTIFICATE".
+  kind       String
+  fileName   String    @default("")
+  mimeType   String    @default("")
+  url        String
+  fileId     String    @default("")
+  /// "PENDING" | "APPROVED" | "REJECTED".
+  status     String    @default("PENDING")
+  reviewNote String    @default("")
+  uploadedAt DateTime  @default(now())
+  reviewedAt DateTime?
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([status])
 }
 
 /// A recurring weekly working window, in local wall-clock minutes from midnight.
@@ -230,6 +301,44 @@ model Booking {
   reviewNote           String  @default("")
   cancelledReason      String  @default("")
 
+  // --- Origin & commission (Directory §D, dual-commission protocol) --------
+  /// "BROADCAST" (emergency/request flow), "MARKETPLACE" (chosen on the
+  /// directory) or "DIRECT_LINK" (the vendor's own /pro/:slug link).
+  source                  String  @default("BROADCAST")
+  /// "CUSTOMER_ADDRESS" (vendor travels) or "VENDOR_PREMISES".
+  serviceLocation         String  @default("CUSTOMER_ADDRESS")
+  /// Rule B: a new client found through the marketplace. Only ever true on
+  /// the first booking between this customer and this vendor.
+  firstDiscoveryBooking   Boolean @default(false)
+  /// Marketplace commission applied, in basis points (0 or 3000).
+  commissionBps           Int     @default(3000)
+  /// Tip added at checkout. Always passed to the vendor in full.
+  tipMinor                Int     @default(0)
+  platformCommissionMinor Int     @default(0)
+  /// Card processing fee deducted from the vendor's payout (Rule A only).
+  processingFeeMinor      Int     @default(0)
+  /// What the vendor receives at escrow release, tip included.
+  providerPayoutMinor     Int     @default(0)
+
+  // --- Escrow (Directory §D, Flow 2) ---------------------------------------
+  /// "NOT_STARTED" | "PENDING_AUTHORISATION" | "AUTHORISED" |
+  /// "ESCROW_RELEASED" | "VOIDED".
+  paymentStatus         String    @default("NOT_STARTED")
+  paymentIntentId       String    @default("")
+  transferId            String    @default("")
+  /// One-time 4-digit code shown only to the customer. Never returned to the
+  /// vendor, who has to be told it in person.
+  completionPin         String    @default("")
+  completionPinIssuedAt DateTime?
+  completionPinAttempts Int       @default(0)
+  escrowReleasedAt      DateTime?
+  /// escrowReleasedAt + 24h. After it, the booking is closed_uncontestable.
+  disputeWindowClosesAt DateTime?
+  /// "OPEN" | "DISPUTED" | "CLOSED_UNCONTESTABLE".
+  settlementStatus      String    @default("OPEN")
+  disputeReason         String    @default("")
+  disputedAt            DateTime?
+
   customerId String
   customer   Customer  @relation(fields: [customerId], references: [id])
   hubId      String
@@ -238,15 +347,34 @@ model Booking {
   providerId String?
   provider   Provider? @relation(fields: [providerId], references: [id])
 
-  items         BookingItem[]
-  broadcasts    BookingBroadcast[]
-  events        BookingStatusEvent[]
-  notifications Notification[]
+  items            BookingItem[]
+  broadcasts       BookingBroadcast[]
+  events           BookingStatusEvent[]
+  notifications    Notification[]
+  completionPhotos BookingCompletionPhoto[]
 
   @@index([status])
   @@index([bookingType])
   @@index([providerId, appointmentStartAt])
   @@index([appointmentStartAt])
+  @@index([customerId, providerId])
+  @@index([settlementStatus, disputeWindowClosesAt])
+}
+
+/// One of the three mandatory photos of the finished work, taken by the
+/// vendor before the release PIN is issued — the visual audit trail a
+/// dispute is judged against.
+model BookingCompletionPhoto {
+  id        String   @id @default(cuid())
+  bookingId String
+  url       String
+  fileId    String   @default("")
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
 }
 
 /// A basket line, snapshotted at booking time so later price changes to the

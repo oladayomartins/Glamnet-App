@@ -17,6 +17,7 @@ export function SiteFooter() {
     {
       heading: "Customers",
       links: [
+        { href: "/sheffield/salons", label: "Sheffield salons" },
         { href: "/search", label: "Find a service" },
         { href: "/book", label: "Book a service" },
         { href: "/how-it-works", label: "How it works" },

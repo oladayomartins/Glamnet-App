@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { BookingError } from "@/lib/server/booking-service";
 import { getSessionUser } from "@/lib/auth/session";
+import { withoutPin } from "@/lib/api/redact";
 
 /** GET /api/bookings/:id — full booking record with lifecycle history. */
 export async function GET(
@@ -41,12 +42,12 @@ export async function GET(
     }
 
     // The address is withheld until the ADDRESS_UNLOCKED step (spec §8).
-    return NextResponse.json({
-      booking: {
-        ...booking,
-        addressLine: booking.addressUnlocked ? booking.addressLine : null,
-      },
-    });
+    const isCustomer = viewer?.customerId === booking.customerId;
+    const visible = {
+      ...booking,
+      addressLine: booking.addressUnlocked ? booking.addressLine : null,
+    };
+    return NextResponse.json({ booking: isCustomer ? visible : withoutPin(visible) });
   } catch (error) {
     return errorResponse(error);
   }

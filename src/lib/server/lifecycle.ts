@@ -1,6 +1,12 @@
 import { prisma } from "./prisma";
 import { BookingError } from "./booking-service";
-import { NEXT_STATUS, type AnyBookingStatus, type BookingStatus } from "@/lib/domain/types";
+import {
+  NEXT_STATUS,
+  nextStatusFor,
+  type AnyBookingStatus,
+  type BookingStatus,
+} from "@/lib/domain/types";
+import { voidPaymentForBooking } from "./escrow";
 
 /** Statuses a booking may be cancelled from. */
 const CANCELLABLE: AnyBookingStatus[] = [
@@ -21,19 +27,27 @@ function isLifecycleStatus(status: string): status is BookingStatus {
  *
  * The lifecycle is strictly linear (spec §8) with two escapes: any booking that
  * has not yet started may be cancelled, and a completed booking may be
- * disputed. Nothing may move backwards.
+ * disputed. Nothing may move backwards. A booking at the vendor's own
+ * premises skips the address and travel steps, which have no meaning there.
+ *
+ * The 24-hour limit on disputes is a matter of time, not of status, and is
+ * enforced by the dispute service rather than here.
  */
 export function canTransition(
   from: AnyBookingStatus,
   to: AnyBookingStatus,
+  serviceLocation = "CUSTOMER_ADDRESS",
 ): boolean {
   if (to === "CANCELLED") return CANCELLABLE.includes(from);
   if (to === "DISPUTED") {
     return from === "COMPLETED" || from === "REVIEWED" || from === "PAYMENT_RELEASED";
   }
   if (!isLifecycleStatus(from)) return false;
-  return NEXT_STATUS[from] === to;
+  return nextStatusFor(from, serviceLocation) === to;
 }
+
+// Re-exported for callers that only need the plain chain.
+export { NEXT_STATUS };
 
 /**
  * Advance a booking's operational status. The booking's NORMAL/EMERGENCY
@@ -46,12 +60,12 @@ export async function transitionBooking(
   actor: string,
   note = "",
 ) {
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({ where: { id: bookingId } });
     if (!booking) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
 
     const from = booking.status as AnyBookingStatus;
-    if (!canTransition(from, to)) {
+    if (!canTransition(from, to, booking.serviceLocation)) {
       throw new BookingError(
         `Cannot move a booking from ${from} to ${to}.`,
         "INVALID_TRANSITION",
@@ -66,6 +80,9 @@ export async function transitionBooking(
         // The address is released to the vendor only at this step.
         ...(to === "ADDRESS_UNLOCKED" ? { addressUnlocked: true } : {}),
         ...(to === "CANCELLED" ? { cancelledReason: note } : {}),
+        ...(to === "DISPUTED"
+          ? { settlementStatus: "DISPUTED", disputeReason: note, disputedAt: new Date() }
+          : {}),
       },
     });
 
@@ -91,9 +108,22 @@ export async function transitionBooking(
 
     return updated;
   });
+
+  // After the commit: a cancelled booking lets go of the card hold. A failed
+  // void is logged, not thrown — the cancellation itself stands, and an
+  // uncaptured hold lapses on its own.
+  if (to === "CANCELLED") await voidPaymentForBooking(updated);
+
+  return updated;
 }
 
-/** Record a customer rating and move the booking to REVIEWED. */
+/**
+ * Record a customer rating and move the booking to REVIEWED.
+ *
+ * Reviews follow the release of payment; they no longer gate it. The review
+ * log is append-only from the customer's side: once written it cannot be
+ * edited, because REVIEWED has no way back to PAYMENT_RELEASED.
+ */
 export async function reviewBooking(
   bookingId: string,
   rating: number,

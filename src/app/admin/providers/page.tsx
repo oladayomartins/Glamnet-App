@@ -1,7 +1,8 @@
 import { requireRole } from "@/lib/auth/session";
 import { prisma } from "@/lib/server/prisma";
 import { SectionTitle } from "@/components/ui";
-import { ApprovalQueue } from "./approval-queue";
+import { ApprovalQueue, type QueueProvider } from "./approval-queue";
+import { signedFileUrl } from "@/lib/server/private-files";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,33 @@ export default async function AdminProvidersPage() {
     include: {
       hub: { select: { name: true, sector: true, city: true } },
       _count: { select: { services: true, bookings: true } },
+      documents: { orderBy: { uploadedAt: "desc" } },
     },
+  });
+
+  // Compliance documents are private files; each link is signed for ten
+  // minutes, enough to review, useless if it leaks.
+  const toQueue = (p: (typeof providers)[number]): QueueProvider => ({
+    id: p.id,
+    name: p.name,
+    email: p.email,
+    bio: p.bio,
+    hub: `${p.hub.name} (${p.hub.sector}) · ${p.hub.city}`,
+    status: p.approvalStatus,
+    note: p.approvalNote,
+    serviceCount: p._count.services,
+    bookingCount: p._count.bookings,
+    createdAt: p.createdAt.toISOString(),
+    slug: p.slug ?? "",
+    submitted: p.onboardedAt !== null,
+    payoutsEnabled: p.payoutsEnabled,
+    documents: p.documents.map((document) => ({
+      id: document.id,
+      kind: document.kind,
+      fileName: document.fileName,
+      status: document.status,
+      url: signedFileUrl(document.url),
+    })),
   });
 
   const pending = providers.filter((p) => p.approvalStatus === "PENDING");
@@ -34,18 +61,7 @@ export default async function AdminProvidersPage() {
           Awaiting review
         </SectionTitle>
         <ApprovalQueue
-          providers={pending.map((p) => ({
-            id: p.id,
-            name: p.name,
-            email: p.email,
-            bio: p.bio,
-            hub: `${p.hub.name} (${p.hub.sector}) · ${p.hub.city}`,
-            status: p.approvalStatus,
-            note: p.approvalNote,
-            serviceCount: p._count.services,
-            bookingCount: p._count.bookings,
-            createdAt: p.createdAt.toISOString(),
-          }))}
+          providers={pending.map(toQueue)}
           emptyMessage="No applications waiting. New sign-ups appear here."
         />
       </section>
@@ -55,18 +71,7 @@ export default async function AdminProvidersPage() {
           Approved &amp; rejected
         </SectionTitle>
         <ApprovalQueue
-          providers={decided.map((p) => ({
-            id: p.id,
-            name: p.name,
-            email: p.email,
-            bio: p.bio,
-            hub: `${p.hub.name} (${p.hub.sector}) · ${p.hub.city}`,
-            status: p.approvalStatus,
-            note: p.approvalNote,
-            serviceCount: p._count.services,
-            bookingCount: p._count.bookings,
-            createdAt: p.createdAt.toISOString(),
-          }))}
+          providers={decided.map(toQueue)}
           emptyMessage="Nothing decided yet."
         />
       </section>

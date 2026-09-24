@@ -57,11 +57,12 @@ export const HERO_IMAGE_PATH = "/Hero Banner - Glamnet App.png";
  * brand metal like every other image slot.
  */
 export const CATEGORY_IMAGE_PATHS: Record<string, string> = {
-  Hair: "/Glossy Hair.png",
-  Nails: "/Glamnet - Nail Tech.png",
+  "Afro & Textured": "/Glossy Hair.png",
+  "European & Western": "/Glossy Hair.png",
+  "Manicures & Pedicures": "/Glamnet - Nail Tech.png",
   // Two trailing spaces before the extension, which is how the file is named
   // in the library. Written out rather than trimmed: the name has to match.
-  Makeup: "/Glamorous Makeup Application Portrait  .png",
+  "MUA Glam & Asian Bridal": "/Glamorous Makeup Application Portrait  .png",
 };
 
 /** The artwork path for a category, if one has been drawn for it. */
@@ -74,6 +75,9 @@ export const IMAGE_FOLDERS = {
   reference: "/glamnet/booking-references",
   provider: "/glamnet/providers",
   service: "/glamnet/services",
+  /** The three finished-work photos behind every PIN release. */
+  completion: "/glamnet/completion-evidence",
+  lookbook: "/glamnet/lookbooks",
 } as const;
 
 export type ImageFolder = keyof typeof IMAGE_FOLDERS;

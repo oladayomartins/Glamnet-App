@@ -21,9 +21,16 @@ export default async function ProviderIndexPage() {
   // admin sees the roster.
   const viewer = await requireUser("/provider");
   if (viewer.role === "PROVIDER") {
-    redirect(
-      viewer.providerApproved ? `/provider/${viewer.providerId}` : "/provider/pending",
-    );
+    if (viewer.providerApproved) redirect(`/provider/${viewer.providerId}`);
+    // A new applicant builds their storefront first; the waiting screen is
+    // for applications that have actually been submitted.
+    const onboarded = viewer.providerId
+      ? await prisma.provider.findUnique({
+          where: { id: viewer.providerId },
+          select: { onboardedAt: true },
+        })
+      : null;
+    redirect(onboarded?.onboardedAt ? "/provider/pending" : "/provider/onboarding");
   }
   if (viewer.role !== "ADMIN") redirect("/forbidden");
 

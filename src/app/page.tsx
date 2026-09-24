@@ -22,6 +22,7 @@ import { GlamImage } from "@/components/glam-image";
 import { BrandImage } from "@/components/brand-image";
 import { Rail } from "@/components/rail";
 import { HERO_IMAGE_PATH, categoryImagePath } from "@/lib/imagekit";
+import { hubByName } from "@/lib/domain/specialty-hubs";
 import type { ProviderCardData } from "@/components/provider-card";
 
 export const dynamic = "force-dynamic";
@@ -32,10 +33,11 @@ export const dynamic = "force-dynamic";
  * icon rather than borrowing a heavier mark from somewhere else.
  */
 const CATEGORY_ICONS: Record<string, ReactNode> = {
-  Hair: <Scissors size={18} weight="light" />,
-  Makeup: <PaintBrush size={18} weight="light" />,
-  Nails: <Hand size={18} weight="light" />,
-  Skin: <Heart size={18} weight="light" />,
+  "Afro & Textured": <Scissors size={18} weight="light" />,
+  "European & Western": <Scissors size={18} weight="light" />,
+  "MUA Glam & Asian Bridal": <PaintBrush size={18} weight="light" />,
+  "Manicures & Pedicures": <Hand size={18} weight="light" />,
+  "Massage & Wellness": <Heart size={18} weight="light" />,
 };
 
 /** §C-01 block 5. Three steps, in the customer's order, one line each. */
@@ -282,7 +284,13 @@ export default async function MarketingPage() {
             {categories.map((category) => (
               <Link
                 key={category.name}
-                href={`/search?q=${encodeURIComponent(category.name)}`}
+                href={
+                  // A Specialty Hub opens the directory filtered to it; any
+                  // other category falls back to search.
+                  hubByName(category.name)
+                    ? `/sheffield/salons?hub=${hubByName(category.name)!.slug}`
+                    : `/search?q=${encodeURIComponent(category.name)}`
+                }
                 className="group w-[180px] shrink-0 snap-start sm:w-[210px]"
               >
                 <span className="relative block overflow-hidden rounded-glam">

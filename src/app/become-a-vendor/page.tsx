@@ -105,7 +105,7 @@ export default async function BecomeVendorPage() {
                 href="/sign-up?role=vendor"
                 className="inline-flex min-h-12 items-center gap-2 rounded-full bg-metal px-7 text-[15px] font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
               >
-                Become a vendor
+                Claim my free storefront page
                 <ArrowRight size={16} weight="bold" aria-hidden />
               </Link>
               <Link

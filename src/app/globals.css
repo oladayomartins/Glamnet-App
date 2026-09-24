@@ -51,18 +51,21 @@
   /* --- Accent: champagne --------------------------------------------- */
   --glam-champagne-100: oklch(0.965 0.03 88);
   --glam-champagne-300: oklch(0.9 0.055 88);
-  --glam-champagne-500: oklch(0.86 0.065 88);
+  --glam-champagne-500: #d9b061;
   --glam-champagne-700: oklch(0.48 0.07 70);
 
   /* --- The metal -------------------------------------------------------
      Identical in both modes. It is the brand. */
+  /* Champagne Gold #D9B061 is the call-to-action colour (Open Marketplace
+     Directory §1); the metal is a light sheen across it, never a new hue. */
+  --glam-gold: #d9b061;
   --glam-metal: linear-gradient(
     135deg,
-    oklch(0.92 0.05 95) 0%,
-    oklch(0.86 0.065 88) 34%,
-    oklch(0.76 0.085 32) 100%
+    #ecd29a 0%,
+    var(--glam-gold) 45%,
+    #bf9642 100%
   );
-  --glam-metal-ink: oklch(0.18 0.015 40);
+  --glam-metal-ink: #121212;
 
   /* --- Surfaces --------------------------------------------------------
      In light mode elevation is carried by shadow first, surface second. */
@@ -107,7 +110,8 @@
      scrim sit over photographs and have to stay legible either way — and a
      token that flipped underneath them would invert light text onto a light
      ground. Everything else keeps using the pairs that do flip. */
-  --glam-obsidian: oklch(0.165 0.008 285);
+  /* Obsidian Black #121212 — the platform canvas (Directory §1). */
+  --glam-obsidian: #121212;
   /*
    * Sampled from the hero artwork's own negative space, so the band can run
    * past the edges of the photograph without a seam. A palette entry would be
@@ -161,17 +165,19 @@
   --glam-rose-900: oklch(0.88 0.065 36);
   --glam-on-brand: oklch(0.18 0.015 40);
 
-  --glam-champagne-100: oklch(0.33 0.04 88);
-  --glam-champagne-300: oklch(0.55 0.06 88);
-  --glam-champagne-500: oklch(0.88 0.06 88);
-  --glam-champagne-700: oklch(0.9 0.055 88);
+  --glam-champagne-100: #3a3120;
+  --glam-champagne-300: #8a7340;
+  --glam-champagne-500: #d9b061;
+  /* Gold as text on obsidian: headlines, prices, accents. */
+  --glam-champagne-700: #d9b061;
 
-  /* In dark mode elevation is carried by surface lightness first, shadow
-     second — the reverse of light mode. */
-  --glam-canvas: oklch(0.165 0.008 285);
-  --glam-surface: oklch(0.215 0.008 285);
-  --glam-surface-sunken: oklch(0.195 0.008 285);
-  --glam-border: oklch(0.3 0.01 285);
+  /* Obsidian Black #121212 canvas (Directory §1). In dark mode elevation is
+     carried by surface lightness first, shadow second — the reverse of light
+     mode — so cards step up from the canvas in small neutral increments. */
+  --glam-canvas: #121212;
+  --glam-surface: #1c1c1c;
+  --glam-surface-sunken: #171717;
+  --glam-border: #2f2b24;
 
   --glam-ink: oklch(0.96 0.008 80);
   --glam-ink-muted: oklch(0.74 0.01 80);

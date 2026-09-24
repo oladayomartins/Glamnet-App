@@ -16,6 +16,14 @@ import {
   TRANSITION_BUFFER_MINUTES,
 } from "@/lib/domain/constants";
 import type { BasketLine, BookingType } from "@/lib/domain/types";
+import { applyBps } from "@/lib/domain/pricing";
+import {
+  decideCommission,
+  settle,
+  type BookingSource,
+  type CommissionDecision,
+} from "@/lib/domain/settlement";
+import { paymentGateway } from "./payments";
 import {
   deliverBookingConfirmedEmail,
   deliverBroadcastEmails,
@@ -40,6 +48,77 @@ export class BookingError extends Error {
     super(message);
     this.name = "BookingError";
   }
+}
+
+/**
+ * The money fields a booking stores once its commission rule is known.
+ *
+ * `providerEarningsMinor` stays the vendor's share *before* any tip, which is
+ * what the earnings ledger has always shown; `providerPayoutMinor` is what is
+ * actually transferred at release, tip included.
+ */
+export function settlementFields(
+  price: {
+    totalMinor: number;
+    subtotalMinor: number;
+    emergencySurchargeMinor: number;
+    otherSurchargesMinor: number;
+    trustFeeMinor: number;
+  },
+  commission: CommissionDecision,
+  tipMinor = 0,
+) {
+  const result = settle({
+    totalMinor: price.totalMinor,
+    commissionableMinor:
+      price.subtotalMinor + price.emergencySurchargeMinor + price.otherSurchargesMinor,
+    trustFeeMinor: price.trustFeeMinor,
+    tipMinor,
+    commission,
+  });
+  return {
+    firstDiscoveryBooking: commission.firstDiscoveryBooking,
+    commissionBps: commission.commissionBps,
+    tipMinor: result.chargeMinor - price.totalMinor,
+    platformCommissionMinor: result.platformCommissionMinor,
+    processingFeeMinor: result.processingFeeMinor,
+    providerPayoutMinor: result.providerPayoutMinor,
+    providerEarningsMinor: result.providerPayoutMinor - (result.chargeMinor - price.totalMinor),
+    providerEmergencyEarningsMinor: applyBps(
+      price.emergencySurchargeMinor,
+      10_000 - commission.commissionBps,
+    ),
+  };
+}
+
+/** Customers each vendor has already served — they are no longer "new". */
+async function servedCustomer(
+  customerId: string,
+  providerIds: string[],
+): Promise<Set<string>> {
+  if (providerIds.length === 0) return new Set();
+  const prior = await prisma.booking.findMany({
+    where: {
+      customerId,
+      providerId: { in: providerIds },
+      status: {
+        in: [
+          "ACCEPTED",
+          "CONFIRMED",
+          "ADDRESS_UNLOCKED",
+          "PROVIDER_EN_ROUTE",
+          "ARRIVED",
+          "IN_PROGRESS",
+          "COMPLETED",
+          "PAYMENT_RELEASED",
+          "REVIEWED",
+        ],
+      },
+    },
+    select: { providerId: true },
+    distinct: ["providerId"],
+  });
+  return new Set(prior.map((booking) => booking.providerId ?? ""));
 }
 
 export interface QuoteRequest {
@@ -181,6 +260,20 @@ export async function createBooking(
 
   const expiresAt = addMinutes(now, BROADCAST_ACCEPTANCE_WINDOW_MINUTES);
 
+  // Dual commission: each invited vendor is quoted what *they* would earn —
+  // Rule B for a customer new to them, Rule A for one they have served.
+  const served = await servedCustomer(request.customerId, quote.eligibleProviderIds);
+  const source: BookingSource = "BROADCAST";
+  const quotedFor = (providerId: string) =>
+    settlementFields(
+      quote.price,
+      decideCommission({ source, hasPriorBooking: served.has(providerId) }),
+    );
+  const provisional = settlementFields(
+    quote.price,
+    decideCommission({ source, hasPriorBooking: false }),
+  );
+
   const booking = await prisma.$transaction(async (tx) => {
     const booking = await tx.booking.create({
       data: {
@@ -198,8 +291,9 @@ export async function createBooking(
         otherSurchargesMinor: quote.price.otherSurchargesMinor,
         trustFeeMinor: quote.price.trustFeeMinor,
         totalInvoicePriceMinor: quote.price.totalMinor,
-        providerEarningsMinor: quote.price.providerEarningsMinor,
-        providerEmergencyEarningsMinor: quote.price.providerEmergencyEarningsMinor,
+        // Provisional (Rule B) until a vendor accepts and the rule is final.
+        ...provisional,
+        source,
         status: "BROADCAST",
         sector: quote.sector,
         addressLine: request.addressLine ?? "",
@@ -218,12 +312,15 @@ export async function createBooking(
           })),
         },
         broadcasts: {
-          create: quote.eligibleProviderIds.map((providerId) => ({
-            providerId,
-            expiresAt,
-            earningsMinor: quote.price.providerEarningsMinor,
-            emergencyEarningsMinor: quote.price.providerEmergencyEarningsMinor,
-          })),
+          create: quote.eligibleProviderIds.map((providerId) => {
+            const quoted = quotedFor(providerId);
+            return {
+              providerId,
+              expiresAt,
+              earningsMinor: quoted.providerEarningsMinor,
+              emergencyEarningsMinor: quoted.providerEmergencyEarningsMinor,
+            };
+          }),
         },
         events: {
           create: [
@@ -259,6 +356,23 @@ export async function createBooking(
 
     return booking;
   });
+
+  // Card hold. On the simulated gateway this completes at once; with Stripe
+  // the broadcast checkout does not yet collect a card in the browser, so the
+  // hold is left for the storefront flow (see README, "Not built").
+  const gateway = paymentGateway();
+  if (gateway.mode === "simulated") {
+    const hold = await gateway.authorise({
+      bookingId: booking.id,
+      amountMinor: quote.price.totalMinor,
+      customerEmail: "",
+      description: "GLAMNET booking",
+    });
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { paymentIntentId: hold.paymentIntentId, paymentStatus: "AUTHORISED" },
+    });
+  }
 
   // After the commit, never inside it: a slow Resend call must not hold the
   // transaction open, and a failed one must not undo a valid booking.
@@ -391,6 +505,46 @@ export async function acceptBooking(
         409,
       );
     }
+
+    // The rule is final now that the vendor is known.
+    const prior = await tx.booking.findFirst({
+      where: {
+        customerId: booking.customerId,
+        providerId,
+        id: { not: bookingId },
+        status: {
+          in: [
+            "ACCEPTED",
+            "CONFIRMED",
+            "ADDRESS_UNLOCKED",
+            "PROVIDER_EN_ROUTE",
+            "ARRIVED",
+            "IN_PROGRESS",
+            "COMPLETED",
+            "PAYMENT_RELEASED",
+            "REVIEWED",
+          ],
+        },
+      },
+      select: { id: true },
+    });
+    await tx.booking.update({
+      where: { id: bookingId },
+      data: settlementFields(
+        {
+          totalMinor: booking.totalInvoicePriceMinor,
+          subtotalMinor: booking.subtotalMinor,
+          emergencySurchargeMinor: booking.emergencySurchargeMinor,
+          otherSurchargesMinor: booking.otherSurchargesMinor,
+          trustFeeMinor: booking.trustFeeMinor,
+        },
+        decideCommission({
+          source: booking.source as BookingSource,
+          hasPriorBooking: prior !== null,
+        }),
+        booking.tipMinor,
+      ),
+    });
 
     await tx.bookingBroadcast.update({
       where: { bookingId_providerId: { bookingId, providerId } },

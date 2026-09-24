@@ -50,7 +50,10 @@ export function SignUpForm({
         // A request, not a grant. The server only honours CUSTOMER or
         // PROVIDER from here, and a new vendor starts PENDING.
         data: { role: intent, name: name.trim(), hubId },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/account`,
+        // Vendors go straight into the storefront wizard.
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${
+          intent === "PROVIDER" ? "/provider/onboarding" : "/account"
+        }`,
       },
     });
 
@@ -67,7 +70,7 @@ export function SignUpForm({
       return;
     }
 
-    router.replace("/account");
+    router.replace(intent === "PROVIDER" ? "/provider/onboarding" : "/account");
     router.refresh();
   };
 

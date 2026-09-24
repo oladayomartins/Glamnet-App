@@ -9,6 +9,10 @@ export type BookingType = "NORMAL" | "EMERGENCY";
 /**
  * Operational lifecycle (spec §8). Runs orthogonally to {@link BookingType}:
  * a booking is e.g. EMERGENCY + IN_PROGRESS.
+ *
+ * Payment is released by the customer's 4-digit completion PIN, not by their
+ * review (Open Marketplace Directory, Flow 2), so PAYMENT_RELEASED comes
+ * before REVIEWED: a rating is optional and can follow at any time.
  */
 export const BOOKING_STATUSES = [
   "REQUESTED",
@@ -20,8 +24,8 @@ export const BOOKING_STATUSES = [
   "ARRIVED",
   "IN_PROGRESS",
   "COMPLETED",
-  "REVIEWED",
   "PAYMENT_RELEASED",
+  "REVIEWED",
 ] as const;
 
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
@@ -42,10 +46,35 @@ export const NEXT_STATUS: Record<BookingStatus, BookingStatus | null> = {
   PROVIDER_EN_ROUTE: "ARRIVED",
   ARRIVED: "IN_PROGRESS",
   IN_PROGRESS: "COMPLETED",
-  COMPLETED: "REVIEWED",
-  REVIEWED: "PAYMENT_RELEASED",
-  PAYMENT_RELEASED: null,
+  COMPLETED: "PAYMENT_RELEASED",
+  PAYMENT_RELEASED: "REVIEWED",
+  REVIEWED: null,
 };
+
+/**
+ * Steps skipped when the client comes to the vendor's own workspace: there is
+ * no address to unlock and no journey to track.
+ */
+export const PREMISES_SKIPPED_STATUSES: readonly BookingStatus[] = [
+  "ADDRESS_UNLOCKED",
+  "PROVIDER_EN_ROUTE",
+];
+
+export type ServiceLocation = "CUSTOMER_ADDRESS" | "VENDOR_PREMISES";
+
+/** The next lifecycle step for a booking, given where it takes place. */
+export function nextStatusFor(
+  status: BookingStatus,
+  serviceLocation: string,
+): BookingStatus | null {
+  let next = NEXT_STATUS[status];
+  if (serviceLocation === "VENDOR_PREMISES") {
+    while (next && PREMISES_SKIPPED_STATUSES.includes(next)) {
+      next = NEXT_STATUS[next];
+    }
+  }
+  return next;
+}
 
 /** A half-open interval `[startAt, endAt)` in absolute time. */
 export interface Interval {
