@@ -66,6 +66,9 @@ export default async function OnboardingPage({
         workspacePostcode: provider.workspaceSector,
         travelsToClients: provider.travelsToClients,
         payoutsEnabled: provider.payoutsEnabled,
+        avatar: provider.avatarUrl
+          ? { url: provider.avatarUrl, fileId: provider.avatarFileId }
+          : null,
       }}
       catalogue={catalogue
         .map((service) => ({

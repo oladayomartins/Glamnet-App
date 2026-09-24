@@ -47,6 +47,7 @@ interface Profile {
   workspacePostcode: string;
   travelsToClients: boolean;
   payoutsEnabled: boolean;
+  avatar: UploadedImage | null;
 }
 
 interface CatalogueItem {
@@ -245,7 +246,13 @@ export function OnboardingWizard(props: {
   const save = () => {
     switch (step.key) {
       case "profile":
-        return run(() => send("/api/provider/profile", "PATCH", { name: profile.name, phone: profile.phone }));
+        return run(() =>
+          send("/api/provider/profile", "PATCH", {
+            name: profile.name,
+            phone: profile.phone,
+            avatar: profile.avatar,
+          }),
+        );
       case "specialties": {
         // Dropping a hub drops its services, so the menu never lists a craft
         // the pro has just said they do not do.
@@ -356,7 +363,17 @@ export function OnboardingWizard(props: {
 
           <div className="mt-8">
             {step.key === "profile" ? (
-              <div className="max-w-md space-y-4">
+              <div className="max-w-md space-y-5">
+                {props.uploadsEnabled ? (
+                  <ImageUpload
+                    variant="avatar"
+                    folder="provider"
+                    label="Profile photo"
+                    hint="A clear photo of you or your logo. Shown on your storefront and in the directory."
+                    value={profile.avatar}
+                    onChange={(image) => set("avatar", image)}
+                  />
+                ) : null}
                 <Field label="Your name or business name">
                   <input
                     autoFocus
@@ -643,6 +660,7 @@ export function OnboardingWizard(props: {
                   {looks.map((look, at) => (
                     <div key={at} className="rise-in space-y-2" style={{ animationDelay: `${at * 60}ms` }}>
                       <ImageUpload
+                        variant="portrait"
                         folder="lookbook"
                         label={`Look ${at + 1}`}
                         value={look}
@@ -765,6 +783,7 @@ export function OnboardingWizard(props: {
               <div className="max-w-lg space-y-5">
                 <ul className="space-y-2">
                   {[
+                    ["Profile photo", Boolean(profile.avatar)],
                     ["Specialties chosen", hubs.length > 0],
                     ["Menu with at least one service", chosenItems.some((item) => item.kind !== "ADDON")],
                     ["Storefront link and bio", Boolean(profile.slug) && profile.bio.trim().length >= 20],
@@ -871,7 +890,17 @@ export function OnboardingWizard(props: {
               ),
             )}
           </div>
-          <div className="p-5">
+          <div className="relative p-5 pt-12">
+            <span className="absolute -top-9 left-5 flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-full bg-sunken ring-4 ring-surface">
+              {profile.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a just-uploaded preview
+                <img src={`${profile.avatar.url}?tr=w-144,h-144,fo-face`} alt="" className="pop-in h-full w-full object-cover" />
+              ) : (
+                <span className="font-display text-2xl font-bold text-ink-muted">
+                  {(profile.name.trim()[0] ?? "G").toUpperCase()}
+                </span>
+              )}
+            </span>
             <p className="flex items-center gap-1.5 font-display text-xl font-bold text-ink">
               <span className="truncate">{profile.name || "Your name"}</span>
               <SealCheck size={18} weight="fill" className={props.approved ? "text-accent-500" : "text-ink-muted/40"} aria-label={props.approved ? "Verified" : "Verification pending"} />

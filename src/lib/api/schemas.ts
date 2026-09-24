@@ -102,6 +102,11 @@ export const storefrontProfileSchema = z.object({
   workspaceType: z.enum(["HOME_SALON", "PRIVATE_ROOM", "CHAIR", "MOBILE"]).optional(),
   workspacePostcode: z.string().max(10).optional(),
   travelsToClients: z.boolean().optional(),
+  /** Profile photo from the media library; nulls clear it. */
+  avatar: z
+    .object({ url: z.string().url().max(2_000), fileId: z.string().max(200) })
+    .nullable()
+    .optional(),
 });
 
 export const menuSchema = z.object({

@@ -3,6 +3,8 @@ import { BookingError } from "./booking-service";
 import { paymentGateway } from "./payments";
 import { isValidSlug } from "@/lib/domain/storefront";
 import { normaliseSector } from "@/lib/domain/postcode";
+import { isTrustedImageUrl } from "@/lib/imagekit";
+import { deleteImageKitFiles } from "./imagekit-admin";
 
 /**
  * The Pro Portal (Open Marketplace Directory §C, Flow 3): everything a
@@ -43,8 +45,12 @@ export async function updateStorefrontProfile(
     workspaceType?: (typeof WORKSPACE_TYPES)[number];
     workspacePostcode?: string;
     travelsToClients?: boolean;
+    avatar?: { url: string; fileId: string } | null;
   },
 ) {
+  if (input.avatar && !isTrustedImageUrl(input.avatar.url)) {
+    throw new BookingError("Upload the photo through the app.", "INVALID_TRANSITION", 422);
+  }
   if (input.slug !== undefined && !(await isSlugAvailable(input.slug, providerId))) {
     throw new BookingError("That link is taken or not allowed. Try another.", "INVALID_TRANSITION", 409);
   }
@@ -70,9 +76,17 @@ export async function updateStorefrontProfile(
     );
   }
 
-  return prisma.provider.update({
+  const before =
+    input.avatar !== undefined
+      ? await prisma.provider.findUnique({ where: { id: providerId }, select: { avatarFileId: true } })
+      : null;
+
+  const updated = await prisma.provider.update({
     where: { id: providerId },
     data: {
+      ...(input.avatar !== undefined
+        ? { avatarUrl: input.avatar?.url ?? "", avatarFileId: input.avatar?.fileId ?? "" }
+        : {}),
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
       ...(input.bio !== undefined ? { bio: input.bio.trim() } : {}),
@@ -84,6 +98,12 @@ export async function updateStorefrontProfile(
       ...(input.travelsToClients !== undefined ? { travelsToClients: input.travelsToClients } : {}),
     },
   });
+
+  // The replaced photo leaves the library once the new one is saved.
+  if (before?.avatarFileId && before.avatarFileId !== (input.avatar?.fileId ?? "")) {
+    await deleteImageKitFiles([before.avatarFileId]);
+  }
+  return updated;
 }
 
 /** Replace the vendor's menu: which services, at what price and duration. */
@@ -116,12 +136,19 @@ export async function replaceLookbook(
   if (images.length > MAX_LOOKBOOK_IMAGES) {
     throw new BookingError(`Up to ${MAX_LOOKBOOK_IMAGES} looks.`, "INVALID_TRANSITION", 422);
   }
+  const previous = await prisma.providerLookbookImage.findMany({
+    where: { providerId },
+    select: { fileId: true },
+  });
   await prisma.$transaction([
     prisma.providerLookbookImage.deleteMany({ where: { providerId } }),
     prisma.providerLookbookImage.createMany({
       data: images.map((image, position) => ({ providerId, ...image, position })),
     }),
   ]);
+  // Looks that were swapped out or removed leave the media library too.
+  const kept = new Set(images.map((image) => image.fileId));
+  await deleteImageKitFiles(previous.map((image) => image.fileId).filter((id) => !kept.has(id)));
 }
 
 export async function addDocument(

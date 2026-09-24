@@ -86,10 +86,21 @@ export default async function StorefrontPage({
 
       {/* --- Identity ------------------------------------------------------ */}
       <section>
-        <h1 className="flex items-center gap-2 font-display text-3xl font-bold tracking-[-0.02em] text-ink">
-          {store.name}
-          <SealCheck size={24} weight="fill" className="text-accent-500" aria-label="Verified" />
-        </h1>
+        <div className="flex items-center gap-4">
+          {store.avatarUrl ? (
+            <GlamImage
+              src={store.avatarUrl}
+              alt={store.name}
+              width={160}
+              height={160}
+              className="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-accent-500 sm:h-20 sm:w-20"
+            />
+          ) : null}
+          <h1 className="flex items-center gap-2 font-display text-3xl font-bold tracking-[-0.02em] text-ink">
+            {store.name}
+            <SealCheck size={24} weight="fill" className="text-accent-500" aria-label="Verified" />
+          </h1>
+        </div>
         <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
           <span className="flex items-center gap-1" data-numeric>
             <Star size={14} weight="fill" className="text-accent-500" aria-hidden />
