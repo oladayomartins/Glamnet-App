@@ -9,9 +9,14 @@ import {
   formatDuration,
   formatMoney,
 } from "@/lib/format";
-import { BOOKING_STATUSES } from "@/lib/domain/types";
+import { BOOKING_STATUSES, PREMISES_SKIPPED_STATUSES } from "@/lib/domain/types";
+import { canDispute, effectiveSettlementStatus } from "@/lib/domain/completion";
+import { isImageKitConfigured } from "@/lib/imagekit";
+import { paymentGateway } from "@/lib/server/payments";
+import { GlamImage } from "@/components/glam-image";
 import { JobActions } from "./job-actions";
 import { ReviewForm } from "./review-form";
+import { CheckoutPin, DisputeForm } from "./customer-escrow";
 
 /**
  * Customer-facing booking record. Shows the classification and the surcharge
@@ -31,6 +36,7 @@ export default async function BookingPage({
       hub: true,
       provider: { select: { name: true, rating: true } },
       events: { orderBy: { createdAt: "asc" } },
+      completionPhotos: { orderBy: { position: "asc" } },
     },
   });
 
@@ -46,9 +52,13 @@ export default async function BookingPage({
     (booking.providerId !== null && viewer.providerId === booking.providerId);
   if (!mayView) notFound();
 
-  const reachedIndex = BOOKING_STATUSES.indexOf(
-    booking.status as (typeof BOOKING_STATUSES)[number],
+  const atPremises = booking.serviceLocation === "VENDOR_PREMISES";
+  const steps = BOOKING_STATUSES.filter(
+    (status) => !atPremises || !PREMISES_SKIPPED_STATUSES.includes(status),
   );
+  const reachedIndex = steps.indexOf(booking.status as (typeof steps)[number]);
+  const now = new Date();
+  const settlement = effectiveSettlementStatus(booking, now);
 
   // The same record is two screens: the customer's booking (§C-09) and the
   // vendor's job (§P-05). Which one you get is decided here, from the
@@ -56,7 +66,12 @@ export default async function BookingPage({
   const isTheProvider =
     booking.providerId !== null && viewer.providerId === booking.providerId;
   const isTheCustomer = viewer.customerId === booking.customerId;
-  const awaitingReview = booking.status === "COMPLETED";
+  // Reviews follow the PIN release now, rather than gating it.
+  const awaitingReview = booking.status === "PAYMENT_RELEASED";
+  const mayDispute =
+    isTheCustomer &&
+    ((booking.status === "COMPLETED" && booking.settlementStatus === "OPEN") ||
+      canDispute(booking, now));
 
   const priceRows = [
     ...booking.items.map((item) => ({
@@ -84,6 +99,9 @@ export default async function BookingPage({
         ]
       : []),
     { label: "Trust fee", amount: booking.trustFeeMinor, emphasis: false },
+    ...(booking.tipMinor > 0
+      ? [{ label: "Tip", amount: booking.tipMinor, emphasis: false }]
+      : []),
   ];
 
   return (
@@ -179,24 +197,86 @@ export default async function BookingPage({
             <div className="flex justify-between gap-4 border-t border-line pt-2 text-base font-bold">
               <dt>Total</dt>
               <dd className="tabular-nums">
-                {formatMoney(booking.totalInvoicePriceMinor)}
+                {formatMoney(booking.totalInvoicePriceMinor + booking.tipMinor)}
               </dd>
             </div>
           </dl>
+          <p className="mt-3 text-xs text-ink-muted">
+            {PAYMENT_LABELS[booking.paymentStatus] ?? booking.paymentStatus}
+            {paymentGateway().mode === "simulated" && booking.paymentStatus !== "NOT_STARTED"
+              ? " · test mode, no card was charged"
+              : ""}
+            {settlement === "CLOSED_UNCONTESTABLE" ? " · closed, no longer contestable" : ""}
+            {settlement === "DISPUTED" ? " · under dispute" : ""}
+          </p>
+          {isTheProvider || viewer.role === "ADMIN" ? (
+            <dl className="mt-3 space-y-1 border-t border-line pt-3 text-xs text-ink-muted">
+              <Row label="Booked via">
+                {SOURCE_LABELS[booking.source] ?? booking.source}
+                {booking.firstDiscoveryBooking ? " · first discovery booking" : ""}
+              </Row>
+              <Row label="Marketplace commission">
+                {booking.commissionBps / 100}% ({formatMoney(booking.platformCommissionMinor)})
+              </Row>
+              {booking.processingFeeMinor > 0 ? (
+                <Row label="Card processing">{formatMoney(booking.processingFeeMinor)}</Row>
+              ) : null}
+              <Row label="Vendor payout">{formatMoney(booking.providerPayoutMinor)}</Row>
+            </dl>
+          ) : null}
         </Card>
       </div>
+
+      {isTheCustomer && booking.status === "COMPLETED" && booking.completionPin ? (
+        <CheckoutPin pin={booking.completionPin} providerName={booking.provider?.name ?? "your vendor"} />
+      ) : null}
+
+      {booking.completionPhotos.length > 0 ? (
+        <Card className="p-4">
+          <SectionTitle hint="Taken by the vendor at checkout">Finished work</SectionTitle>
+          <div className="grid grid-cols-3 gap-2">
+            {booking.completionPhotos.map((photo, index) => (
+              <GlamImage
+                key={photo.id}
+                src={photo.url}
+                alt={`Finished work, photo ${index + 1}`}
+                width={400}
+                height={500}
+                className="aspect-[4/5] w-full rounded-glam-sm object-cover"
+              />
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       {isTheProvider ? (
         <JobActions
           bookingId={booking.id}
           status={booking.status}
+          serviceLocation={booking.serviceLocation}
           addressLine={booking.addressLine}
           addressUnlocked={booking.addressUnlocked}
+          paymentStatus={booking.paymentStatus}
+          imageUploadsEnabled={isImageKitConfigured()}
         />
       ) : null}
 
       {isTheCustomer && awaitingReview && booking.provider ? (
         <ReviewForm bookingId={booking.id} providerName={booking.provider.name} />
+      ) : null}
+
+      {mayDispute ? (
+        <DisputeForm
+          bookingId={booking.id}
+          closesAt={booking.disputeWindowClosesAt?.toISOString() ?? null}
+        />
+      ) : null}
+
+      {booking.status === "DISPUTED" && booking.disputeReason ? (
+        <Card className="border-l-4 border-l-warning p-4">
+          <SectionTitle>Dispute filed</SectionTitle>
+          <p className="text-[15px] text-ink">{booking.disputeReason}</p>
+        </Card>
       ) : null}
 
       {booking.rating ? (
@@ -215,7 +295,7 @@ export default async function BookingPage({
       <Card className="p-4">
         <SectionTitle hint={`${booking.events.length} events`}>Progress</SectionTitle>
         <ol className="grid gap-1 sm:grid-cols-2">
-          {BOOKING_STATUSES.map((status, index) => {
+          {steps.map((status, index) => {
             const reached = reachedIndex >= index;
             const current = reachedIndex === index;
             return (
@@ -247,6 +327,20 @@ export default async function BookingPage({
     </div>
   );
 }
+
+const PAYMENT_LABELS: Record<string, string> = {
+  NOT_STARTED: "No card hold on this booking",
+  PENDING_AUTHORISATION: "Waiting for your card to be authorised",
+  AUTHORISED: "Held on your card — released by your PIN after the appointment",
+  ESCROW_RELEASED: "Paid to your vendor",
+  VOIDED: "Card hold released — nothing was charged",
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  BROADCAST: "Request broadcast",
+  MARKETPLACE: "Marketplace directory",
+  DIRECT_LINK: "Your direct link",
+};
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (

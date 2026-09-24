@@ -84,10 +84,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Warm paper, matching the default the app actually starts in. Keyed to the
-  // OS preference before, which now disagrees with the page: a visitor whose
-  // laptop is dark gets a light site, and the browser chrome should say so.
-  themeColor: "#fbfaf7",
+  // Obsidian Black, matching the dark canvas the app now starts in (Open
+  // Marketplace Directory §1), so the browser chrome runs into the page.
+  themeColor: "#121212",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -95,6 +94,7 @@ export const viewport: Viewport = {
 
 /** Public navigation. Role-specific links are added from the session below. */
 const NAV = [
+  { href: "/sheffield/salons", label: "Salons" },
   { href: "/search", label: "Find a service" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/become-a-vendor", label: "Become a vendor" },

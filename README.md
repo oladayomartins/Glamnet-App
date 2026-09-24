@@ -1,8 +1,13 @@
 # GLAMNET
 
-A PWA marketplace for at-home beauty services, built around the booking,
-calendar and emergency requirements in
-*GLAMNET — Updated Booking, Calendar & Emergency Work Requirements*.
+A PWA marketplace for independent beauty professionals, built to two specs:
+
+- *GLAMNET — Updated Booking, Calendar & Emergency Work Requirements* — the
+  emergency broadcast, pricing and calendar engine described below; and
+- *GLAMNET Open Marketplace Directory v1.0* — vendor storefronts, the
+  directory, the dual-commission payout protocol and PIN-released escrow.
+  See [Open Marketplace Directory](#open-marketplace-directory) for how each
+  of its features maps to the code.
 
 The defining rule: a booking requested **within 12 hours** of its appointment is
 an **EMERGENCY** booking and carries a surcharge. That classification is
@@ -20,7 +25,8 @@ dashboard.
 | Styling | Tailwind CSS v4, with all brand values as CSS custom properties |
 | Data | Prisma + PostgreSQL |
 | Validation | zod on every request body |
-| Tests | Vitest — 65 unit tests over the booking engine |
+| Payments | Stripe Connect Express over the REST API (simulated when unconfigured) |
+| Tests | Vitest — 139 unit tests over the booking, commission and escrow rules |
 
 ## Getting started
 
@@ -65,6 +71,10 @@ Migrations are therefore a deploy step, not a build step:
 ```bash
 npm run db:migrate:deploy   # against DIRECT_URL
 ```
+
+`20260923000000_open_marketplace_directory` adds the storefront, commission
+and escrow columns and back-fills existing bookings' payouts. `vercel.json`
+schedules the daily dispute-window sweep; set `CRON_SECRET` for it to run.
 
 Set `DATABASE_URL` and `DIRECT_URL` in the host's environment for every
 environment you deploy to (on Vercel: Production, Preview and Development).
@@ -160,7 +170,10 @@ double-booked.
 | `/book/[hubId]` | Services → reference → add-ons → date & time → checkout |
 | `/bookings/[id]` | Customer booking record and lifecycle progress |
 | `/provider` | Provider directory |
-| `/provider/[id]` | Broadcast inbox + day/week calendar |
+| `/provider/[id]` | Broadcast inbox + day/week calendar, bio link, vacation toggle |
+| `/provider/onboarding` | The storefront wizard |
+| `/sheffield/salons` | Marketplace directory: hub tiles + postcode sort |
+| `/pro/[slug]` | Vendor storefront: lookbook, menu, calendar, checkout, reviews |
 | `/admin` | Emergency reporting, pricing config, filtered booking ledger |
 
 The date picker tags each slot NORMAL or EMERGENCY as it is rendered, so the
@@ -194,13 +207,18 @@ status code.
 
 ```
 REQUESTED → BROADCAST → ACCEPTED → CONFIRMED → ADDRESS_UNLOCKED
-→ PROVIDER_EN_ROUTE → ARRIVED → IN_PROGRESS → COMPLETED → REVIEWED
-→ PAYMENT_RELEASED
+→ PROVIDER_EN_ROUTE → ARRIVED → IN_PROGRESS → COMPLETED → PAYMENT_RELEASED
+→ REVIEWED
 ```
 
 Transitions are strictly linear — no skipping, no going backwards — with two
 escapes: a booking may be `CANCELLED` any time before the provider arrives, and
-`DISPUTED` after the work is done. The NORMAL/EMERGENCY classification is set at
+`DISPUTED` after the work is done (for 24 hours after payment release). A
+booking at the vendor's own premises skips `ADDRESS_UNLOCKED` and
+`PROVIDER_EN_ROUTE`. `COMPLETED` needs three completion photos and
+`PAYMENT_RELEASED` needs the customer's PIN, so neither can be set through the
+generic status endpoint. Payment is released by the PIN, not by the review;
+the review follows it. The NORMAL/EMERGENCY classification is set at
 creation and never changes, so every booking stays reportable by type through to
 payout.
 
@@ -208,21 +226,99 @@ The customer's address is withheld from the provider until `ADDRESS_UNLOCKED`.
 
 ---
 
+## Open Marketplace Directory
+
+How each feature in *GLAMNET Open Marketplace Directory v1.0* is covered.
+
+### 1. Platform identity
+
+| Spec | Where |
+|---|---|
+| Obsidian Black `#121212` canvas | `--glam-canvas` / `--glam-obsidian` in `globals.css`; dark is now the default theme (light remains available) |
+| Champagne Gold `#D9B061` for CTAs, headlines, accents | `--glam-gold`, the metal CTA gradient, `--glam-champagne-500/700` |
+| PWA manifest, `display: "standalone"` | `src/app/manifest.ts` (colours updated to obsidian) |
+
+### 2A. Client directory — `/sheffield/salons`
+
+| Spec | Where |
+|---|---|
+| 5-category hub grid, querying on click | `src/app/[city]/salons/page.tsx`; hubs defined in `src/lib/domain/specialty-hubs.ts` and stored as `Service.category` |
+| Postcode sector filter, typed or geolocated, proximity sort | `sector-filter.tsx` + `src/lib/domain/postcode.ts` (Sheffield S-district centroids; coordinates never leave the browser) |
+| Home salons / private rooms / chairs | `Provider.workspaceType`, `workspaceSector` |
+| In-basket cross-sell (MUA/Bridal → dry-treatment nail overlay) | `crossSellFor()`; shown in the storefront basket, falling back to nearby nail vendors |
+
+### 2B. Storefront — `/pro/:slug`
+
+| Spec | Where |
+|---|---|
+| 3-image lookbook carousel | `ProviderLookbookImage`, `src/app/pro/[slug]/page.tsx` |
+| Service menu with the vendor's own prices/durations, multi-select cart | `ProviderService.priceMinor/durationMinutes`, `storefront-booking.tsx` |
+| Calendar matrix against real availability, no double bookings | `POST /api/pro/:slug/slots`; checkout re-checks under a per-vendor Postgres advisory lock |
+| Read-only review log | read from the bookings themselves; `REVIEWED` is terminal |
+
+### 2C. Pro Portal
+
+| Spec | Where |
+|---|---|
+| Multi-step sign-up wizard | `/provider/onboarding` — profile, link & bio & socials, workspace, menu, lookbook, documents, payouts, submit |
+| Certification upload gate (`accept="image/*,application/pdf"`) | `DocumentUpload`, stored as private ImageKit files; admins open them through 10-minute signed links; approval is refused with none on file |
+| Unique landing link generator | `BioLink` on the dashboard and in the wizard |
+| Weekly availability planner + vacation blocks | existing availability editor, plus a one-tap vacation toggle on the dashboard |
+
+### 2D. Money
+
+| Spec | Where |
+|---|---|
+| Rule A — direct link, 0% commission, minus 2% card fee | `src/lib/domain/settlement.ts` |
+| Rule B — first marketplace booking with a vendor, 30%, vendor keeps 70% + 100% of tips; later bookings default to A | same; applied to storefront checkout and, per vendor, to the broadcast |
+| Card pre-authorisation hold | `src/lib/server/payments.ts` — manual-capture PaymentIntent, Stripe Elements in `CardHold` |
+| 4-digit PIN releases escrow | `src/lib/server/escrow.ts`; `POST /api/bookings/:id/release` |
+| 24-hour dispute lockout → `closed_uncontestable` | `canDispute()`; button not rendered after the window, API refuses, daily cron writes the status |
+
+The origin of a storefront booking is the `via=directory` marker the directory
+adds to its links: a visit without it is a direct link. The customer pays the
+same either way, so the marker only moves money between vendor and platform.
+
+### 3. Flows
+
+All three flows run end to end on the simulated gateway. Onboarding sets
+`is_verified` (`Provider.isVerified`) when an admin approves a vendor with
+documents on file, which is what puts the storefront and its calendar live.
+
+### Decisions worth knowing
+
+- **Additive, not a replacement.** The emergency broadcast flow is unchanged
+  for customers; storefront booking sits alongside it. Emergency surcharges
+  apply to storefront bookings inside the 12-hour window too.
+- **Separate charges and transfers**, not destination charges: a broadcast
+  is authorised before any vendor accepts, so there is no destination at
+  checkout. On PIN release the hold is captured and the vendor's payout is
+  transferred with `source_transaction`.
+- **Rule B processing fee.** The spec deducts the 2% card fee under Rule A
+  only. Under Rule B the platform absorbs it from its 30%.
+- **Payment now releases on the PIN, not the review**, so the lifecycle order
+  changed to `COMPLETED → PAYMENT_RELEASED → REVIEWED`.
+
 ## Not built
 
 Scoped out deliberately, and worth naming so the gaps are not mistaken for
 oversights:
 
-- **Authentication.** There are no accounts or sessions; the provider and
-  customer pickers stand in for a signed-in user. Every route is currently
-  unauthenticated, including the admin ones.
-- **Stripe.** The journey has a pre-authorisation step in the right place, but
-  no payment provider is wired in. `POST /api/bookings` is where the
-  authorisation call belongs.
+- **Card holds on the broadcast checkout under real Stripe.** Storefront
+  checkout collects a card with Stripe Elements. The older `/book` and
+  `/search` confirm screens do not yet; they get a simulated hold only when
+  Stripe is unconfigured.
+- **Holds longer than 7 days.** Stripe expires uncaptured authorisations after
+  about 7 days. A booking further out needs a saved card (SetupIntent) and an
+  off-session authorisation nearer the date, which needs a scheduler.
+- **Stripe webhooks.** Holds and payout status are read back from Stripe on
+  return rather than pushed by webhook.
 - **Real push notifications.** Notification records are written to the database
-  with the emergency tag so the copy is consistent across channels, but nothing
-  delivers them.
-- **Reference image upload.** The flow takes a URL rather than hosting a file.
+  (including "your checkout PIN is ready"), and the customer's booking page
+  refreshes itself while a PIN is live, but there is no Web Push service
+  worker, so nothing is pushed to a locked phone.
+- **Dispute resolution.** A dispute is recorded and flagged to admins; refunds
+  and clawbacks are handled by hand.
 - **Offline support.** No service worker; the app is installable but needs a
   connection.
 - **External calendar sync.** Explicitly out of scope per §14.

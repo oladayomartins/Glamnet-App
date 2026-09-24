@@ -5,6 +5,9 @@ import { requireUser } from "@/lib/auth/session";
 import { getProviderToday } from "@/lib/server/provider-today";
 import { ProviderDashboard } from "./dashboard";
 import { TodayStrip } from "./today-strip";
+import { VacationToggle } from "./vacation-toggle";
+import { BioLink } from "@/components/bio-link";
+import { siteUrl } from "@/lib/site";
 
 /** The dashboard reads live figures, so it must not be prerendered. */
 export const dynamic = "force-dynamic";
@@ -59,12 +62,35 @@ export default async function ProviderPage({
             Availability
           </Link>
           <Link
+            href="/provider/onboarding"
+            className="inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
+          >
+            Storefront
+          </Link>
+          <Link
             href={`/provider/${provider.id}/earnings`}
             className="inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
           >
             Earnings ledger
           </Link>
         </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {provider.slug ? (
+          <BioLink origin={siteUrl().replace(/^https?:\/\//, "")} slug={provider.slug} />
+        ) : (
+          <Link
+            href="/provider/onboarding?step=storefront"
+            className="rounded-glam border border-dashed border-line p-4 text-sm text-ink-muted hover:border-accent-500"
+          >
+            Claim your storefront link to share in your Instagram and TikTok bio →
+          </Link>
+        )}
+        <VacationToggle
+          accepting={provider.isAcceptingWork}
+          disabled={viewer.role !== "PROVIDER"}
+        />
       </div>
 
       <TodayStrip providerId={provider.id} today={today} />

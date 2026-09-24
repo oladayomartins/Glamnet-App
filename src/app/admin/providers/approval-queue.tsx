@@ -15,6 +15,10 @@ export interface QueueProvider {
   serviceCount: number;
   bookingCount: number;
   createdAt: string;
+  slug: string;
+  submitted: boolean;
+  payoutsEnabled: boolean;
+  documents: { id: string; kind: string; fileName: string; status: string; url: string }[];
 }
 
 export function ApprovalQueue({
@@ -90,6 +94,38 @@ export function ApprovalQueue({
                   {provider.serviceCount} services listed ·{" "}
                   {provider.bookingCount} bookings
                 </p>
+                <p className="mt-1 text-xs text-ink-muted">
+                  {provider.slug ? `/pro/${provider.slug}` : "No storefront link yet"} ·{" "}
+                  {provider.submitted ? "wizard submitted" : "wizard not finished"} ·{" "}
+                  {provider.payoutsEnabled ? "payouts linked" : "no payout account"}
+                </p>
+                <div className="mt-2">
+                  <p className="text-xs font-medium text-ink">Compliance documents</p>
+                  {provider.documents.length === 0 ? (
+                    <p className="text-xs text-warning">
+                      None uploaded — cannot be approved until one is.
+                    </p>
+                  ) : (
+                    <ul className="mt-1 space-y-1">
+                      {provider.documents.map((document) => (
+                        <li key={document.id} className="flex flex-wrap items-center gap-2 text-xs">
+                          <a
+                            href={document.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-medium text-accent-700 underline"
+                          >
+                            {document.fileName || document.kind}
+                          </a>
+                          <span className="text-ink-muted">{document.kind.toLowerCase()}</span>
+                          <Pill tone={document.status === "APPROVED" ? "positive" : "neutral"}>
+                            {document.status.toLowerCase()}
+                          </Pill>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 {!pending && provider.note ? (
                   <p className="mt-1 text-xs text-ink-muted">
                     Note: {provider.note}

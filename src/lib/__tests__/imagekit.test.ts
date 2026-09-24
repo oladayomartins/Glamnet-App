@@ -59,10 +59,16 @@ describe("brand artwork paths", () => {
   });
 
   it("knows the seeded categories and nothing it has not been given", () => {
-    for (const category of ["Hair", "Nails", "Makeup"]) {
+    for (const category of [
+      "Afro & Textured",
+      "European & Western",
+      "MUA Glam & Asian Bridal",
+      "Manicures & Pedicures",
+    ]) {
       expect(categoryImagePath(category)).not.toBeNull();
     }
-    expect(categoryImagePath("Massage")).toBeNull();
+    // No artwork drawn for massage yet: it falls through to the brand metal.
+    expect(categoryImagePath("Massage & Wellness")).toBeNull();
   });
 });
 

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { requireApiRole } from "@/lib/auth/api-guard";
 import { deliverApprovalEmail } from "@/lib/server/notifications";
+import { BookingError } from "@/lib/server/booking-service";
 
 const approvalSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED", "PENDING"]),
@@ -15,6 +16,10 @@ const approvalSchema = z.object({
  *
  * Approving also opens them for work; rejecting closes it, so a rejected
  * application cannot keep receiving broadcasts through a stale flag.
+ *
+ * Approval is the compliance gate (Directory §C): it needs at least one
+ * insurance certificate or licence on file, and approves those documents
+ * with it. That is what sets `isVerified` and puts the storefront live.
  */
 export async function POST(
   request: Request,
@@ -27,13 +32,31 @@ export async function POST(
     const { id } = await params;
     const { decision, note } = approvalSchema.parse(await request.json());
 
+    const documents = await prisma.providerDocument.count({ where: { providerId: id } });
+    if (decision === "APPROVED" && documents === 0) {
+      throw new BookingError(
+        "This vendor has not uploaded any insurance or licence documents yet.",
+        "INVALID_TRANSITION",
+        409,
+      );
+    }
+
+    const now = new Date();
+    if (decision !== "PENDING") {
+      await prisma.providerDocument.updateMany({
+        where: { providerId: id, status: "PENDING" },
+        data: { status: decision, reviewedAt: now, reviewNote: note ?? "" },
+      });
+    }
+
     const provider = await prisma.provider.update({
       where: { id },
       data: {
         approvalStatus: decision,
-        approvedAt: decision === "APPROVED" ? new Date() : null,
+        approvedAt: decision === "APPROVED" ? now : null,
         approvalNote: note ?? "",
         isAcceptingWork: decision === "APPROVED",
+        isVerified: decision === "APPROVED",
       },
       select: {
         id: true,

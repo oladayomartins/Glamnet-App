@@ -58,6 +58,15 @@ export default async function ProviderPendingPage() {
           </p>
         )}
 
+        {!rejected ? (
+          <Link
+            href="/provider/onboarding"
+            className="mt-4 inline-flex min-h-11 items-center rounded-full bg-metal px-5 text-sm font-bold text-metal-ink"
+          >
+            {provider?.onboardedAt ? "Edit your storefront" : "Finish setting up your storefront"}
+          </Link>
+        ) : null}
+
         {provider ? (
           <dl className="mt-5 space-y-1 border-t border-line pt-4 text-sm">
             <div className="flex justify-between gap-4">

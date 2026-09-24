@@ -30,6 +30,7 @@ export function ImageUpload({
   label,
   hint,
   disabled,
+  capture,
 }: {
   folder: ImageFolder;
   value: UploadedImage | null;
@@ -37,6 +38,8 @@ export function ImageUpload({
   label: string;
   hint?: string;
   disabled?: boolean;
+  /** Open the phone's camera directly rather than the photo library. */
+  capture?: "environment" | "user";
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -158,6 +161,7 @@ export function ImageUpload({
         ref={inputRef}
         type="file"
         accept={ACCEPTED_IMAGE_TYPES.join(",")}
+        capture={capture}
         className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0];

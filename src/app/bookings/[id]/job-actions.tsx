@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { NavigationArrow } from "@phosphor-icons/react";
 import { Button, Card, SectionTitle } from "@/components/ui";
-import { NEXT_STATUS, type BookingStatus } from "@/lib/domain/types";
+import { ImageUpload, type UploadedImage } from "@/components/image-upload";
+import { nextStatusFor, type BookingStatus } from "@/lib/domain/types";
+import { REQUIRED_COMPLETION_PHOTOS } from "@/lib/domain/completion";
 
 /**
  * The vendor action ladder (§P-05).
@@ -20,7 +22,11 @@ const ACTION_LABELS: Partial<Record<BookingStatus, string>> = {
   ADDRESS_UNLOCKED: "On my way",
   PROVIDER_EN_ROUTE: "Arrived",
   ARRIVED: "Start",
-  IN_PROGRESS: "Complete",
+};
+
+/** Same ladder, in the words that fit a client coming to the vendor. */
+const PREMISES_LABELS: Partial<Record<BookingStatus, string>> = {
+  CONFIRMED: "Client has arrived",
 };
 
 /** What each step means, so nobody taps one to find out. */
@@ -31,27 +37,47 @@ const ACTION_NOTES: Partial<Record<BookingStatus, string>> = {
   ADDRESS_UNLOCKED: "Tells the customer you have left and started travelling.",
   PROVIDER_EN_ROUTE: "Marks you as at the door.",
   ARRIVED: "Starts the appointment.",
-  IN_PROGRESS:
-    "Ends the appointment. Payment is released once the customer rates the work.",
 };
 
 export function JobActions({
   bookingId,
   status,
+  serviceLocation,
   addressLine,
   addressUnlocked,
+  paymentStatus,
+  imageUploadsEnabled,
 }: {
   bookingId: string;
   status: string;
+  serviceLocation: string;
   addressLine: string;
   addressUnlocked: boolean;
+  paymentStatus: string;
+  imageUploadsEnabled: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const next = NEXT_STATUS[status as BookingStatus] ?? null;
-  const label = ACTION_LABELS[status as BookingStatus];
+  const atPremises = serviceLocation === "VENDOR_PREMISES";
+  const next = nextStatusFor(status as BookingStatus, serviceLocation);
+  const label =
+    (atPremises ? PREMISES_LABELS[status as BookingStatus] : undefined) ??
+    ACTION_LABELS[status as BookingStatus];
+
+  // A storefront booking is not the vendor's to start until the card hold
+  // is in place.
+  if (paymentStatus === "PENDING_AUTHORISATION") {
+    return (
+      <Card className="p-4">
+        <SectionTitle>Your next step</SectionTitle>
+        <p className="text-sm text-ink-muted">
+          Waiting for the client to authorise their card. The slot is held for 30 minutes.
+        </p>
+      </Card>
+    );
+  }
 
   const advance = async () => {
     if (!next) return;
@@ -61,7 +87,7 @@ export function JobActions({
       const response = await fetch(`/api/bookings/${bookingId}/status`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: next, actor: "PROVIDER" }),
+        body: JSON.stringify({ status: next }),
       });
       if (!response.ok) {
         const payload = await response.json();
@@ -83,7 +109,11 @@ export function JobActions({
 
       {/* The address exists on the booking from the moment it is placed, but
           the vendor does not see it until the lifecycle says so. */}
-      {addressUnlocked && addressLine ? (
+      {atPremises ? (
+        <p className="mb-4 rounded-glam-sm bg-sunken p-3 text-sm text-ink-muted">
+          The client is coming to your workspace.
+        </p>
+      ) : addressUnlocked && addressLine ? (
         <div className="mb-4 rounded-glam-sm bg-sunken p-3">
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
             Address
@@ -106,7 +136,15 @@ export function JobActions({
         </p>
       )}
 
-      {label && next ? (
+      {status === "IN_PROGRESS" ? (
+        <CheckoutRelease
+          bookingId={bookingId}
+          imageUploadsEnabled={imageUploadsEnabled}
+          onDone={() => router.refresh()}
+        />
+      ) : status === "COMPLETED" ? (
+        <PinEntry bookingId={bookingId} onDone={() => router.refresh()} />
+      ) : label && next ? (
         <>
           <Button onClick={advance} disabled={busy} className="w-full">
             {busy ? "Saving…" : label}
@@ -127,5 +165,158 @@ export function JobActions({
         </p>
       ) : null}
     </Card>
+  );
+}
+
+async function post(url: string, body?: unknown, method = "POST") {
+  const response = await fetch(url, {
+    method,
+    headers: { "content-type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error?.message ?? "That did not work.");
+  return payload;
+}
+
+/**
+ * [ Request Checkout Release ]: three photos of the finished style, taken
+ * with the phone camera, before the client's PIN is issued.
+ */
+function CheckoutRelease({
+  bookingId,
+  imageUploadsEnabled,
+  onDone,
+}: {
+  bookingId: string;
+  imageUploadsEnabled: boolean;
+  onDone: () => void;
+}) {
+  const [photos, setPhotos] = useState<(UploadedImage | null)[]>(() =>
+    Array.from({ length: REQUIRED_COMPLETION_PHOTOS }, () => null),
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ready = photos.every(Boolean);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await post(`/api/bookings/${bookingId}/checkout-release`, { photos });
+      onDone();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "That did not work.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!imageUploadsEnabled) {
+    return (
+      <p role="alert" className="text-sm text-warning">
+        Photo uploads are not configured on this deployment, so this job cannot be
+        checked out. Ask an admin to connect the media library.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink">
+        Finished? Take {REQUIRED_COMPLETION_PHOTOS} clear photos of the finished work. They are
+        kept as the record of the job, then your client gets a PIN to release payment.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {photos.map((photo, index) => (
+          <ImageUpload
+            key={index}
+            folder="completion"
+            capture="environment"
+            label={`Photo ${index + 1}`}
+            value={photo}
+            disabled={busy}
+            onChange={(image) =>
+              setPhotos((current) => current.map((entry, at) => (at === index ? image : entry)))
+            }
+          />
+        ))}
+      </div>
+      <Button onClick={submit} disabled={!ready || busy} className="w-full">
+        {busy ? "Sending…" : "Request checkout release"}
+      </Button>
+      {error ? (
+        <p role="alert" className="text-sm text-warning">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** The client reads their 4-digit PIN aloud; the vendor types it here. */
+function PinEntry({ bookingId, onDone }: { bookingId: string; onDone: () => void }) {
+  const [pin, setPin] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const release = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setMessage(null);
+    try {
+      await post(`/api/bookings/${bookingId}/release`, { pin });
+      onDone();
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "That did not work.");
+      setPin("");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reissue = async () => {
+    setBusy(true);
+    try {
+      await post(`/api/bookings/${bookingId}/checkout-release`, undefined, "PUT");
+      setMessage("A new PIN is on your client's screen.");
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "That did not work.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={release} className="space-y-3">
+      <label className="block">
+        <span className="text-sm font-medium text-ink">Client&rsquo;s 4-digit PIN</span>
+        <input
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]{4}"
+          maxLength={4}
+          value={pin}
+          onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
+          className="mt-1 min-h-14 w-full rounded-glam-input border border-line bg-surface px-3 text-center font-mono text-3xl tracking-[0.5em] text-ink outline-none focus:border-accent-500"
+        />
+      </label>
+      <Button type="submit" disabled={busy || pin.length !== 4} className="w-full">
+        {busy ? "Checking…" : "Release payment"}
+      </Button>
+      <button
+        type="button"
+        onClick={reissue}
+        disabled={busy}
+        className="tap-44 w-full text-center text-xs text-ink-muted hover:text-ink"
+      >
+        Send the client a new PIN
+      </button>
+      {message ? (
+        <p role="alert" className="text-sm text-warning">
+          {message}
+        </p>
+      ) : null}
+    </form>
   );
 }

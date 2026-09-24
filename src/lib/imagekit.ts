@@ -48,6 +48,32 @@ export function brandMediaOrigin(): string {
 export const HERO_IMAGE_PATH = "/Hero Banner - Glamnet App.png";
 
 /**
+ * The "leave us a review on Google" button shown in the hero.
+ *
+ * A call to action rather than a certification: it claims nothing about a
+ * rating GLAMNET holds, which is why it can sit beside figures the platform
+ * calculated without reading as one of them.
+ *
+ * It says "click here", so it only renders when there is somewhere to click —
+ * see {@link GOOGLE_REVIEW_URL}.
+ */
+export const GOOGLE_REVIEW_BADGE_PATH = "/6293834730fb025780ee2968.png";
+
+/**
+ * Where that button goes: the GLAMNET business's own Google review form.
+ *
+ * Google builds it from the Place ID of the business listing —
+ * `https://search.google.com/local/writereview?placeid=<PLACE ID>` — and
+ * there is no generic address that works without one.
+ *
+ * Empty until that ID is to hand, and the button does not render while it is
+ * empty. A button reading "click here" that goes nowhere is worse on a home
+ * page than no button: it is the one thing a visitor is invited to do, and it
+ * fails silently.
+ */
+export const GOOGLE_REVIEW_URL = "";
+
+/**
  * Artwork for the category tiles, keyed by the category name as it is stored
  * on the service.
  *
@@ -57,11 +83,12 @@ export const HERO_IMAGE_PATH = "/Hero Banner - Glamnet App.png";
  * brand metal like every other image slot.
  */
 export const CATEGORY_IMAGE_PATHS: Record<string, string> = {
-  Hair: "/Glossy Hair.png",
-  Nails: "/Glamnet - Nail Tech.png",
+  "Afro & Textured": "/Glossy Hair.png",
+  "European & Western": "/Glossy Hair.png",
+  "Manicures & Pedicures": "/Glamnet - Nail Tech.png",
   // Two trailing spaces before the extension, which is how the file is named
   // in the library. Written out rather than trimmed: the name has to match.
-  Makeup: "/Glamorous Makeup Application Portrait  .png",
+  "MUA Glam & Asian Bridal": "/Glamorous Makeup Application Portrait  .png",
 };
 
 /** The artwork path for a category, if one has been drawn for it. */
@@ -74,6 +101,9 @@ export const IMAGE_FOLDERS = {
   reference: "/glamnet/booking-references",
   provider: "/glamnet/providers",
   service: "/glamnet/services",
+  /** The three finished-work photos behind every PIN release. */
+  completion: "/glamnet/completion-evidence",
+  lookbook: "/glamnet/lookbooks",
 } as const;
 
 export type ImageFolder = keyof typeof IMAGE_FOLDERS;

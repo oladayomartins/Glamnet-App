@@ -21,8 +21,8 @@ describe("canTransition (spec §8)", () => {
   });
 
   it("has no transition out of the final status", () => {
-    expect(NEXT_STATUS.PAYMENT_RELEASED).toBeNull();
-    expect(canTransition("PAYMENT_RELEASED", "REVIEWED")).toBe(false);
+    expect(NEXT_STATUS.REVIEWED).toBeNull();
+    expect(canTransition("REVIEWED", "PAYMENT_RELEASED")).toBe(false);
   });
 
   it("allows cancellation before the vendor is en route or later", () => {
