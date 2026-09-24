@@ -154,6 +154,9 @@ export function OnboardingWizard(props: {
   const slugTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set when Continue is pressed on an unfinished step; the reason shown then
+  // tracks the fields live and disappears once the step is complete.
+  const [nudged, setNudged] = useState(false);
 
   const step = STEPS[index];
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) =>
@@ -162,6 +165,7 @@ export function OnboardingWizard(props: {
   const go = (to: number) => {
     setDirection(to >= index ? "forward" : "back");
     setError(null);
+    setNudged(false);
     setIndex(Math.max(0, Math.min(to, STEPS.length - 1)));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -228,20 +232,28 @@ export function OnboardingWizard(props: {
   );
 
   // --- Continue -----------------------------------------------------------------
-  const canContinue = (() => {
+  // What still stops this step, in words. Continue stays clickable and says
+  // this out loud: a silently greyed-out button reads as broken.
+  const bioShort = Math.max(0, 20 - profile.bio.trim().length);
+  const blocker = (() => {
     switch (step.key) {
       case "profile":
-        return profile.name.trim().length >= 2;
+        return profile.name.trim().length >= 2 ? null : "Add your name or business name.";
       case "specialties":
-        return hubs.length > 0;
+        return hubs.length > 0 ? null : "Pick at least one specialty.";
       case "menu":
-        return chosenItems.some((item) => item.kind !== "ADDON");
+        return chosenItems.some((item) => item.kind !== "ADDON") ? null : "Add at least one service to your menu.";
       case "storefront":
-        return slugState === "free" && profile.bio.trim().length >= 20;
+        if (slugState === "checking") return "Checking your link — one moment.";
+        if (slugState !== "free") return "Choose an available storefront link.";
+        return bioShort > 0
+          ? `Your bio needs ${bioShort} more ${bioShort === 1 ? "character" : "characters"} (at least 20).`
+          : null;
       default:
-        return true;
+        return null;
     }
   })();
+  const canContinue = blocker === null;
 
   const save = () => {
     switch (step.key) {
@@ -352,7 +364,9 @@ export function OnboardingWizard(props: {
           key={step.key}
           onSubmit={(event) => {
             event.preventDefault();
-            if (canContinue && !busy) void save();
+            if (busy) return;
+            if (blocker) return setNudged(true);
+            void save();
           }}
           className={`mt-8 ${direction === "forward" ? "step-forward" : "step-back"}`}
         >
@@ -571,7 +585,14 @@ export function OnboardingWizard(props: {
                     </button>
                   ) : null}
                 </Field>
-                <Field label="Bio" hint={`${profile.bio.trim().length}/1000 · at least 20 characters`}>
+                <Field
+                  label="Bio"
+                  hint={
+                    bioShort > 0
+                      ? `${bioShort} more ${bioShort === 1 ? "character" : "characters"} to go · at least 20`
+                      : `${profile.bio.trim().length}/1000 · looking good`
+                  }
+                >
                   <textarea
                     value={profile.bio}
                     onChange={(e) => set("bio", e.target.value.slice(0, 1000))}
@@ -788,35 +809,58 @@ export function OnboardingWizard(props: {
 
             {step.key === "review" ? (
               <div className="max-w-lg space-y-5">
+                {/* Each unfinished item is a shortcut straight to the step that
+                    finishes it. */}
                 <ul className="space-y-2">
-                  {[
-                    ["Profile photo", Boolean(profile.avatar)],
-                    ["Specialties chosen", hubs.length > 0],
-                    ["Menu with at least one service", chosenItems.some((item) => item.kind !== "ADDON")],
-                    ["Storefront link and bio", Boolean(profile.slug) && profile.bio.trim().length >= 20],
-                    ["Insurance or licence uploaded", props.documents.length > 0],
-                    ["Bank linked for payouts (needed before you're paid)", profile.payoutsEnabled],
-                  ].map(([label, done], at) => (
-                    <li
-                      key={String(label)}
-                      style={{ animationDelay: `${at * 70}ms` }}
-                      className="rise-in flex items-center gap-3 rounded-glam border border-line bg-surface p-3.5 text-sm"
-                    >
-                      {done ? (
-                        <CheckCircle size={20} weight="fill" className="pop-in shrink-0 text-normal" aria-hidden />
-                      ) : (
-                        <Circle size={20} className="shrink-0 text-ink-muted" aria-hidden />
-                      )}
-                      <span className={done ? "text-ink" : "text-ink-muted"}>{label}</span>
-                    </li>
-                  ))}
+                  {(
+                    [
+                      ["Profile photo", Boolean(profile.avatar), "profile"],
+                      ["Specialties chosen", done.specialties, "specialties"],
+                      ["Menu with at least one service", done.menu, "menu"],
+                      ["Storefront link and bio", done.storefront, "storefront"],
+                      ["Workspace", done.workspace, "workspace"],
+                      ["Insurance or licence uploaded", done.compliance, "compliance"],
+                      ["Bank linked for payouts (needed before you're paid)", done.payouts, "payouts"],
+                    ] as const
+                  ).map(([label, finished, target], at) => {
+                    const row = (
+                      <>
+                        {finished ? (
+                          <CheckCircle size={20} weight="fill" className="pop-in shrink-0 text-normal" aria-hidden />
+                        ) : (
+                          <Circle size={20} className="shrink-0 text-accent-500" aria-hidden />
+                        )}
+                        <span className={`flex-1 ${finished ? "text-ink" : "text-ink-muted"}`}>{label}</span>
+                        {finished ? null : (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-accent-700 transition duration-[180ms] ease-glam group-hover:translate-x-0.5">
+                            Finish <ArrowRight size={12} weight="bold" aria-hidden />
+                          </span>
+                        )}
+                      </>
+                    );
+                    const base = "rise-in flex w-full items-center gap-3 rounded-glam border bg-surface p-3.5 text-left text-sm";
+                    return (
+                      <li key={label} style={{ animationDelay: `${at * 70}ms` }}>
+                        {finished ? (
+                          <div className={`${base} border-line`}>{row}</div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => go(STEPS.findIndex((candidate) => candidate.key === target))}
+                            className={`group ${base} border-accent-500/40 transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:border-accent-500 hover:shadow-card`}
+                          >
+                            {row}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
                 {props.gaps.length > 0 && !props.approved ? (
-                  <ul className="space-y-1 text-sm text-warning">
-                    {props.gaps.map((gap) => (
-                      <li key={gap}>• {gap}</li>
-                    ))}
-                  </ul>
+                  <p className="text-sm text-warning">
+                    {props.gaps.length === 1 ? "One thing" : `${props.gaps.length} things`} left before you can
+                    submit — tap an item above to finish it.
+                  </p>
                 ) : null}
                 {profile.slug ? <BioLink origin={props.siteOrigin} slug={profile.slug} /> : null}
                 <p className="text-sm text-ink-muted">
@@ -830,9 +874,9 @@ export function OnboardingWizard(props: {
             ) : null}
           </div>
 
-          {error ? (
+          {error || (nudged && blocker) ? (
             <p role="alert" className="rise-in mt-6 rounded-glam border-l-4 border-warning bg-sunken p-3 text-sm text-ink">
-              {error}
+              {error ?? blocker}
             </p>
           ) : null}
 
@@ -859,8 +903,11 @@ export function OnboardingWizard(props: {
             ) : (
               <button
                 type="submit"
-                disabled={busy || !canContinue || (step.key === "review" && props.gaps.length > 0)}
-                className="inline-flex min-h-12 items-center gap-2 rounded-full bg-metal px-7 text-sm font-bold text-metal-ink shadow-card transition duration-[180ms] ease-glam hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={busy || (step.key === "review" && props.gaps.length > 0)}
+                aria-disabled={!canContinue}
+                className={`inline-flex min-h-12 items-center gap-2 rounded-full bg-metal px-7 text-sm font-bold text-metal-ink shadow-card transition duration-[180ms] ease-glam hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${
+                  canContinue ? "" : "opacity-60"
+                }`}
               >
                 {busy ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-metal-ink/30 border-t-metal-ink" aria-hidden />
