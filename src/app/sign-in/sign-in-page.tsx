@@ -54,7 +54,7 @@ export async function SignInScreen({
   searchParams,
 }: {
   audience: keyof typeof COPY;
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ next?: string; error?: string; notice?: string }>;
 }) {
   const params = await searchParams;
   const isAdminDoor = audience === "admin";
@@ -129,9 +129,15 @@ export async function SignInScreen({
         )
       }
     >
-      {params.error === "link-expired" ? (
+      {params.notice === "confirmed" ? (
+        <p role="status" className="mb-5 rounded-glam border-l-4 border-normal bg-sunken p-3 text-sm text-ink">
+          <strong>Your email is confirmed.</strong> The link was opened in a different browser from the one
+          you signed up in, so sign in here to carry on.
+        </p>
+      ) : params.error === "link-expired" ? (
         <p role="alert" className="mb-5 rounded-glam border-l-4 border-warning bg-sunken p-3 text-sm text-ink">
-          That link has expired or was already used. Request a new one below.
+          That link has expired or was already used. Enter your email below and we&rsquo;ll send a fresh
+          one. It works for confirming a new account too.
         </p>
       ) : null}
       {/* An admin has no public sign-up to go through, so the admin door may
