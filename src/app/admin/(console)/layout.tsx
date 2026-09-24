@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function AdminConsoleLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireRole("ADMIN", "/admin");
   return (
-    <div data-page-width="wide" className="grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10">
+    <div data-page-width="wide" className="grid grid-cols-1 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10">
       <AdminNav email={admin.email} />
       <div className="min-w-0">{children}</div>
     </div>

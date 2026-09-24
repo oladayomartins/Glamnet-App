@@ -688,3 +688,11 @@ time,
   color: #555;
   font-size: 12px;
 }
+
+/* No sideways scrolling on any screen. Slide-in animations and full-bleed
+   sections can poke past the edge for a frame; `clip` stops the page
+   scrolling sideways without breaking sticky headers the way `hidden` does. */
+html,
+body {
+  overflow-x: clip;
+}

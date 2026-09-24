@@ -74,10 +74,12 @@ export function OfferList({ offers }: { offers: OfferRow[] }) {
                 type="button"
                 onClick={() => setSelectedId(isSelected ? null : offer.providerId)}
                 aria-pressed={isSelected}
-                className={`flex w-full items-center gap-4 rounded-glam border p-3 text-left transition duration-[180ms] ease-glam sm:p-4 ${
+                // Phones: photo and details side by side, time and price on
+                // their own row underneath, so neither is squeezed.
+                className={`grid w-full grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-glam border p-3 text-left transition duration-[180ms] ease-glam sm:flex sm:gap-4 sm:p-4 ${
                   isSelected
-                    ? "border-brand-700 bg-brand-50 ring-1 ring-brand-700"
-                    : "border-line bg-surface hover:border-brand-200"
+                    ? "border-accent-500 bg-accent-100/30 ring-1 ring-accent-500"
+                    : "border-line bg-surface hover:border-accent-500/60"
                 }`}
               >
                 <GlamImage
@@ -123,7 +125,7 @@ export function OfferList({ offers }: { offers: OfferRow[] }) {
                   </span>
                 </span>
 
-                <span className="shrink-0 text-right">
+                <span className="col-span-2 flex flex-wrap items-baseline justify-between gap-x-3 border-t border-line pt-2 sm:block sm:shrink-0 sm:border-0 sm:pt-0 sm:text-right">
                   {/* The soonest this person can actually come, which is what
                       the list is sorted by and the reason to pick one row
                       over another. */}
@@ -144,7 +146,7 @@ export function OfferList({ offers }: { offers: OfferRow[] }) {
                   </span>
                   <span
                     data-numeric
-                    className="mt-1 block text-lg font-bold text-ink"
+                    className="block text-lg font-bold text-ink sm:mt-1"
                   >
                     {formatMoney(offer.totalMinor)}
                   </span>

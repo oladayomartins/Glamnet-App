@@ -53,7 +53,7 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
         ))}
       </nav>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Booking value" value={formatMoney(summary.gmvMinor)} hint={`${summary.bookings} bookings`} />
         <Stat
           label="GLAMNET commission"

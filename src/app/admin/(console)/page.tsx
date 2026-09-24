@@ -41,7 +41,7 @@ export default async function AdminOverviewPage() {
     <div className="space-y-8">
       <AdminHeader title="Overview" lede="How GLAMNET is doing this month, and anything that needs a decision." />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Bookings this month" value={String(stats.bookingsThisMonth)} />
         <Stat label="Booking value this month" value={formatMoney(stats.gmvThisMonthMinor)} />
         <Stat label="Commission earned" value={formatMoney(stats.commissionThisMonthMinor)} tone="gold" />

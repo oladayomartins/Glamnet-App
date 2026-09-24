@@ -49,6 +49,7 @@ export default async function OnboardingPage({
   return (
     <OnboardingWizard
       initialStep={step ?? null}
+      welcome={!step && !provider.slug && provider.services.length === 0 && provider.onboardedAt === null}
       payoutsNotice={payouts ?? null}
       siteOrigin={siteUrl().replace(/^https?:\/\//, "")}
       testPayments={paymentGateway().mode === "simulated"}

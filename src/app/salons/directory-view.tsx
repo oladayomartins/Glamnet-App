@@ -145,10 +145,10 @@ export async function DirectoryView({
           ) : null}
         </EmptyState>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
-          <ul className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+          <ul className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
             {vendors.map((vendor) => (
-              <li key={vendor.id}>
+              <li key={vendor.id} className="min-w-0">
                 <Link
                   href={`/pro/${vendor.slug}?via=directory`}
                   className="group block overflow-hidden rounded-glam border border-line bg-surface shadow-card transition hover:border-accent-500"
@@ -202,7 +202,7 @@ export async function DirectoryView({
               </li>
             ))}
           </ul>
-          <div className="lg:sticky lg:top-24">
+          <div className="min-w-0 lg:sticky lg:top-24">
             <DirectoryMap
               near={place ? { lat: place.lat, lng: place.lng, label: place.postcode ?? place.outcode } : null}
               vendors={vendors.map((vendor) => ({
