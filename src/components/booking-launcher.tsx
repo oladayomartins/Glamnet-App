@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarBlank,
+  CaretDown,
+  CaretLeft,
   CaretRight,
   Lightning,
   MagnifyingGlass,
@@ -33,6 +35,13 @@ interface ServiceOption {
   reason?: "name" | "phrase" | "category";
 }
 
+type When =
+  | { kind: "now" }
+  /** A day, with no time yet — what you get before a service is chosen. */
+  | { kind: "day"; date: string }
+  /** A real slot off a vendor's calendar. `label` is what the pill shows. */
+  | { kind: "time"; date: string; at: string; label: string };
+
 interface CategoryGroup {
   name: string;
   services: ServiceOption[];
@@ -42,18 +51,23 @@ interface CategoryGroup {
 const HORIZON_DAYS = 7;
 
 /**
- * The hero booking module (§C-01 block 1).
+ * The hero booking bar (§C-01 block 1).
  *
- * Three questions in the order a customer can actually answer them — where,
- * what, when — each opening only once the one before it has an answer. The
- * old bar asked for a service and a town at once and left the customer to
- * work out that one constrained the other.
+ * A bar of fixed height, not a stack that grows. Each control opens its panel
+ * as an OVERLAY — absolutely positioned, floating over whatever is beneath —
+ * so answering a question never changes the height of anything. That matters
+ * here more than it usually would: the hero band's height decides how far the
+ * photograph behind it has to crop, so a module that grew as it was filled in
+ * re-cropped the picture under the customer's hands while they used it.
  *
- * It deliberately stops at the point of committing to anything. Submitting
- * hands the three answers to /search, which computes real offers from real
- * calendars; this module never prices, never reserves, and never decides
- * whether a booking is an emergency. It says what the rule is and lets the
- * server apply it.
+ * The timing pill sits above the bar, the way the reference puts "Pickup now"
+ * above its fields, and defaults to the soonest slot — which is what most
+ * people want and means the bar needs only two answers before it can search.
+ *
+ * It stops short of committing to anything. Submitting hands the answers to
+ * /search, which computes real offers from real calendars; this never prices,
+ * never reserves, and never decides whether a booking is an emergency. It
+ * states the rule and lets the server apply it.
  */
 export function BookingLauncher({
   areas,
@@ -69,16 +83,34 @@ export function BookingLauncher({
   const router = useRouter();
   const [area, setArea] = useState<ServiceArea | null>(null);
   const [service, setService] = useState<ServiceOption | null>(null);
-  const [when, setWhen] = useState<{ kind: "now" } | { kind: "day"; date: string } | null>(
-    null,
-  );
-  // Nothing is open on arrival. The three rows read as a summary of what will
-  // be asked, which is a calmer first impression than a panel already
-  // demanding an answer — and on a phone an open panel pushed everything
-  // below it off the screen before the page had said anything.
-  const [step, setStep] = useState<"where" | "what" | "when" | null>(null);
+  // Defaulted rather than required. "As soon as someone is free" is both the
+  // commonest answer and the one the marketplace is built around, so asking
+  // for it up front would be asking a question already answered.
+  const [when, setWhen] = useState<When>({ kind: "now" });
+  const [open, setOpen] = useState<"where" | "what" | "when" | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
+
+  // A panel that floats over the page has to close when attention leaves it,
+  // or it sits on top of whatever the customer looks at next.
+  useEffect(() => {
+    if (!open) return;
+
+    const onDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(null);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(null);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const go = () => {
     if (!area || !service) return;
@@ -86,176 +118,225 @@ export function BookingLauncher({
       q: service.name,
       location: area.sector,
     });
-    if (when?.kind === "now") params.set("availableToday", "1");
-    if (when?.kind === "day") params.set("date", when.date);
+    // "As soon as someone is free" sends NO timing filter. It used to send
+    // availableToday=1, which restricts offers to slots starting before
+    // midnight — so a search after the last appointment of the day returned
+    // "nobody covers that yet" while vendors were free in the morning.
+    // Offers already sort soonest-first over the whole horizon, which is what
+    // the words promise.
+    if (when.kind === "day") params.set("date", when.date);
+    if (when.kind === "time") params.set("at", when.at);
     router.push(`/search?${params.toString()}`);
   };
 
   return (
-    <div className="overflow-hidden rounded-glam border border-line bg-surface shadow-card">
-      <Step
-        index={1}
-        label="Where should we come?"
-        value={area ? `${area.sector} · ${area.city}` : null}
-        placeholder="Enter your service location"
-        icon={<MapPin size={18} weight="light" aria-hidden />}
-        open={step === "where"}
-        onToggle={() => setStep(step === "where" ? null : "where")}
-      >
-        <AreaPicker
-          areas={areas}
-          onPick={(picked) => {
-            setArea(picked);
-            // Changing where you are can change what is bookable, so the
-            // answer below it is cleared rather than silently carried over.
-            setService(null);
-            setStep("what");
-          }}
-        />
-      </Step>
-
-      <Step
-        index={2}
-        label="What would you like done?"
-        value={service ? service.name : null}
-        placeholder="Search for a service…"
-        icon={<MagnifyingGlass size={18} weight="light" aria-hidden />}
-        open={step === "what"}
-        disabled={!area}
-        disabledNote="Tell us where first — it decides who can reach you."
-        onToggle={() => setStep(step === "what" ? null : "what")}
-      >
-        <ServicePicker
-          hints={hints}
-          onPick={(picked) => {
-            setService(picked);
-            setStep("when");
-          }}
-        />
-      </Step>
-
-      <Step
-        index={3}
-        label="When do you need it?"
-        value={
-          when
-            ? when.kind === "now"
-              ? "As soon as someone is free"
-              : formatDayLabel(when.date)
-            : null
-        }
-        placeholder="Now, or pick a date"
-        icon={<CalendarBlank size={18} weight="light" aria-hidden />}
-        open={step === "when"}
-        disabled={!service}
-        disabledNote="Choose a service first."
-        last
-        onToggle={() => setStep(step === "when" ? null : "when")}
-      >
-        <WhenPicker
-          thresholdHours={thresholdHours}
-          value={when}
-          onPick={(picked) => {
-            setWhen(picked);
-            setStep(null);
-          }}
-        />
-      </Step>
-
-      <div className="border-t border-line p-3">
-        <Button
-          onClick={go}
-          disabled={!area || !service || !when}
-          className="w-full"
+    <div ref={rootRef} className="relative">
+      {/* When — the pill above the bar, already answered. */}
+      <div className="relative inline-block">
+        <button
+          type="button"
+          onClick={() => setOpen(open === "when" ? null : "when")}
+          aria-expanded={open === "when"}
+          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-sm font-semibold text-ink shadow-card ring-1 ring-line transition duration-[180ms] ease-glam hover:bg-sunken"
         >
-          Find my glam
-        </Button>
-        <p className="mt-2 text-center text-xs text-ink-muted">
-          {/*
-            The rule, not a verdict. Whether a booking is an emergency is
-            decided on the server from the gap between placing it and the
-            appointment, and nothing typed here can change that — so this says
-            what will be applied rather than claiming to have applied it.
-          */}
-          Appointments starting within {thresholdHours} hours of booking are
-          emergency bookings and are priced accordingly.
-        </p>
+          {when.kind === "now" ? (
+            <Lightning size={15} weight="light" aria-hidden />
+          ) : (
+            <CalendarBlank size={15} weight="light" aria-hidden />
+          )}
+          {when.kind === "now"
+            ? "As soon as someone is free"
+            : when.kind === "time"
+              ? when.label
+              : formatDayLabel(when.date)}
+          <CaretDown
+            size={13}
+            weight="bold"
+            aria-hidden
+            className="text-ink-muted"
+          />
+        </button>
       </div>
+
+      {/*
+        The bar. One row from `sm`, stacked below it, and its height does not
+        depend on what has been answered — the dividers move, nothing grows.
+      */}
+      {/* The bar and its two panels share a positioning context, so a panel
+          hangs off the BAR rather than off the fine print beneath it. */}
+      <div className="relative mt-3">
+        <div className="flex flex-col gap-2 rounded-glam border border-line bg-surface p-2 shadow-card sm:flex-row sm:items-center sm:gap-0">
+          <Field
+            label="Where"
+            value={area ? `${area.sector} · ${area.city}` : null}
+            placeholder="Your service location"
+            icon={<MapPin size={17} weight="light" aria-hidden />}
+            open={open === "where"}
+            onToggle={() => setOpen(open === "where" ? null : "where")}
+          />
+
+          <div className="hidden h-9 w-px shrink-0 bg-line sm:block" />
+
+          <Field
+            label="What"
+            value={service ? service.name : null}
+            placeholder="Search for a service…"
+            icon={<MagnifyingGlass size={17} weight="light" aria-hidden />}
+            open={open === "what"}
+            onToggle={() => setOpen(open === "what" ? null : "what")}
+          />
+
+          <Button
+            onClick={go}
+            disabled={!area || !service}
+            className="shrink-0 sm:ml-2 sm:w-auto"
+          >
+            Find my glam
+          </Button>
+        </div>
+
+        <Panel open={open === "where"} className="inset-x-0">
+          <AreaPicker
+            areas={areas}
+            onPick={(picked) => {
+              setArea(picked);
+              // Where you are can change what is bookable, so an answer taken
+              // under the old location is cleared rather than carried over —
+              // including the time, which came off one hub's vendors and means
+              // nothing against another's.
+              setService(null);
+              setWhen(forgetSlot(when));
+              setOpen("what");
+            }}
+          />
+        </Panel>
+
+        {/*
+          All three panels hang off the BAR, including the timing one whose
+          control sits above it. A panel dropping from the pill landed on top
+          of the bar and covered the two fields the customer had just been
+          reading.
+        */}
+        <Panel
+          open={open === "when"}
+          fit
+          className="left-0 w-[min(23rem,calc(100vw-2rem))]"
+        >
+          <WhenPicker
+            thresholdHours={thresholdHours}
+            area={area}
+            service={service}
+            value={when}
+            onPick={(picked) => {
+              setWhen(picked);
+              setOpen(null);
+            }}
+          />
+        </Panel>
+
+        <Panel open={open === "what"} className="inset-x-0">
+          <ServicePicker
+            hints={hints}
+            onPick={(picked) => {
+              setService(picked);
+              // A slot was free for the old service's duration. A longer one
+              // may not fit in it, so the time goes back to the soonest rather
+              // than submitting a start nobody can take.
+              setWhen(forgetSlot(when));
+              setOpen(null);
+            }}
+          />
+        </Panel>
+      </div>
+
+      <p className="mt-2 text-xs text-ink-muted">
+        {/*
+          The rule, not a verdict. Whether a booking is an emergency is decided
+          on the server from the gap between placing it and the appointment,
+          and nothing chosen here can change that.
+        */}
+        Within {thresholdHours} hours of booking counts as an emergency booking.
+      </p>
     </div>
   );
 }
 
-/** One question in the stack: a row that opens to reveal its own control. */
-function Step({
-  index,
+/**
+ * A floating panel.
+ *
+ * Absolute, so opening one cannot move anything. It is rendered only while
+ * open rather than hidden: a panel that is merely invisible still holds its
+ * contents in the tab order, and this one is full of buttons.
+ */
+function Panel({
+  open,
+  fit,
+  className = "",
+  children,
+}: {
+  open: boolean;
+  /**
+   * A panel holding one fixed thing rather than a list — the calendar. It is
+   * given room to show all of itself: a month that scrolls is worse than a
+   * month that is tall, because scrolling hides the weeks a customer is
+   * trying to compare.
+   */
+  fit?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className={`absolute top-full z-30 mt-2 overflow-y-auto rounded-glam border border-line bg-surface p-3 shadow-raised ${
+        fit ? "max-h-[min(34rem,85vh)]" : "max-h-[min(22rem,60vh)]"
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** One control in the bar: a label, and either the answer or the prompt. */
+function Field({
   label,
   value,
   placeholder,
   icon,
   open,
-  disabled,
-  disabledNote,
-  last,
   onToggle,
-  children,
 }: {
-  index: number;
   label: string;
   value: string | null;
   placeholder: string;
   icon: React.ReactNode;
   open: boolean;
-  disabled?: boolean;
-  disabledNote?: string;
-  last?: boolean;
   onToggle: () => void;
-  children: React.ReactNode;
 }) {
-  const panelId = useId();
-
   return (
-    <div className={last ? "" : "border-b border-line"}>
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={disabled}
-        aria-expanded={open}
-        aria-controls={panelId}
-        className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition duration-[180ms] ease-glam enabled:hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-55"
-      >
-        <span className="shrink-0 text-ink-muted">{icon}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-            {index}. {label}
-          </span>
-          <span
-            className={`block truncate text-[15px] ${
-              value ? "font-semibold text-ink" : "text-ink-muted"
-            }`}
-          >
-            {value ?? placeholder}
-          </span>
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className={`flex min-h-12 min-w-0 flex-1 items-center gap-2.5 rounded-glam-sm px-3 text-left transition duration-[180ms] ease-glam hover:bg-sunken ${
+        open ? "bg-sunken" : ""
+      }`}
+    >
+      <span className="shrink-0 text-ink-muted">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-ink-muted">
+          {label}
         </span>
-        <CaretRight
-          size={16}
-          weight="light"
-          aria-hidden
-          className={`shrink-0 text-ink-muted transition-transform duration-[180ms] ease-glam ${
-            open ? "rotate-90" : ""
+        <span
+          className={`block truncate text-[15px] leading-tight ${
+            value ? "font-semibold text-ink" : "text-ink-muted"
           }`}
-        />
-      </button>
-
-      {disabled && disabledNote ? (
-        <p className="px-4 pb-3 text-xs text-ink-muted">{disabledNote}</p>
-      ) : null}
-
-      {open && !disabled ? (
-        <div id={panelId} className="border-t border-line bg-sunken p-3">
-          {children}
-        </div>
-      ) : null}
-    </div>
+        >
+          {value ?? placeholder}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -567,30 +648,54 @@ function ServiceRow({
  */
 function WhenPicker({
   thresholdHours,
+  area,
+  service,
   value,
   onPick,
 }: {
   thresholdHours: number;
-  value: { kind: "now" } | { kind: "day"; date: string } | null;
-  onPick: (value: { kind: "now" } | { kind: "day"; date: string }) => void;
+  /** Both are needed before real times can be asked for. */
+  area: ServiceArea | null;
+  service: ServiceOption | null;
+  value: When;
+  onPick: (value: When) => void;
 }) {
-  const days = Array.from({ length: HORIZON_DAYS }, (_, offset) => {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() + offset);
-    return toDayValue(date);
-  });
+  const today = startOfToday();
+  // Offers look HORIZON_DAYS ahead and no further, so that is exactly how far
+  // a day can be chosen. A calendar that accepted a date the matcher cannot
+  // answer would be collecting an answer in order to throw it away.
+  const lastBookable = addDays(today, HORIZON_DAYS - 1);
+
+  const [month, setMonth] = useState(() => startOfMonth(today));
+  // The day being looked at, which is not yet the answer: choosing a day opens
+  // its times, and the answer is the time.
+  const [day, setDay] = useState<string | null>(null);
+
+  const canAskForTimes = Boolean(area && service);
+
+  if (day && canAskForTimes) {
+    return (
+      <TimePicker
+        day={day}
+        area={area!}
+        service={service!}
+        thresholdHours={thresholdHours}
+        onBack={() => setDay(null)}
+        onPick={onPick}
+      />
+    );
+  }
 
   return (
     <div>
       <button
         type="button"
         onClick={() => onPick({ kind: "now" })}
-        aria-pressed={value?.kind === "now"}
+        aria-pressed={value.kind === "now"}
         className={`flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 py-2.5 text-left ring-1 transition duration-[180ms] ${
-          value?.kind === "now"
-            ? "bg-surface ring-brand-200"
-            : "ring-line hover:bg-surface"
+          value.kind === "now"
+            ? "bg-brand-50 ring-brand-200"
+            : "ring-line hover:bg-sunken"
         }`}
       >
         <Lightning size={18} weight="light" aria-hidden className="shrink-0" />
@@ -599,38 +704,362 @@ function WhenPicker({
             As soon as someone is free
           </span>
           <span className="block text-xs text-ink-muted">
-            The earliest a vetted vendor can reach you today
+            The earliest a vetted vendor can reach you
           </span>
         </span>
       </button>
 
-      <p className="px-1 pb-1 pt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-        Or pick a day
-      </p>
-      <div className="rail flex gap-2 overflow-x-auto pb-1">
-        {days.map((day) => (
-          <button
-            key={day}
-            type="button"
-            onClick={() => onPick({ kind: "day", date: day })}
-            aria-pressed={value?.kind === "day" && value.date === day}
-            className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition duration-[180ms] ${
-              value?.kind === "day" && value.date === day
-                ? "bg-metal text-metal-ink"
-                : "bg-surface text-ink-muted ring-1 ring-line hover:text-ink"
-            }`}
-          >
-            {formatDayLabel(day)}
-          </button>
-        ))}
+      <div className="mt-3 border-t border-line pt-3">
+        <div className="flex items-center justify-between">
+          <MonthArrow
+            direction="back"
+            disabled={month <= startOfMonth(today)}
+            onClick={() => setMonth(addMonths(month, -1))}
+          />
+          <p aria-live="polite" className="text-sm font-semibold text-ink">
+            {month.toLocaleDateString("en-GB", {
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+          <MonthArrow
+            direction="forward"
+            disabled={month >= startOfMonth(lastBookable)}
+            onClick={() => setMonth(addMonths(month, 1))}
+          />
+        </div>
+
+        {/*
+          A real grid, Monday first, so the days sit under the weekday they
+          fall on — a row of pills could never show that, and "Mon 14" in a
+          scrolling strip made the customer read rather than look.
+        */}
+        <div
+          role="grid"
+          aria-label="Choose a day"
+          className="mt-2 grid grid-cols-7 gap-1"
+        >
+          {["M", "T", "W", "T", "F", "S", "S"].map((initial, index) => (
+            <div
+              key={index}
+              role="columnheader"
+              aria-label={WEEKDAY_NAMES[index]}
+              className="pb-1 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted"
+            >
+              {initial}
+            </div>
+          ))}
+
+          {monthGrid(month).map((date, index) => {
+            // Leading blanks before the first of the month. Keyed by position,
+            // which is stable for a given month.
+            if (!date) return <div key={`pad-${index}`} aria-hidden />;
+
+            const dayValue = toDayValue(date);
+            const bookable = date >= today && date <= lastBookable;
+            const selected =
+              (value.kind === "day" || value.kind === "time") &&
+              value.date === dayValue;
+            const isToday = date.getTime() === today.getTime();
+
+            return (
+              <button
+                key={dayValue}
+                type="button"
+                role="gridcell"
+                disabled={!bookable}
+                aria-selected={selected}
+                aria-label={`${date.toLocaleDateString("en-GB", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}${bookable ? "" : " — not bookable"}`}
+                onClick={() =>
+                  canAskForTimes
+                    ? setDay(dayValue)
+                    : onPick({ kind: "day", date: dayValue })
+                }
+                className={`flex h-11 items-center justify-center rounded-glam-sm text-sm tabular-nums transition duration-[180ms] ${
+                  selected
+                    ? "bg-metal font-bold text-metal-ink"
+                    : bookable
+                      ? "text-ink hover:bg-sunken"
+                      : "text-ink-muted/45"
+                } ${isToday && !selected ? "font-bold ring-1 ring-brand-200" : ""}`}
+              >
+                {date.getDate()}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <p className="px-1 pt-3 text-xs text-ink-muted">
-        Times come from vendors&rsquo; real calendars on the next screen. A slot
-        within {thresholdHours} hours of booking is an emergency booking.
+      <p className="mt-3 text-xs text-ink-muted">
+        {canAskForTimes
+          ? `Pick a day to see the times vendors actually have. Days are bookable ${HORIZON_DAYS} days ahead.`
+          : `Choose where and what first and the times for a day appear here. Days are bookable ${HORIZON_DAYS} days ahead.`}{" "}
+        A slot within {thresholdHours} hours of booking is an emergency booking.
       </p>
     </div>
   );
+}
+
+interface Slot {
+  startAt: string;
+  bookingType: string;
+  providerCount: number;
+}
+
+/**
+ * The times on a chosen day.
+ *
+ * Every one of these comes from the server, off the same grid the booking
+ * flow uses: the vendors who can deliver this service in this sector, their
+ * working hours, their existing appointments and the transition buffer
+ * between jobs. Nothing here is a guess at what a salon day looks like.
+ *
+ * Slots nobody is free for are shown struck through rather than left out —
+ * an absent 16:00 reads as "they do not work then", which is a different and
+ * untrue statement — and the emergency tag on a slot is the server's
+ * classification, not a comparison done here.
+ */
+function TimePicker({
+  day,
+  area,
+  service,
+  thresholdHours,
+  onBack,
+  onPick,
+}: {
+  day: string;
+  area: ServiceArea;
+  service: ServiceOption;
+  thresholdHours: number;
+  onBack: () => void;
+  onPick: (value: When) => void;
+}) {
+  const [state, setState] = useState<
+    | { status: "loading" }
+    | { status: "ready"; slots: Slot[] }
+    | { status: "error" }
+  >({ status: "loading" });
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/availability", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            hubId: area.hubId,
+            serviceIds: [service.id],
+            // The plain day, not an instant. `new Date(day).toISOString()`
+            // converts the client's midnight to UTC, so a BST browser asking
+            // for the 20th sent 2026-09-19T23:00Z and a UTC server read it
+            // back as the 19th — the previous day's times under the next
+            // day's heading. The booking flow has always sent this form.
+            date: day,
+          }),
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("unavailable");
+        const payload = await response.json();
+        setState({ status: "ready", slots: payload.slots ?? [] });
+      } catch (cause) {
+        if ((cause as Error).name !== "AbortError")
+          setState({ status: "error" });
+      }
+    })();
+
+    return () => controller.abort();
+  }, [day, area.hubId, service.id]);
+
+  const hours = state.status === "ready" ? hourlyStarts(state.slots) : [];
+  const free = hours.filter((hour) => hour.slot);
+
+  return (
+    <div>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition duration-[180ms] hover:bg-sunken hover:text-ink"
+          aria-label="Back to the calendar"
+        >
+          <CaretLeft size={16} weight="bold" aria-hidden />
+        </button>
+        <p className="text-sm font-semibold text-ink">{formatFullDay(day)}</p>
+      </div>
+
+      <p className="mt-1 px-1 text-xs text-ink-muted">
+        {service.name} · {formatDuration(service.durationMinutes)} ·{" "}
+        {area.sector}
+      </p>
+
+      {state.status === "loading" ? (
+        <p className="px-1 py-6 text-center text-sm text-ink-muted">
+          Reading vendors&rsquo; calendars…
+        </p>
+      ) : state.status === "error" ? (
+        <p role="alert" className="px-1 py-6 text-center text-sm text-warning">
+          Could not read the calendars just now. Pick another day, or search
+          without a time.
+        </p>
+      ) : free.length === 0 ? (
+        <p className="px-1 py-6 text-center text-sm text-ink-muted">
+          Nobody is free that day. Try another, or ask for the soonest slot.
+        </p>
+      ) : (
+        <div className="mt-3">
+          {/*
+            Emergency is never signalled by colour alone. Every hour in this
+            grid that the server classified as emergency carries the bolt, and
+            the band above says the word — the red ring is the third signal,
+            not the only one.
+          */}
+          {hours.some((hour) => hour.slot?.bookingType === "EMERGENCY") ? (
+            <p className="mb-2 flex items-center gap-1.5 rounded-glam-sm bg-emergency-soft px-2.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-emergency-ink">
+              <Lightning size={12} weight="fill" aria-hidden />
+              Emergency — within {thresholdHours} hours
+            </p>
+          ) : null}
+
+          <div className="grid grid-cols-4 gap-1.5">
+            {hours.map((hour) => {
+              const taken = !hour.slot;
+              const emergency = hour.slot?.bookingType === "EMERGENCY";
+
+              return (
+                <button
+                  key={hour.label}
+                  type="button"
+                  disabled={taken}
+                  onClick={() =>
+                    hour.slot &&
+                    onPick({
+                      kind: "time",
+                      date: day,
+                      at: hour.slot.startAt,
+                      label: `${formatDayLabel(day)}, ${formatClock(hour.slot.startAt)}`,
+                    })
+                  }
+                  aria-label={`${hour.label}${taken ? " — nobody free" : ""}${
+                    emergency ? " — emergency booking" : ""
+                  }`}
+                  className={`flex h-11 items-center justify-center rounded-glam-sm text-sm tabular-nums ring-1 transition duration-[180ms] ${
+                    taken
+                      ? "text-ink-muted/45 line-through ring-line/60"
+                      : emergency
+                        ? "text-emergency-ink ring-emergency/40 hover:bg-emergency-soft"
+                        : "text-ink ring-line hover:bg-sunken"
+                  }`}
+                >
+                  {emergency ? (
+                    <Lightning
+                      size={11}
+                      weight="fill"
+                      aria-hidden
+                      className="mr-1 shrink-0"
+                    />
+                  ) : null}
+                  {hour.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <p className="mt-3 text-xs text-ink-muted">
+        We show the first appointment from the hour you pick; struck-through
+        hours are ones nobody is free for. A slot within {thresholdHours} hours
+        of booking is an emergency booking.
+      </p>
+    </div>
+  );
+}
+
+/** One month step. Disabled when there is nothing bookable that way. */
+function MonthArrow({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: "back" | "forward";
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const Icon = direction === "back" ? CaretLeft : CaretRight;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={direction === "back" ? "Previous month" : "Next month"}
+      className="flex h-11 w-11 items-center justify-center rounded-full text-ink-muted transition duration-[180ms] enabled:hover:bg-sunken enabled:hover:text-ink disabled:opacity-30"
+    >
+      <Icon size={16} weight="bold" aria-hidden />
+    </button>
+  );
+}
+
+const WEEKDAY_NAMES = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
+/**
+ * The cells of a month, Monday first, padded with nulls to the first weekday.
+ *
+ * Trailing padding is left off deliberately: an empty cell at the end of the
+ * last row shows nothing and costs a row of height in a panel that is already
+ * floating over the page.
+ */
+function monthGrid(month: Date): (Date | null)[] {
+  const first = startOfMonth(month);
+  // getDay() is Sunday-first; the grid is Monday-first.
+  const lead = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(
+    month.getFullYear(),
+    month.getMonth() + 1,
+    0,
+  ).getDate();
+
+  return [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from(
+      { length: daysInMonth },
+      (_, index) => new Date(month.getFullYear(), month.getMonth(), index + 1),
+    ),
+  ];
+}
+
+function startOfToday(): Date {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(date: Date, months: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
 
 /** Local YYYY-MM-DD. `toISOString` would shift the day in any western zone. */
@@ -648,4 +1077,69 @@ function formatDayLabel(value: string): string {
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
   return date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
+}
+
+/** "Tuesday 15 September", for the heading over a day's times. */
+function formatFullDay(value: string): string {
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+/** 24-hour clock: a booking time is a fact, not a conversation. */
+function formatClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * One button per working hour, carrying that hour's earliest free slot.
+ *
+ * The server's grid is every quarter hour, which is right for the booking
+ * screen — where a slot is a thing being reserved — and far too much for a
+ * hero dropdown, where the customer is saying roughly when. Forty-odd buttons
+ * is a wall; a dozen is a choice.
+ *
+ * Reducing rather than filtering keeps it honest twice over. An hour is
+ * offered only if a vendor is genuinely free inside it, and the value sent is
+ * that vendor's real start time — never the round hour itself, which might be
+ * a moment nobody is free. An hour with nothing in it is still drawn, struck
+ * through, because an absent 16:00 reads as "they do not work then".
+ */
+function hourlyStarts(slots: Slot[]): { label: string; slot: Slot | null }[] {
+  const byHour = new Map<number, Slot>();
+  let first: number | null = null;
+  let last: number | null = null;
+
+  for (const slot of slots) {
+    const hour = new Date(slot.startAt).getHours();
+    if (first === null || hour < first) first = hour;
+    if (last === null || hour > last) last = hour;
+    if (slot.providerCount > 0 && !byHour.has(hour)) byHour.set(hour, slot);
+  }
+
+  if (first === null || last === null) return [];
+
+  return Array.from({ length: last - first + 1 }, (_, index) => {
+    const hour = first + index;
+    return {
+      label: `${String(hour).padStart(2, "0")}:00`,
+      slot: byHour.get(hour) ?? null,
+    };
+  });
+}
+
+/**
+ * Drop a chosen slot, keeping anything coarser.
+ *
+ * A time is only meaningful for the hub and service it was picked against: it
+ * came off those vendors' calendars, for that duration. A day survives — it
+ * is a preference, not an offer — and "soonest" always survives.
+ */
+function forgetSlot(value: When): When {
+  return value.kind === "time" ? { kind: "day", date: value.date } : value;
 }

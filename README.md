@@ -72,11 +72,9 @@ Migrations are therefore a deploy step, not a build step:
 npm run db:migrate:deploy   # against DIRECT_URL
 ```
 
-`20260920000000_catch_up_auth_media` adds the sign-in, vendor-approval and
-media columns that earlier schema changes shipped without a migration. It is
-idempotent, so a database that was brought up to date with `prisma db push`
-passes through it unchanged. `vercel.json` schedules the daily dispute-window
-sweep; set `CRON_SECRET` for it to run.
+`20260923000000_open_marketplace_directory` adds the storefront, commission
+and escrow columns and back-fills existing bookings' payouts. `vercel.json`
+schedules the daily dispute-window sweep; set `CRON_SECRET` for it to run.
 
 Set `DATABASE_URL` and `DIRECT_URL` in the host's environment for every
 environment you deploy to (on Vercel: Production, Preview and Development).

@@ -153,6 +153,83 @@
   --glam-page-max: 64rem;
 }
 
+/* --- Hero copy column ----------------------------------------------------
+   The width of the copy and the booking bar in the hero band.
+
+   A token rather than three Tailwind variants on one element. `lg:` and an
+   arbitrary `min-[1400px]:` have equal specificity, and Tailwind emits the
+   arbitrary one FIRST — checked by byte offset in the compiled stylesheet —
+   so `lg:max-w-[31rem]` won at 1440px and the bar's button spilled out of a
+   bar narrower than it was meant to be. Declaring the two media queries here,
+   in this order, settles it: the widths are read in the order written.
+
+   32rem between 1024 and 1400 keeps the copy clear of the photograph's own
+   column; 38rem from 1400 is the full-bleed arrangement, where the bar has
+   the cream half of the band to sit in. */
+:root {
+  --glam-hero-col: 34rem;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --glam-hero-col: 32rem;
+  }
+}
+
+@media (min-width: 1400px) {
+  :root {
+    --glam-hero-col: 38rem;
+  }
+}
+
+/* --- Hero photograph -----------------------------------------------------
+   Two arrangements, switched at the same 1400px the copy column uses.
+
+   In Tailwind because the breakpoints sort themselves; in plain CSS because
+   they do not. `lg:` and a 1400px variant have equal specificity and Tailwind
+   emitted the 1400px one FIRST — so at 1440 the `lg:` rules won and the band
+   quietly stayed in its column arrangement while every class on the element
+   said otherwise. Registering a named breakpoint did not change the order.
+   Here the order is the order written, and it is checked by reading the
+   image's computed box rather than trusting the classes.
+
+   Below 1400 the picture takes a column on the right, which is the only way
+   to keep the copy on cream when the crop zooms. From 1400 it runs the whole
+   band, with a wash of the band's own ground colour holding the left. */
+.hero-picture {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: 46%;
+}
+
+.hero-picture img {
+  object-position: 60% center;
+}
+
+.hero-fade-wash {
+  display: none;
+}
+
+@media (min-width: 1400px) {
+  .hero-picture {
+    inset-inline: 0;
+    width: auto;
+  }
+
+  .hero-picture img {
+    object-position: 72% center;
+  }
+
+  .hero-fade-edge {
+    display: none;
+  }
+
+  .hero-fade-wash {
+    display: block;
+  }
+}
+
 [data-theme="dark"] {
   /* Rose inverts to light-on-dark. Anything sitting *on* a brand fill must
      therefore flip too — that is what --glam-on-brand is for. */
@@ -198,6 +275,7 @@
 }
 
 @theme inline {
+
   --color-brand-50: var(--glam-rose-50);
   --color-brand-100: var(--glam-rose-100);
   --color-brand-200: var(--glam-rose-200);

@@ -48,6 +48,32 @@ export function brandMediaOrigin(): string {
 export const HERO_IMAGE_PATH = "/Hero Banner - Glamnet App.png";
 
 /**
+ * The "leave us a review on Google" button shown in the hero.
+ *
+ * A call to action rather than a certification: it claims nothing about a
+ * rating GLAMNET holds, which is why it can sit beside figures the platform
+ * calculated without reading as one of them.
+ *
+ * It says "click here", so it only renders when there is somewhere to click —
+ * see {@link GOOGLE_REVIEW_URL}.
+ */
+export const GOOGLE_REVIEW_BADGE_PATH = "/6293834730fb025780ee2968.png";
+
+/**
+ * Where that button goes: the GLAMNET business's own Google review form.
+ *
+ * Google builds it from the Place ID of the business listing —
+ * `https://search.google.com/local/writereview?placeid=<PLACE ID>` — and
+ * there is no generic address that works without one.
+ *
+ * Empty until that ID is to hand, and the button does not render while it is
+ * empty. A button reading "click here" that goes nowhere is worse on a home
+ * page than no button: it is the one thing a visitor is invited to do, and it
+ * fails silently.
+ */
+export const GOOGLE_REVIEW_URL = "";
+
+/**
  * Artwork for the category tiles, keyed by the category name as it is stored
  * on the service.
  *
