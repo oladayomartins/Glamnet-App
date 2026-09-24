@@ -19,6 +19,7 @@
  * gateway stands in: every hold "succeeds" instantly and no money moves. The
  * UI labels that mode as a test so it can never be mistaken for a charge.
  */
+import { randomUUID } from "node:crypto";
 
 export type PaymentMode = "stripe" | "simulated";
 
@@ -140,7 +141,12 @@ class StripeGateway implements PaymentGateway {
         capabilities: { transfers: { requested: true } },
         metadata: { providerId: input.providerId },
       },
-      `account-${input.providerId}`,
+      // Unique per attempt. Stripe replays whatever it first answered to a
+      // key for 24 hours, errors included, so a fixed per-vendor key would
+      // keep returning a refusal (e.g. from before Connect was enabled) long
+      // after the cause is fixed. Duplicates are prevented by the caller
+      // checking and claiming stripeAccountId instead.
+      `account-${input.providerId}-${randomUUID()}`,
     );
     return account.id;
   }
