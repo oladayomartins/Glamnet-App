@@ -34,7 +34,20 @@ export async function POST(
       lines: quote.price.lines,
       tipMinor: quote.settlement.tipMinor,
       totalMinor: quote.price.totalMinor,
-      chargeMinor: quote.price.totalMinor + quote.settlement.tipMinor,
+      discountMinor: quote.settlement.discountMinor,
+      chargeMinor: quote.price.totalMinor + quote.settlement.tipMinor - quote.settlement.discountMinor,
+      promo: quote.promo
+        ? {
+            code: quote.promo.code,
+            applied: quote.promo.outcome.ok,
+            label: quote.promo.label,
+            message: quote.promo.outcome.ok
+              ? quote.promo.outcome.limitedByShare
+                ? "Applied. This booking gets a smaller discount than usual."
+                : "Applied."
+              : quote.promo.outcome.reason,
+          }
+        : null,
     });
   } catch (error) {
     return errorResponse(error);

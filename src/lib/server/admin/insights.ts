@@ -78,6 +78,7 @@ export async function financeSummary(range: { from: Date; to: Date }) {
         providerPayoutMinor: true,
         tipMinor: true,
         trustFeeMinor: true,
+        discountMinor: true,
       },
     }),
     prisma.booking.groupBy({
@@ -126,6 +127,7 @@ export async function financeSummary(range: { from: Date; to: Date }) {
     trustFeesMinor: totals._sum.trustFeeMinor ?? 0,
     vendorPayoutsMinor: totals._sum.providerPayoutMinor ?? 0,
     tipsMinor: totals._sum.tipMinor ?? 0,
+    discountsMinor: totals._sum.discountMinor ?? 0,
     bySource: bySource.map((row) => ({
       source: row.source,
       bookings: row._count,

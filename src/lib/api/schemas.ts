@@ -85,6 +85,7 @@ export const storefrontCheckoutSchema = z.object({
   tipMinor: z.number().int().min(0).max(50_000).default(0),
   addressLine: z.string().max(300).optional(),
   notes: z.string().max(2_000).optional(),
+  promoCode: z.string().trim().max(40).optional(),
 });
 
 export const storefrontSlotsSchema = z.object({

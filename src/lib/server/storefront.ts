@@ -4,6 +4,7 @@ import { getActiveEmergencyConfig } from "./emergency-config";
 import { CALENDAR_HOLDING_STATUSES, loadProviderSchedule } from "./schedules";
 import { paymentGateway, type Authorisation } from "./payments";
 import { hasPriorBooking } from "./escrow";
+import { evaluatePromoCode, type PromoResult } from "./promos";
 import {
   addDays,
   addMinutes,
@@ -303,6 +304,8 @@ export interface StorefrontCheckoutRequest {
   tipMinor: number;
   addressLine?: string;
   notes?: string;
+  /** A promo code as the customer typed it. */
+  promoCode?: string;
 }
 
 /** The priced basket for a storefront checkout, before anything is written. */
@@ -353,6 +356,22 @@ export async function quoteStorefront(
     hasPriorBooking: await hasPriorBooking(request.customerId, provider.id),
   });
 
+  // A promo is worked out against the undiscounted split: GLAMNET's share of
+  // it is the most any code can give away.
+  const undiscounted = settlementFields(price, commission, request.tipMinor);
+  let promo: PromoResult | null = null;
+  const promoLines = menu.map((service) => ({ category: service.category, priceMinor: service.priceMinor }));
+  if (request.promoCode?.trim()) {
+    promo = await evaluatePromoCode(request.promoCode, {
+      now,
+      customerId: request.customerId,
+      lines: promoLines,
+      platformShareMinor:
+        price.totalMinor + undiscounted.tipMinor - undiscounted.providerPayoutMinor,
+    });
+  }
+  const discountMinor = promo?.outcome.ok ? promo.outcome.discountMinor : 0;
+
   return {
     provider,
     basket,
@@ -362,7 +381,9 @@ export async function quoteStorefront(
     duration,
     price,
     commission,
-    settlement: settlementFields(price, commission, request.tipMinor),
+    promo,
+    promoLines,
+    settlement: settlementFields(price, commission, request.tipMinor, discountMinor),
   };
 }
 
@@ -379,6 +400,10 @@ export async function createStorefrontBooking(
 ): Promise<{ bookingId: string; authorisation: Authorisation }> {
   await releaseAbandonedCheckouts(request.providerId, now);
   const quote = await quoteStorefront(request, now);
+  if (quote.promo && !quote.promo.outcome.ok) {
+    throw new BookingError(quote.promo.outcome.reason, "INVALID_TRANSITION", 422);
+  }
+  const promo = quote.promo?.outcome.ok ? quote.promo : null;
   const window = reservationWindow(request.appointmentStartAt, quote.duration);
 
   const booking = await prisma.$transaction(
@@ -407,8 +432,27 @@ export async function createStorefrontBooking(
         );
       }
 
+      // Re-check the code's limits under its own lock, so the last use of a
+      // limited code cannot be claimed by two checkouts at once.
+      if (promo) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`promo:${promo.promoCodeId}`}))`;
+        const recheck = await evaluatePromoCode(
+          request.promoCode ?? "",
+          {
+            now,
+            customerId: request.customerId,
+            lines: quote.promoLines,
+            platformShareMinor: quote.settlement.discountMinor,
+          },
+          tx,
+        );
+        if (!recheck.outcome.ok) {
+          throw new BookingError(recheck.outcome.reason, "INVALID_TRANSITION", 422);
+        }
+      }
+
       const sector = quote.provider.workspaceSector || quote.provider.hub.sector;
-      return tx.booking.create({
+      const created = await tx.booking.create({
         data: {
           bookingType: quote.bookingType,
           bookingCreatedAt: now,
@@ -425,6 +469,7 @@ export async function createStorefrontBooking(
           trustFeeMinor: quote.price.trustFeeMinor,
           totalInvoicePriceMinor: quote.price.totalMinor,
           ...quote.settlement,
+          promoCodeId: promo?.promoCodeId ?? null,
           source: request.source,
           serviceLocation: request.serviceLocation,
           // Instant booking: the vendor's calendar is held from this moment,
@@ -454,19 +499,31 @@ export async function createStorefrontBooking(
                 fromStatus: "REQUESTED",
                 toStatus: "ACCEPTED",
                 actor: "SYSTEM",
-                note: `${request.source === "DIRECT_LINK" ? "Direct link" : "Marketplace"} booking; Rule ${quote.commission.rule} (${quote.commission.commissionBps / 100}% commission). Awaiting card hold.`,
+                note: `${request.source === "DIRECT_LINK" ? "Direct link" : "Marketplace"} booking; Rule ${quote.commission.rule} (${quote.commission.commissionBps / 100}% commission).${promo ? ` Promo ${promo.code}: ${quote.settlement.discountMinor}p off, GLAMNET-funded.` : ""} Awaiting card hold.`,
               },
             ],
           },
         },
       });
+
+      if (promo?.promoCodeId) {
+        await tx.promoRedemption.create({
+          data: {
+            promoCodeId: promo.promoCodeId,
+            bookingId: created.id,
+            customerId: request.customerId,
+            discountMinor: quote.settlement.discountMinor,
+          },
+        });
+      }
+      return created;
     },
     { maxWait: 8_000, timeout: 15_000 },
   );
 
   const authorisation = await paymentGateway().authorise({
     bookingId: booking.id,
-    amountMinor: quote.price.totalMinor + quote.settlement.tipMinor,
+    amountMinor: quote.price.totalMinor + quote.settlement.tipMinor - quote.settlement.discountMinor,
     customerEmail: request.customerEmail,
     description: `GLAMNET — ${quote.provider.name}`,
   });
