@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/server/prisma";
@@ -26,6 +27,13 @@ export default async function AccountPage({
     requireUser("/account"),
     searchParams,
   ]);
+
+  // Every sign-in, sign-up and email link lands here, so this is where each
+  // account type is sent to its own dashboard. The role was fixed at sign-up
+  // and is read from the database, never from the URL. /provider picks the
+  // storefront wizard, the review screen or the live dashboard for a pro.
+  if (user.role === "PROVIDER") redirect("/provider");
+  if (user.role === "ADMIN") redirect("/admin");
 
   const tab: Tab = TABS.some((entry) => entry.key === requestedTab)
     ? (requestedTab as Tab)
@@ -76,22 +84,6 @@ export default async function AccountPage({
         >
           Book a service
         </Link>
-        {user.role === "PROVIDER" ? (
-          <Link
-            href={user.providerApproved ? `/provider/${user.providerId}` : "/provider/pending"}
-            className="rounded-glam-sm bg-surface px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line"
-          >
-            Vendor dashboard
-          </Link>
-        ) : null}
-        {user.role === "ADMIN" ? (
-          <Link
-            href="/admin"
-            className="rounded-glam-sm bg-surface px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line"
-          >
-            Admin dashboard
-          </Link>
-        ) : null}
         <form action="/auth/sign-out" method="post">
           <button
             type="submit"
