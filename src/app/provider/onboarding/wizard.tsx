@@ -31,7 +31,6 @@ import { BioLink } from "@/components/bio-link";
 import { BrandImage } from "@/components/brand-image";
 import { DocumentUpload } from "@/components/document-upload";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
-import { SPECIALTY_HUBS } from "@/lib/domain/specialty-hubs";
 import { slugify } from "@/lib/domain/storefront";
 import { categoryImagePath } from "@/lib/imagekit";
 import { formatDuration, formatMoney } from "@/lib/format";
@@ -128,6 +127,8 @@ export function OnboardingWizard(props: {
   gaps: string[];
   profile: Profile;
   catalogue: CatalogueItem[];
+  /** The categories an admin has left visible, in their order. */
+  categories: { slug: string; name: string; emoji: string; blurb: string; imageUrl: string }[];
   menu: MenuEntry[];
   documents: { id: string; kind: string; fileName: string; status: string }[];
   lookbook: { url: string; fileId: string; caption: string }[];
@@ -144,7 +145,7 @@ export function OnboardingWizard(props: {
         .map((entry) => props.catalogue.find((item) => item.id === entry.serviceId)?.category)
         .filter((category): category is string => Boolean(category)),
     );
-    return SPECIALTY_HUBS.map((hub) => hub.name).filter((name) => fromMenu.has(name));
+    return props.categories.map((hub) => hub.name).filter((name) => fromMenu.has(name));
   });
   const [looks, setLooks] = useState<Look[]>(() => [0, 1, 2].map((at) => props.lookbook[at] ?? null));
   const [docKind, setDocKind] = useState<string>("INSURANCE");
@@ -413,9 +414,9 @@ export function OnboardingWizard(props: {
 
             {step.key === "specialties" ? (
               <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-                {SPECIALTY_HUBS.map((hub, at) => {
+                {props.categories.map((hub, at) => {
                   const selected = hubs.includes(hub.name);
-                  const image = categoryImagePath(hub.name);
+                  const image = hub.imageUrl ? null : categoryImagePath(hub.name);
                   return (
                     <button
                       key={hub.slug}
@@ -431,7 +432,16 @@ export function OnboardingWizard(props: {
                       }`}
                     >
                       <span className="relative block aspect-[4/3] overflow-hidden bg-metal sm:aspect-[16/9]">
-                        {image ? (
+                        {hub.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded ImageKit tile
+                          <img
+                            src={`${hub.imageUrl}?tr=w-480,h-270,fo-auto`}
+                            alt=""
+                            className={`h-full w-full object-cover transition duration-[480ms] ease-glam group-hover:scale-105 ${
+                              selected ? "" : "opacity-80 saturate-[.85]"
+                            }`}
+                          />
+                        ) : image ? (
                           <BrandImage
                             path={image}
                             alt=""
@@ -479,7 +489,7 @@ export function OnboardingWizard(props: {
                 {hubs.map((hub) => (
                   <section key={hub}>
                     <h2 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
-                      <span aria-hidden>{SPECIALTY_HUBS.find((entry) => entry.name === hub)?.emoji}</span>
+                      <span aria-hidden>{props.categories.find((entry) => entry.name === hub)?.emoji}</span>
                       {hub}
                     </h2>
                     <ul className="mt-3 grid items-start gap-2.5 sm:grid-cols-2">
@@ -972,7 +982,7 @@ export function OnboardingWizard(props: {
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {hubs.map((hub) => (
                   <span key={hub} className="pop-in rounded-full bg-sunken px-2.5 py-1 text-[11px] font-medium text-ink ring-1 ring-line">
-                    {SPECIALTY_HUBS.find((entry) => entry.name === hub)?.emoji} {hub}
+                    {props.categories.find((entry) => entry.name === hub)?.emoji} {hub}
                   </span>
                 ))}
               </div>

@@ -36,19 +36,26 @@ export default async function ProviderPendingPage() {
       })
     : null;
 
-  const rejected = provider?.approvalStatus === "REJECTED";
+  const suspended = provider?.approvalStatus === "SUSPENDED";
+  const rejected = provider?.approvalStatus === "REJECTED" || suspended;
 
   return (
     <div className="mx-auto max-w-lg py-8">
       <Card className={`p-6 ${rejected ? "border-l-4 border-l-warning" : ""}`}>
         <h1 className="font-display text-2xl font-bold text-ink">
-          {rejected ? "Application not approved" : "Application under review"}
+          {suspended
+            ? "Your storefront is paused"
+            : rejected
+              ? "Application not approved"
+              : "Application under review"}
         </h1>
 
         {rejected ? (
           <p className="mt-2 text-sm text-ink">
             {provider?.approvalNote ||
-              "Your application was not approved. Contact support if you think this is a mistake."}
+              (suspended
+                ? "An administrator has taken your storefront offline. Contact support to have it reinstated."
+                : "Your application was not approved. Contact support if you think this is a mistake.")}
           </p>
         ) : (
           <p className="mt-2 text-sm text-ink-muted">

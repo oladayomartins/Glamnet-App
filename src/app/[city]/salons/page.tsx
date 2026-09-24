@@ -4,7 +4,10 @@ import { notFound } from "next/navigation";
 import { MapPin, SealCheck, Star, Storefront } from "@phosphor-icons/react/dist/ssr";
 import { prisma } from "@/lib/server/prisma";
 import { listDirectory, workspaceLabel } from "@/lib/server/storefront";
-import { hubBySlug, SPECIALTY_HUBS } from "@/lib/domain/specialty-hubs";
+import { listCategories } from "@/lib/server/categories";
+import { getSessionUser } from "@/lib/auth/session";
+import { AdSlot } from "@/components/ad-slot";
+import { CampaignBanner } from "@/components/campaign-banner";
 import { normaliseSector } from "@/lib/domain/postcode";
 import { GlamImage } from "@/components/glam-image";
 import { EmptyState } from "@/components/ui";
@@ -38,7 +41,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 /**
  * The open marketplace directory (Directory §A): /sheffield/salons.
  *
- * Five Specialty Hub tiles filter the grid; a postcode sector (typed or
+ * The Specialty Hub tiles (managed in the admin console) filter the grid; a postcode sector (typed or
  * geolocated) sorts it nearest-first. Everything is in the URL, so a filtered
  * view can be shared and the back button behaves.
  */
@@ -53,7 +56,8 @@ export default async function DirectoryPage({
   const city = await resolveCity(citySlug);
   if (!city) notFound();
 
-  const hub = query.hub ? hubBySlug(query.hub) : null;
+  const [categories, viewer] = await Promise.all([listCategories(), getSessionUser()]);
+  const hub = query.hub ? (categories.find((category) => category.slug === query.hub) ?? null) : null;
   const sector = query.sector ? normaliseSector(query.sector) : null;
   const vendors = await listDirectory({ city, hubName: hub?.name, sector });
 
@@ -82,9 +86,14 @@ export default async function DirectoryPage({
         </p>
       </header>
 
-      {/* --- The 5-category visual hub grid ----------------------------- */}
-      <nav aria-label="Specialty hubs" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {SPECIALTY_HUBS.map((tile) => {
+      <CampaignBanner viewer={viewer?.role ?? null} />
+
+      {/* --- The category hub grid (admins manage the list) -------------- */}
+      <nav
+        aria-label="Specialty hubs"
+        className={`grid grid-cols-2 gap-3 sm:grid-cols-3 ${categories.length % 4 === 0 ? "lg:grid-cols-4" : categories.length >= 6 ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}
+      >
+        {categories.map((tile) => {
           const active = tile.slug === hub?.slug;
           return (
             <Link
@@ -111,6 +120,8 @@ export default async function DirectoryPage({
 
       <SectorFilter current={sector} basePath={`/${citySlug}/salons`} hub={hub?.slug ?? null} />
 
+      <AdSlot slot="DIRECTORY_TOP" />
+
       {vendors.length === 0 ? (
         <EmptyState icon={<Storefront size={24} weight="light" />} title="Nobody here yet">
           No verified vendors in this hub yet.{" "}
@@ -135,6 +146,11 @@ export default async function DirectoryPage({
                     sizes="(max-width: 640px) 100vw, 33vw"
                     className="h-full w-full object-cover"
                   />
+                  {vendor.isFeatured ? (
+                    <span className="absolute right-3 top-3 rounded-full bg-accent-500 px-2.5 py-1 text-xs font-bold text-metal-ink">
+                      Featured
+                    </span>
+                  ) : null}
                   {vendor.distanceKm !== null ? (
                     <span data-numeric className="absolute left-3 top-3 rounded-full bg-obsidian/85 px-2.5 py-1 text-xs font-semibold text-on-obsidian">
                       {vendor.distanceKm === 0 ? `In ${vendor.sector}` : `${vendor.distanceKm.toFixed(1)} km`}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser, type Role, type SessionUser } from "./session";
+import { getSessionUser, isSessionSuspended, type Role, type SessionUser } from "./session";
 
 /**
  * Route-handler authorisation.
@@ -13,6 +13,15 @@ export async function requireApiRole(
   roles: Role[],
 ): Promise<{ user: SessionUser } | { response: NextResponse }> {
   const user = await getSessionUser();
+
+  if (!user && (await isSessionSuspended())) {
+    return {
+      response: NextResponse.json(
+        { error: { code: "ACCOUNT_SUSPENDED", message: "This account has been suspended." } },
+        { status: 403 },
+      ),
+    };
+  }
 
   if (!user) {
     return {

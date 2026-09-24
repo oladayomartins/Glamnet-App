@@ -65,7 +65,7 @@ export default async function AdminBookingPage({
     <div className="space-y-8">
       <div>
         <Link
-          href="/admin"
+          href="/admin/bookings"
           className="tap-44 text-sm text-ink-muted hover:text-brand-700"
         >
           ← Booking list
