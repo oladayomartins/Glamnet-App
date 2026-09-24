@@ -31,6 +31,7 @@ import {
   GOOGLE_REVIEW_URL,
   HERO_IMAGE_PATH,
   categoryImagePath,
+  HOW_IT_WORKS_IMAGE_PATHS,
 } from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
 
@@ -519,13 +520,14 @@ export default async function MarketingPage() {
         <ol className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
           {HOW_IT_WORKS.map((step, index) => (
             <li key={step.title}>
-              {/* The image slot is the brand metal until photography for these
-                  three steps exists. It holds its ratio either way, so the
-                  block does not reflow when pictures arrive. */}
-              <div className="relative overflow-hidden rounded-glam">
-                <span
-                  aria-hidden
-                  className="block aspect-[16/10] w-full bg-metal"
+              <div className="relative overflow-hidden rounded-glam bg-metal">
+                <BrandImage
+                  path={HOW_IT_WORKS_IMAGE_PATHS[index]}
+                  alt=""
+                  width={640}
+                  height={480}
+                  sizes="(max-width: 640px) 100vw, 33vw"
+                  className="block aspect-[4/3] w-full object-cover"
                 />
                 <span
                   aria-hidden

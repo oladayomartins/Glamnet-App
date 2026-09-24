@@ -164,7 +164,7 @@ export default async function AccountPage({
                   </p>
                 </div>
                 <span data-numeric className="text-sm font-bold text-ink">
-                  {formatMoney(booking.totalInvoicePriceMinor)}
+                  {formatMoney(booking.totalInvoicePriceMinor + booking.tipMinor - booking.discountMinor)}
                 </span>
               </Link>
             ))}

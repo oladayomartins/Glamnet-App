@@ -29,7 +29,9 @@ interface Quote {
   bookingType: string;
   lines: { key: string; label: string; amountMinor: number; emphasis?: string }[];
   tipMinor: number;
+  discountMinor: number;
   chargeMinor: number;
+  promo: { code: string; applied: boolean; label: string; message: string } | null;
 }
 
 const TIP_PRESETS = [0, 500, 1000, 2000];
@@ -75,6 +77,11 @@ export function StorefrontBooking({
   const [addressLine, setAddressLine] = useState("");
   const [notes, setNotes] = useState("");
   const [tipMinor, setTipMinor] = useState(0);
+  // What is typed, and what has been sent for pricing. Only an applied code
+  // travels with the checkout.
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedCode, setAppliedCode] = useState("");
+  const [promoNote, setPromoNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -138,9 +145,10 @@ export function StorefrontBooking({
             tipMinor,
             addressLine,
             notes,
+            ...(appliedCode ? { promoCode: appliedCode } : {}),
           }
         : null,
-    [basket, startAt, source, location, tipMinor, addressLine, notes],
+    [basket, startAt, source, location, tipMinor, addressLine, notes, appliedCode],
   );
 
   // The single transparent price card, recomputed on the server.
@@ -159,6 +167,16 @@ export function StorefrontBooking({
         if (!response.ok) throw new Error(payload.error?.message ?? "Could not price this.");
         setQuote(payload);
         setError(null);
+        if (payload.promo) {
+          setPromoNote({
+            ok: payload.promo.applied,
+            text: payload.promo.applied
+              ? `${payload.promo.code} · ${payload.promo.label}. ${payload.promo.message}`
+              : payload.promo.message,
+          });
+          // A refused code is dropped, so the booking itself is never blocked.
+          if (!payload.promo.applied) setAppliedCode("");
+        }
       } catch (cause) {
         if (!controller.signal.aborted) {
           setQuote(null);
@@ -380,6 +398,59 @@ export function StorefrontBooking({
               </div>
             </fieldset>
 
+            <div>
+              <label htmlFor="promo-code" className="text-sm font-medium text-ink">
+                Promo code
+              </label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  id="promo-code"
+                  value={promoInput}
+                  onChange={(event) => setPromoInput(event.target.value.toUpperCase())}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      if (promoInput.trim()) setAppliedCode(promoInput.trim());
+                    }
+                  }}
+                  placeholder="e.g. WELCOME10"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="min-h-11 min-w-0 flex-1 rounded-glam-input border border-line bg-surface px-3 font-mono text-[15px] uppercase tracking-wider text-ink outline-none focus:border-accent-500"
+                />
+                {appliedCode && promoNote?.ok ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppliedCode("");
+                      setPromoInput("");
+                      setPromoNote(null);
+                    }}
+                    className="min-h-11 rounded-full border border-line px-4 text-sm text-ink-muted hover:text-ink"
+                  >
+                    Remove
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!promoInput.trim() || !request}
+                    onClick={() => setAppliedCode(promoInput.trim())}
+                    className="min-h-11 rounded-full border border-accent-500 px-4 text-sm font-semibold text-accent-700 transition hover:bg-accent-100/40 disabled:opacity-40"
+                  >
+                    Apply
+                  </button>
+                )}
+              </div>
+              {promoNote ? (
+                <p
+                  role="status"
+                  className={`rise-in mt-1.5 text-xs ${promoNote.ok ? "text-normal-ink" : "text-warning"}`}
+                >
+                  {promoNote.text}
+                </p>
+              ) : null}
+            </div>
+
             {quote ? (
               <dl className="space-y-1.5 border-t border-line pt-3">
                 {quote.lines.map((line) => (
@@ -397,6 +468,12 @@ export function StorefrontBooking({
                   <div className="flex justify-between gap-4 text-sm text-ink">
                     <dt>Tip</dt>
                     <dd data-numeric>{formatMoney(quote.tipMinor)}</dd>
+                  </div>
+                ) : null}
+                {quote.discountMinor > 0 ? (
+                  <div className="flex justify-between gap-4 text-sm font-semibold text-normal-ink">
+                    <dt>Promo {quote.promo?.code}</dt>
+                    <dd data-numeric>−{formatMoney(quote.discountMinor)}</dd>
                   </div>
                 ) : null}
                 <div className="flex justify-between gap-4 border-t border-line pt-2">

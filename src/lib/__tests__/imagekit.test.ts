@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   CATEGORY_IMAGE_PATHS,
   HERO_IMAGE_PATH,
+  HOW_IT_WORKS_IMAGE_PATHS,
   brandMediaOrigin,
   categoryImagePath,
   isImageKitConfigured,
@@ -36,7 +37,7 @@ describe("brandMediaOrigin", () => {
 
 describe("brand artwork paths", () => {
   it("gives every path a leading slash and no double slash when joined", () => {
-    const paths = [HERO_IMAGE_PATH, ...Object.values(CATEGORY_IMAGE_PATHS)];
+    const paths = [HERO_IMAGE_PATH, ...Object.values(CATEGORY_IMAGE_PATHS), ...HOW_IT_WORKS_IMAGE_PATHS];
 
     for (const path of paths) {
       expect(path.startsWith("/")).toBe(true);
@@ -64,11 +65,13 @@ describe("brand artwork paths", () => {
       "European & Western",
       "MUA Glam & Asian Bridal",
       "Manicures & Pedicures",
+      "Massage & Wellness",
     ]) {
       expect(categoryImagePath(category)).not.toBeNull();
     }
-    // No artwork drawn for massage yet: it falls through to the brand metal.
-    expect(categoryImagePath("Massage & Wellness")).toBeNull();
+    // A category added in the admin without artwork falls through to the
+    // brand metal (or the photo uploaded against it there).
+    expect(categoryImagePath("Lashes & Brows")).toBeNull();
   });
 });
 

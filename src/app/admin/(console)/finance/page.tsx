@@ -55,7 +55,12 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Booking value" value={formatMoney(summary.gmvMinor)} hint={`${summary.bookings} bookings`} />
-        <Stat label="GLAMNET commission" value={formatMoney(summary.commissionMinor)} tone="gold" />
+        <Stat
+          label="GLAMNET commission"
+          value={formatMoney(summary.commissionMinor)}
+          tone="gold"
+          hint={summary.discountsMinor ? `less ${formatMoney(summary.discountsMinor)} promo discounts` : undefined}
+        />
         <Stat label="Card fees collected" value={formatMoney(summary.processingFeesMinor)} hint="2% card processing" />
         <Stat label="Trust fees" value={formatMoney(summary.trustFeesMinor)} />
         <Stat label="Owed to vendors" value={formatMoney(summary.vendorPayoutsMinor)} hint={`incl. ${formatMoney(summary.tipsMinor)} tips`} />

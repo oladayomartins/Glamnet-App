@@ -14,6 +14,7 @@ import {
   UsersThree,
   Wallet,
   Television,
+  Ticket,
 } from "@phosphor-icons/react";
 
 const SECTIONS = [
@@ -23,6 +24,7 @@ const SECTIONS = [
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
   { href: "/admin/catalogue", label: "Categories & services", icon: Scissors },
   { href: "/admin/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/admin/promos", label: "Promo codes", icon: Ticket },
   { href: "/admin/ads", label: "Ad placements", icon: Television },
   { href: "/admin/finance", label: "Finance", icon: Wallet },
   { href: "/admin/activity", label: "Activity log", icon: ClockCounterClockwise },

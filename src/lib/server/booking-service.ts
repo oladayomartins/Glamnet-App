@@ -67,6 +67,7 @@ export function settlementFields(
   },
   commission: CommissionDecision,
   tipMinor = 0,
+  discountMinor = 0,
 ) {
   const result = settle({
     totalMinor: price.totalMinor,
@@ -75,15 +76,18 @@ export function settlementFields(
     trustFeeMinor: price.trustFeeMinor,
     tipMinor,
     commission,
+    discountMinor,
   });
+  const tip = result.chargeMinor + result.discountMinor - price.totalMinor;
   return {
     firstDiscoveryBooking: commission.firstDiscoveryBooking,
     commissionBps: commission.commissionBps,
-    tipMinor: result.chargeMinor - price.totalMinor,
+    tipMinor: tip,
+    discountMinor: result.discountMinor,
     platformCommissionMinor: result.platformCommissionMinor,
     processingFeeMinor: result.processingFeeMinor,
     providerPayoutMinor: result.providerPayoutMinor,
-    providerEarningsMinor: result.providerPayoutMinor - (result.chargeMinor - price.totalMinor),
+    providerEarningsMinor: result.providerPayoutMinor - tip,
     providerEmergencyEarningsMinor: applyBps(
       price.emergencySurchargeMinor,
       10_000 - commission.commissionBps,

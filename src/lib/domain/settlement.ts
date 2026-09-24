@@ -81,11 +81,20 @@ export interface SettlementInput {
   trustFeeMinor: number;
   tipMinor: number;
   commission: CommissionDecision;
+  /**
+   * A GLAMNET-funded promo discount off the charge. Clamped to the platform's
+   * own share of the booking (trust fee + commission + card fee), so the
+   * vendor's payout never moves and never exceeds what the card is charged —
+   * the transfer is tied to the charge and cannot be larger than it.
+   */
+  discountMinor?: number;
 }
 
 export interface Settlement {
-  /** What the card is charged: total plus tip. */
+  /** What the card is charged: total plus tip, less any promo discount. */
   chargeMinor: number;
+  /** The promo discount actually given, after clamping. */
+  discountMinor: number;
   platformCommissionMinor: number;
   processingFeeMinor: number;
   /** Transferred to the vendor's connected account at escrow release. */
@@ -97,7 +106,9 @@ export interface Settlement {
 /** Split one booking's money between the vendor and the platform. */
 export function settle(input: SettlementInput): Settlement {
   const tipMinor = Math.max(0, Math.round(input.tipMinor));
-  const chargeMinor = input.totalMinor + tipMinor;
+  // Everything the vendor is owed is worked out on the undiscounted charge, so
+  // a promo is invisible in their payout.
+  const fullChargeMinor = input.totalMinor + tipMinor;
 
   const platformCommissionMinor = applyBps(
     input.commissionableMinor,
@@ -105,24 +116,40 @@ export function settle(input: SettlementInput): Settlement {
   );
   const processingFeeMinor =
     input.commission.rule === "A"
-      ? applyBps(chargeMinor, CARD_PROCESSING_FEE_BPS)
+      ? applyBps(fullChargeMinor, CARD_PROCESSING_FEE_BPS)
       : 0;
 
   const providerPayoutMinor = Math.max(
     0,
-    chargeMinor -
+    fullChargeMinor -
       input.trustFeeMinor -
       platformCommissionMinor -
       processingFeeMinor,
   );
 
+  const platformShareMinor = fullChargeMinor - providerPayoutMinor;
+  const discountMinor = Math.min(
+    platformShareMinor,
+    Math.max(0, Math.round(input.discountMinor ?? 0)),
+  );
+  const chargeMinor = fullChargeMinor - discountMinor;
+
   return {
     chargeMinor,
+    discountMinor,
     platformCommissionMinor,
     processingFeeMinor,
     providerPayoutMinor,
     platformRetainedMinor: chargeMinor - providerPayoutMinor,
   };
+}
+
+/**
+ * The most a GLAMNET-funded discount can be on a booking: everything the
+ * platform would keep from it.
+ */
+export function platformShareMinor(input: Omit<SettlementInput, "discountMinor">): number {
+  return settle(input).platformRetainedMinor;
 }
 
 /** Tips are bounded so a slip of the thumb cannot authorise £9,999. */

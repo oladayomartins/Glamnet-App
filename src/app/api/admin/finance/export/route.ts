@@ -34,13 +34,14 @@ export async function GET(request: Request) {
     const header = [
       "booking_id", "created_at", "appointment_at", "status", "payment_status", "settlement_status",
       "source", "vendor", "customer", "total_gbp", "commission_gbp", "commission_rate_pct",
-      "card_fee_gbp", "tip_gbp", "vendor_payout_gbp", "escrow_released_at",
+      "card_fee_gbp", "tip_gbp", "promo_discount_gbp", "charged_gbp", "vendor_payout_gbp", "escrow_released_at",
     ];
     const rows = bookings.map((b) => [
       b.id, b.bookingCreatedAt.toISOString(), b.appointmentStartAt.toISOString(), b.status, b.paymentStatus,
       b.settlementStatus, b.source, b.provider?.name ?? "", b.customer.name, pounds(b.totalInvoicePriceMinor),
       pounds(b.platformCommissionMinor), (b.commissionBps / 100).toFixed(2), pounds(b.processingFeeMinor),
-      pounds(b.tipMinor), pounds(b.providerPayoutMinor), b.escrowReleasedAt?.toISOString() ?? "",
+      pounds(b.tipMinor), pounds(b.discountMinor), pounds(b.totalInvoicePriceMinor + b.tipMinor - b.discountMinor),
+      pounds(b.providerPayoutMinor), b.escrowReleasedAt?.toISOString() ?? "",
     ]);
     const csv = [header, ...rows].map((row) => row.map(cell).join(",")).join("\n");
 

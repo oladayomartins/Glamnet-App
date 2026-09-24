@@ -89,7 +89,15 @@ export const CATEGORY_IMAGE_PATHS: Record<string, string> = {
   // Two trailing spaces before the extension, which is how the file is named
   // in the library. Written out rather than trimmed: the name has to match.
   "MUA Glam & Asian Bridal": "/Glamorous Makeup Application Portrait  .png",
+  "Massage & Wellness": "/Wellness.png",
 };
+
+/** Photography for the three "How it works" steps on the home page. */
+export const HOW_IT_WORKS_IMAGE_PATHS = [
+  "/Step 01 _ Find your pro.jpeg",
+  "/Step 02 _ Book a real slot.jpeg",
+  "/Step 03 _ Pay with your PIN.jpeg",
+] as const;
 
 /** The artwork path for a category, if one has been drawn for it. */
 export function categoryImagePath(category: string): string | null {

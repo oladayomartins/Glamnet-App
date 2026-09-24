@@ -346,6 +346,13 @@ model Booking {
   disputeReason         String    @default("")
   disputedAt            DateTime?
 
+  // --- Promotions -------------------------------------------------------------
+  /// Taken off what the customer is charged. Funded by GLAMNET: the vendor's
+  /// payout is exactly what it would have been without the code.
+  discountMinor Int        @default(0)
+  promoCodeId   String?
+  promoCode     PromoCode? @relation(fields: [promoCodeId], references: [id])
+
   customerId String
   customer   Customer  @relation(fields: [customerId], references: [id])
   hubId      String
@@ -359,6 +366,7 @@ model Booking {
   events           BookingStatusEvent[]
   notifications    Notification[]
   completionPhotos BookingCompletionPhoto[]
+  promoRedemption  PromoRedemption?
 
   @@index([status])
   @@index([bookingType])
@@ -542,4 +550,54 @@ model AdminAuditLog {
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/// A discount code customers enter at checkout. GLAMNET-funded: it comes out
+/// of the platform's share of a booking, never the vendor's payout.
+model PromoCode {
+  id               String    @id @default(cuid())
+  /// Upper-case, letters/numbers/dashes. What the customer types.
+  code             String    @unique
+  description      String    @default("")
+  /// "PERCENT" (value in basis points) or "FIXED" (value in pence).
+  discountType     String    @default("PERCENT")
+  value            Int
+  /// Largest discount one booking can get, in pence. 0 = no cap beyond
+  /// GLAMNET's share of the booking.
+  maxDiscountMinor Int       @default(0)
+  /// Services subtotal a basket must reach, in pence.
+  minSpendMinor    Int       @default(0)
+  /// Only a customer's first ever booking on GLAMNET.
+  firstBookingOnly Boolean   @default(false)
+  /// Empty = any category; otherwise the category name the basket must include.
+  category         String    @default("")
+  /// Total redemptions allowed across everyone. 0 = unlimited.
+  maxRedemptions   Int       @default(0)
+  /// Redemptions allowed per customer. 0 = unlimited.
+  perCustomerLimit Int       @default(1)
+  startsAt         DateTime  @default(now())
+  endsAt           DateTime?
+  isActive         Boolean   @default(true)
+  createdBy        String    @default("")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  bookings    Booking[]
+  redemptions PromoRedemption[]
+}
+
+/// One use of a code. Counts only while its booking is still live.
+model PromoRedemption {
+  id            String    @id @default(cuid())
+  promoCodeId   String
+  promoCode     PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  /// One code per booking.
+  bookingId     String    @unique
+  booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerId    String
+  discountMinor Int
+  createdAt     DateTime  @default(now())
+
+  @@index([promoCodeId])
+  @@index([customerId, promoCodeId])
 }

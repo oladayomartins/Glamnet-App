@@ -37,6 +37,7 @@ export default async function BookingPage({
       provider: { select: { name: true, rating: true } },
       events: { orderBy: { createdAt: "asc" } },
       completionPhotos: { orderBy: { position: "asc" } },
+      promoCode: { select: { code: true } },
     },
   });
 
@@ -101,6 +102,15 @@ export default async function BookingPage({
     { label: "Trust fee", amount: booking.trustFeeMinor, emphasis: false },
     ...(booking.tipMinor > 0
       ? [{ label: "Tip", amount: booking.tipMinor, emphasis: false }]
+      : []),
+    ...(booking.discountMinor > 0
+      ? [
+          {
+            label: `Promo${booking.promoCode ? ` ${booking.promoCode.code}` : ""}`,
+            amount: -booking.discountMinor,
+            emphasis: false,
+          },
+        ]
       : []),
   ];
 
@@ -197,7 +207,7 @@ export default async function BookingPage({
             <div className="flex justify-between gap-4 border-t border-line pt-2 text-base font-bold">
               <dt>Total</dt>
               <dd className="tabular-nums">
-                {formatMoney(booking.totalInvoicePriceMinor + booking.tipMinor)}
+                {formatMoney(booking.totalInvoicePriceMinor + booking.tipMinor - booking.discountMinor)}
               </dd>
             </div>
           </dl>
