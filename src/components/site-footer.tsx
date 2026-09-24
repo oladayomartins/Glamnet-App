@@ -60,8 +60,8 @@ export function SiteFooter() {
               </span>
             </div>
             <p className="mt-4 max-w-xs text-sm text-on-obsidian-muted">
-              Vetted hair, makeup and nail vendors, booked to your door —
-              including at short notice.
+              Sheffield&rsquo;s marketplace for verified independent beauty
+              pros — home salons, studios, chairs and mobile.
             </p>
           </div>
 
