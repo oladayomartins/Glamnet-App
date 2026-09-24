@@ -86,6 +86,10 @@ model Customer {
   email     String   @unique
   phone     String   @default("")
   createdAt DateTime @default(now())
+  /// The customer's home postcode, remembered for "pros near you". Private.
+  postcode  String   @default("")
+  latitude  Float?
+  longitude Float?
 
   /// Null for seeded demo records that have no login yet.
   appUserId String?  @unique
