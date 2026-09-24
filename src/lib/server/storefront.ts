@@ -5,6 +5,7 @@ import { CALENDAR_HOLDING_STATUSES, loadProviderSchedule } from "./schedules";
 import { paymentGateway, type Authorisation } from "./payments";
 import { hasPriorBooking } from "./escrow";
 import { evaluatePromoCode, type PromoResult } from "./promos";
+import { lookupOutcode } from "./geo";
 import {
   addDays,
   addMinutes,
@@ -23,7 +24,7 @@ import { priceBooking } from "@/lib/domain/pricing";
 import { decideCommission, type BookingSource } from "@/lib/domain/settlement";
 import { TRANSITION_BUFFER_MINUTES } from "@/lib/domain/constants";
 import type { BasketLine, ServiceLocation } from "@/lib/domain/types";
-import { byDistance, sectorDistanceKm } from "@/lib/domain/postcode";
+import { boundingBox, byDistance, distanceKm, type LatLng } from "@/lib/domain/postcode";
 import { crossSellFor, type CrossSellCandidate } from "@/lib/domain/specialty-hubs";
 
 /**
@@ -133,7 +134,9 @@ export async function getStorefront(slug: string) {
       workspaceType: true,
       workspaceSector: true,
       travelsToClients: true,
-      hub: { select: { id: true, city: true, sector: true, travelFeeMinor: true } },
+      hub: {
+        select: { id: true, city: true, sector: true, travelFeeMinor: true, latitude: true, longitude: true },
+      },
       lookbook: { orderBy: { position: "asc" }, take: 3 },
       services: { select: SERVICE_SELECT },
     },
@@ -550,22 +553,41 @@ export interface DirectoryVendor {
   lookbook: string[];
   /** Promoted by an admin: listed first, with a badge. */
   isFeatured: boolean;
+  /** The centre of the vendor's outward code — public and approximate. */
+  area: LatLng | null;
+  city: string;
 }
 
 /**
- * The marketplace directory (Directory §A): verified vendors in a city,
- * optionally narrowed to one Specialty Hub, sorted nearest-first to the
- * client's postcode sector when one is given, then by rating.
+ * The marketplace directory (Directory §A), UK-wide: verified vendors,
+ * optionally in one city, one Specialty Hub, or within `radiusKm` of a point.
+ * Nearest first when a point is given, then by rating. Featured vendors lead.
+ *
+ * Distance is measured from each vendor's private base postcode; what is
+ * returned for the map is only the centre of their outward code.
  */
 export async function listDirectory(input: {
-  city: string;
+  city?: string | null;
   hubName?: string | null;
-  sector?: string | null;
+  near?: LatLng | null;
+  radiusKm?: number | null;
 }): Promise<DirectoryVendor[]> {
+  const box = input.near && input.radiusKm ? boundingBox(input.near, input.radiusKm) : null;
   const providers = await prisma.provider.findMany({
     where: {
       ...LIVE_VENDOR,
-      hub: { city: { equals: input.city, mode: "insensitive" } },
+      ...(input.city ? { hub: { city: { equals: input.city, mode: "insensitive" } } } : {}),
+      ...(box
+        ? {
+            OR: [
+              { latitude: { gte: box.minLat, lte: box.maxLat }, longitude: { gte: box.minLng, lte: box.maxLng } },
+              {
+                latitude: null,
+                hub: { latitude: { gte: box.minLat, lte: box.maxLat }, longitude: { gte: box.minLng, lte: box.maxLng } },
+              },
+            ],
+          }
+        : {}),
       ...(input.hubName
         ? { services: { some: { service: { category: input.hubName, isActive: true } } } }
         : {}),
@@ -580,11 +602,28 @@ export async function listDirectory(input: {
       workspaceType: true,
       workspaceSector: true,
       isFeatured: true,
-      hub: { select: { sector: true } },
+      latitude: true,
+      longitude: true,
+      hub: { select: { sector: true, city: true, latitude: true, longitude: true } },
       lookbook: { orderBy: { position: "asc" }, take: 3, select: { url: true } },
       services: { select: SERVICE_SELECT },
     },
+    take: 500,
   });
+
+  // A vendor's public pin is the centre of their own outward code. Vendors
+  // whose area differs from their hub's (set before locations were geocoded)
+  // are placed by looking that outward code up — cached, and best effort.
+  const otherSectors = [
+    ...new Set(
+      providers
+        .filter((provider) => provider.workspaceSector && provider.workspaceSector !== provider.hub.sector)
+        .map((provider) => provider.workspaceSector),
+    ),
+  ];
+  const sectorCentres = new Map(
+    await Promise.all(otherSectors.map(async (sector) => [sector, await lookupOutcode(sector)] as const)),
+  );
 
   return providers
     .map((provider) => {
@@ -594,6 +633,14 @@ export async function listDirectory(input: {
         : menu;
       const priced = inHub.filter((service) => service.kind === "SERVICE");
       const sector = provider.workspaceSector || provider.hub.sector;
+      const ownCentre = sectorCentres.get(sector) ?? null;
+      const area = ownCentre
+        ? { lat: ownCentre.lat, lng: ownCentre.lng }
+        : provider.hub.latitude !== null && provider.hub.longitude !== null
+          ? { lat: provider.hub.latitude, lng: provider.hub.longitude }
+          : null;
+      const exactLat = provider.latitude ?? area?.lat ?? null;
+      const exactLng = provider.longitude ?? area?.lng ?? null;
       return {
         id: provider.id,
         slug: provider.slug ?? "",
@@ -603,17 +650,24 @@ export async function listDirectory(input: {
         completedBookings: provider.completedBookings,
         workspaceType: provider.workspaceType,
         sector,
-        distanceKm: input.sector ? sectorDistanceKm(input.sector, sector) : null,
+        distanceKm:
+          input.near && exactLat !== null && exactLng !== null
+            ? distanceKm(input.near, { lat: exactLat, lng: exactLng })
+            : null,
         fromMinor: priced.length ? Math.min(...priced.map((service) => service.priceMinor)) : null,
         hubs: [...new Set(menu.map((service) => service.category))],
         lookbook: provider.lookbook.map((image) => image.url),
         isFeatured: provider.isFeatured,
+        area,
+        city: provider.hub.city,
       };
     })
+    // The box is square; the radius is round.
+    .filter((vendor) => !box || (vendor.distanceKm !== null && vendor.distanceKm <= input.radiusKm!))
     .sort(
       (a, b) =>
         Number(b.isFeatured) - Number(a.isFeatured) ||
-        (input.sector ? byDistance(a.distanceKm, b.distanceKm) : 0) ||
+        (input.near ? byDistance(a.distanceKm, b.distanceKm) : 0) ||
         b.rating - a.rating ||
         b.completedBookings - a.completedBookings,
     );

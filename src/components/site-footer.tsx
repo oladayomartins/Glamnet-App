@@ -17,7 +17,7 @@ export function SiteFooter() {
     {
       heading: "Customers",
       links: [
-        { href: "/sheffield/salons", label: "Sheffield salons" },
+        { href: "/salons", label: "Find a pro near you" },
         { href: "/search", label: "Find a service" },
         { href: "/book", label: "Book a service" },
         { href: "/how-it-works", label: "How it works" },
@@ -60,7 +60,7 @@ export function SiteFooter() {
               </span>
             </div>
             <p className="mt-4 max-w-xs text-sm text-on-obsidian-muted">
-              Sheffield&rsquo;s marketplace for verified independent beauty
+              The UK&rsquo;s marketplace for verified independent beauty
               pros — home salons, studios, chairs and mobile.
             </p>
           </div>

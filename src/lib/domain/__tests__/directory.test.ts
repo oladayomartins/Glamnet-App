@@ -5,13 +5,7 @@ import {
   NAILS_HUB,
   SPECIALTY_HUBS,
 } from "../specialty-hubs";
-import {
-  byDistance,
-  nearestSector,
-  normaliseSector,
-  SHEFFIELD_SECTORS,
-  sectorDistanceKm,
-} from "../postcode";
+import { normaliseSector } from "../postcode";
 import { isValidSlug, slugify } from "../storefront";
 
 describe("specialty hubs", () => {
@@ -53,22 +47,12 @@ describe("crossSellFor", () => {
 });
 
 describe("postcode sectors", () => {
-  it("normalises full and partial postcodes to the outward code", () => {
+  it("normalises full and partial postcodes to the outward code, UK-wide", () => {
     expect(normaliseSector("s10 2hn")).toBe("S10");
     expect(normaliseSector(" S1 ")).toBe("S1");
     expect(normaliseSector("S11 8")).toBe("S11");
-    expect(normaliseSector("LS1")).toBeNull();
+    expect(normaliseSector("LS1")).toBe("LS1");
     expect(normaliseSector("hello")).toBeNull();
-  });
-
-  it("finds the sector a coordinate sits in", () => {
-    expect(nearestSector(SHEFFIELD_SECTORS.S10)).toBe("S10");
-  });
-
-  it("sorts unknown sectors last", () => {
-    expect(sectorDistanceKm("S10", "S10")).toBe(0);
-    expect(sectorDistanceKm("S10", "LS1")).toBeNull();
-    expect([null, 3, 1].sort(byDistance)).toEqual([1, 3, null]);
   });
 });
 

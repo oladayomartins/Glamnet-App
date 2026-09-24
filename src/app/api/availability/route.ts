@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
     const dayStart = startOfLocalDay(date);
     const dayEnd = addDays(dayStart, 1);
-    const candidates = await loadCandidates(hub.sector, dayStart, dayEnd);
+    const candidates = await loadCandidates(hub, dayStart, dayEnd);
 
     const requiredServiceIds = services
       .filter((service) => service.kind !== "ADDON")

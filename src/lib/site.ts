@@ -32,6 +32,6 @@ export function isProductionSite(): boolean {
 }
 
 export const SITE_NAME = "GLAMNET";
-export const SITE_TAGLINE = "Sheffield's beauty marketplace";
+export const SITE_TAGLINE = "The UK's beauty marketplace";
 export const SITE_DESCRIPTION =
-  "Find and book verified independent beauty pros in Sheffield — braids, bridal glam, nails and massage. Real availability, one honest price, and paid only when you're happy.";
+  "Find and book verified independent beauty pros near you, anywhere in the UK — braids, bridal glam, nails and massage. Real availability, one honest price, and paid only when you're happy.";

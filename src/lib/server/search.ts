@@ -1,3 +1,5 @@
+import { lookupPlace } from "./geo";
+import { distanceKm, outwardCode } from "@/lib/domain/postcode";
 import { prisma } from "./prisma";
 
 /**
@@ -16,7 +18,7 @@ export async function searchableAreas() {
       providers: { some: { approvalStatus: "APPROVED", isAcceptingWork: true } },
     },
     orderBy: { city: "asc" },
-    select: { id: true, name: true, city: true, sector: true },
+    select: { id: true, name: true, city: true, sector: true, latitude: true, longitude: true },
   });
   return hubs;
 }
@@ -29,6 +31,15 @@ export async function searchableAreas() {
 export async function nearestCoveredArea(excludeLocation: string) {
   const areas = await searchableAreas();
   const excluded = excludeLocation.trim().toLowerCase();
+  // For a postcode, "nearest" means by distance, anywhere in the UK.
+  const place = outwardCode(excludeLocation) ? await lookupPlace(excludeLocation) : null;
+  if (place) {
+    const ranked = areas
+      .filter((area) => area.latitude !== null && area.longitude !== null)
+      .map((area) => ({ area, km: distanceKm(place, { lat: area.latitude!, lng: area.longitude! }) }))
+      .sort((a, b) => a.km - b.km);
+    if (ranked[0]) return ranked[0].area;
+  }
   return (
     areas.find((area) => area.city.toLowerCase() !== excluded) ?? areas[0] ?? null
   );

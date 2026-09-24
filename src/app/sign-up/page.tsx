@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/auth/session";
 import { AuthLayout } from "@/components/auth-layout";
 import { SignUpForm } from "./sign-up-form";
@@ -20,11 +19,6 @@ export default async function SignUpPage({
   // role still comes from what is submitted and is verified server-side.
   const vendorFirst = role === "vendor";
 
-  const hubs = await prisma.hub.findMany({
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, sector: true, city: true },
-  });
-
   return (
     <AuthLayout
       eyebrow={vendorFirst ? "For pros" : "Join GLAMNET"}
@@ -32,7 +26,7 @@ export default async function SignUpPage({
       lede={
         vendorFirst
           ? "Your own booking page, your prices, and 0% commission on clients from your link."
-          : "Book verified beauty pros across Sheffield — at their studio or at your door."
+          : "Book verified beauty pros across the UK — at their studio or at your door."
       }
       reassurance="Every pro is checked before their storefront goes live."
       footer={
@@ -45,7 +39,6 @@ export default async function SignUpPage({
       }
     >
       <SignUpForm
-        hubs={hubs}
         initialIntent={vendorFirst ? "PROVIDER" : "CUSTOMER"}
       />
     </AuthLayout>

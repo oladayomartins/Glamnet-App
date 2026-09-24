@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { citySlug } from "@/lib/domain/postcode";
 import { notFound } from "next/navigation";
 import { InstagramLogo, MapPin, SealCheck, Star, TiktokLogo } from "@phosphor-icons/react/dist/ssr";
 import { getStorefront, workspaceLabel } from "@/lib/server/storefront";
@@ -10,6 +11,8 @@ import { formatDay } from "@/lib/format";
 import { siteUrl } from "@/lib/site";
 import { StorefrontBooking } from "./storefront-booking";
 import { AdSlot } from "@/components/ad-slot";
+import { MapView } from "@/components/map-view";
+import { lookupOutcode } from "@/lib/server/geo";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +50,13 @@ export default async function StorefrontPage({
   if (!store) notFound();
 
   const viewer = await getSessionUser();
+  // The public pin: the centre of the vendor's own outward code.
+  const ownArea = store.sector !== store.hub.sector ? await lookupOutcode(store.sector) : null;
+  const area = ownArea
+    ? { lat: ownArea.lat, lng: ownArea.lng }
+    : store.hub.latitude !== null && store.hub.longitude !== null
+      ? { lat: store.hub.latitude, lng: store.hub.longitude }
+      : null;
   const reviewAverage =
     store.reviews.length > 0
       ? store.reviews.reduce((sum, review) => sum + review.rating, 0) / store.reviews.length
@@ -150,7 +160,30 @@ export default async function StorefrontPage({
         travelFeeMinor={store.hub.travelFeeMinor}
         nearbyNails={store.nearbyNails}
         signedInAsCustomer={viewer?.role === "CUSTOMER"}
+        vendorArea={area}
       />
+
+      {/* --- Where: the area only, never the address ---------------------- */}
+      {area ? (
+        <section>
+          <SectionTitle hint="Area shown, not the address">Where</SectionTitle>
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem] md:items-start">
+            <MapView
+              label={`${store.name}'s area`}
+              center={area}
+              zoom={13}
+              area={{ ...area, radiusM: 1_000 }}
+              className="h-60"
+            />
+            <p className="text-sm text-ink-muted">
+              {store.workspaceType === "MOBILE"
+                ? `${store.name} travels to clients from ${store.sector}, ${store.hub.city}.`
+                : `${workspaceLabel(store.workspaceType)} in ${store.sector}, ${store.hub.city}${store.travelsToClients ? ", and travels to clients too" : ""}.`}{" "}
+              The exact address is shared once your booking is confirmed.
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       {/* --- Client review matrix: read-only ------------------------------ */}
       <section>
@@ -191,7 +224,7 @@ export default async function StorefrontPage({
       <AdSlot slot="STOREFRONT_FOOTER" />
 
       <p className="text-center text-xs text-ink-muted">
-        <Link href={`/${store.hub.city.toLowerCase()}/salons`} className="hover:text-accent-700">
+        <Link href={`/${citySlug(store.hub.city)}/salons`} className="hover:text-accent-700">
           ← More vendors in {store.hub.city}
         </Link>
       </p>

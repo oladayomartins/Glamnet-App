@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Lightning, Plus, Sparkle } from "@phosphor-icons/react";
 import { Button, Card, SectionTitle } from "@/components/ui";
+import { AddressFields, EMPTY_ADDRESS, addressComplete, formatAddress, type AddressValue } from "@/components/address-fields";
 import { CardHold } from "@/components/card-hold";
 import { crossSellFor } from "@/lib/domain/specialty-hubs";
 import { formatDuration, formatMoney, formatTime, toDateInputValue } from "@/lib/format";
@@ -54,7 +55,10 @@ export function StorefrontBooking({
   travelFeeMinor,
   nearbyNails,
   signedInAsCustomer,
+  vendorArea,
 }: {
+  /** The centre of the pro's area (public, approximate). */
+  vendorArea?: { lat: number; lng: number } | null;
   slug: string;
   providerName: string;
   menu: MenuItem[];
@@ -74,7 +78,8 @@ export function StorefrontBooking({
   const [location, setLocation] = useState<"VENDOR_PREMISES" | "CUSTOMER_ADDRESS">(
     hasWorkspace ? "VENDOR_PREMISES" : "CUSTOMER_ADDRESS",
   );
-  const [addressLine, setAddressLine] = useState("");
+  const [address, setAddress] = useState<AddressValue>(EMPTY_ADDRESS);
+  const addressLine = formatAddress(address);
   const [notes, setNotes] = useState("");
   const [tipMinor, setTipMinor] = useState(0);
   // What is typed, and what has been sent for pricing. Only an applied code
@@ -354,15 +359,11 @@ export function StorefrontBooking({
             )}
 
             {location === "CUSTOMER_ADDRESS" ? (
-              <label className="block">
-                <span className="text-sm font-medium text-ink">Your address</span>
-                <input
-                  value={addressLine}
-                  onChange={(event) => setAddressLine(event.target.value)}
-                  placeholder="Street, town, postcode"
-                  className="mt-1 min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 text-[15px] text-ink outline-none focus:border-accent-500"
-                />
-              </label>
+              <AddressFields
+                value={address}
+                onChange={setAddress}
+                from={vendorArea ? { ...vendorArea, name: providerName } : null}
+              />
             ) : null}
 
             <label className="block">
@@ -495,7 +496,7 @@ export function StorefrontBooking({
             ) : signedInAsCustomer ? (
               <Button
                 onClick={checkout}
-                disabled={busy || !quote || (location === "CUSTOMER_ADDRESS" && !addressLine.trim())}
+                disabled={busy || !quote || (location === "CUSTOMER_ADDRESS" && !addressComplete(address))}
                 className="w-full"
               >
                 {busy ? "Holding your slot…" : "Book and hold my card"}

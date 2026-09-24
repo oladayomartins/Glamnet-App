@@ -209,7 +209,7 @@ function CampaignForm({
         </label>
         <label className="block">
           <span className="text-xs text-ink-muted">Button link</span>
-          <input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} className={fieldClass} placeholder="/sheffield/salons?hub=nails" />
+          <input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} className={fieldClass} placeholder="/salons?hub=nails" />
         </label>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">

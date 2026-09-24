@@ -14,6 +14,8 @@ import { priceBooking } from "@/lib/domain/pricing";
 import type { BasketLine } from "@/lib/domain/types";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import { getActiveEmergencyConfig } from "./emergency-config";
+import { lookupPlace } from "./geo";
+import { BROADCAST_RADIUS_KM, boundingBox, distanceKm, outwardCode } from "@/lib/domain/postcode";
 
 /** How far ahead an offer will look for a vendor's first free slot. */
 const HORIZON_DAYS = 7;
@@ -91,6 +93,8 @@ export interface OfferQuery {
 export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
   const query = filters.query?.trim() ?? "";
   const location = filters.location?.trim() ?? "";
+  const place = location && outwardCode(location) ? await lookupPlace(location) : null;
+  const box = place ? boundingBox(place, BROADCAST_RADIUS_KM) : null;
 
   const now = new Date();
   const from = startOfLocalDay(now);
@@ -111,17 +115,30 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
       where: {
         approvalStatus: "APPROVED",
         isAcceptingWork: true,
-        ...(location
+        // A postcode (or outward code) searches by distance, anywhere in the
+        // UK; anything else is matched as a town name.
+        ...(box && place
           ? {
-              hub: {
-                OR: [
-                  { city: { contains: location, mode: "insensitive" } },
-                  { sector: { contains: location, mode: "insensitive" } },
-                  { name: { contains: location, mode: "insensitive" } },
-                ],
-              },
+              OR: [
+                { latitude: { gte: box.minLat, lte: box.maxLat }, longitude: { gte: box.minLng, lte: box.maxLng } },
+                {
+                  latitude: null,
+                  hub: { latitude: { gte: box.minLat, lte: box.maxLat }, longitude: { gte: box.minLng, lte: box.maxLng } },
+                },
+                { hub: { sector: place.outcode } },
+              ],
             }
-          : {}),
+          : location
+            ? {
+                hub: {
+                  OR: [
+                    { city: { contains: location, mode: "insensitive" } },
+                    { sector: { contains: location, mode: "insensitive" } },
+                    { name: { contains: location, mode: "insensitive" } },
+                  ],
+                },
+              }
+            : {}),
         ...(filters.minRating ? { rating: { gte: filters.minRating } } : {}),
       },
       select: {
@@ -130,8 +147,10 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
         rating: true,
         completedBookings: true,
         avatarUrl: true,
+        latitude: true,
+        longitude: true,
         hub: {
-          select: { id: true, city: true, sector: true, travelFeeMinor: true },
+          select: { id: true, city: true, sector: true, travelFeeMinor: true, latitude: true, longitude: true },
         },
         services: {
           select: {
@@ -170,6 +189,16 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
   const offers: Offer[] = [];
 
   for (const provider of providers) {
+    // The box is square; the radius is round.
+    if (place) {
+      const lat = provider.latitude ?? provider.hub.latitude;
+      const lng = provider.longitude ?? provider.hub.longitude;
+      const inRange =
+        lat !== null && lng !== null
+          ? distanceKm(place, { lat, lng }) <= BROADCAST_RADIUS_KM
+          : provider.hub.sector === place.outcode;
+      if (!inRange) continue;
+    }
     const offered = provider.services
       .map((link) => link.service)
       .filter((service) => service.isActive && service.kind !== "ADDON");

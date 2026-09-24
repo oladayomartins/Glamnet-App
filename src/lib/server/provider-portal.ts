@@ -2,7 +2,8 @@ import { prisma } from "./prisma";
 import { BookingError } from "./booking-service";
 import { paymentGateway } from "./payments";
 import { isValidSlug } from "@/lib/domain/storefront";
-import { normaliseSector } from "@/lib/domain/postcode";
+import { formatPostcode } from "@/lib/domain/postcode";
+import { hubForPlace, lookupPostcode } from "./geo";
 import { isTrustedImageUrl } from "@/lib/imagekit";
 import { deleteImageKitFiles } from "./imagekit-admin";
 
@@ -55,16 +56,41 @@ export async function updateStorefrontProfile(
     throw new BookingError("That link is taken or not allowed. Try another.", "INVALID_TRANSITION", 409);
   }
 
-  let workspaceSector: string | undefined;
+  // The base postcode: where the vendor works from, or travels from if mobile.
+  // Any UK postcode. The full postcode stays private; the outward code is
+  // what the public sees, and it also picks the vendor's Beauty Hub.
+  let location:
+    | { basePostcode: string; workspaceSector: string; latitude: number | null; longitude: number | null; hubId?: string }
+    | undefined;
   if (input.workspacePostcode !== undefined) {
     if (input.workspacePostcode.trim() === "") {
-      workspaceSector = "";
+      location = { basePostcode: "", workspaceSector: "", latitude: null, longitude: null };
     } else {
-      const sector = normaliseSector(input.workspacePostcode);
-      if (!sector) {
-        throw new BookingError("Enter an S postcode, like S10 or S11 8HN.", "INVALID_TRANSITION", 422);
+      const postcode = formatPostcode(input.workspacePostcode);
+      if (!postcode) {
+        throw new BookingError("Enter your full postcode, like S10 2HN or SW1A 1AA.", "INVALID_TRANSITION", 422);
       }
-      workspaceSector = sector;
+      const place = await lookupPostcode(postcode);
+      if (place) {
+        const hub = await hubForPlace(place);
+        location = {
+          basePostcode: place.postcode ?? postcode,
+          workspaceSector: place.outcode,
+          latitude: place.lat,
+          longitude: place.lng,
+          hubId: hub.id,
+        };
+      } else {
+        // Unknown postcode, or the lookup service is down. A well-formed
+        // postcode is still saved so the vendor is not stuck; its area and
+        // distance fill in the next time it is saved.
+        location = {
+          basePostcode: postcode,
+          workspaceSector: postcode.split(" ")[0],
+          latitude: null,
+          longitude: null,
+        };
+      }
     }
   }
 
@@ -94,7 +120,7 @@ export async function updateStorefrontProfile(
       ...(input.instagramHandle !== undefined ? { instagramHandle: cleanHandle(input.instagramHandle) } : {}),
       ...(input.tiktokHandle !== undefined ? { tiktokHandle: cleanHandle(input.tiktokHandle) } : {}),
       ...(input.workspaceType !== undefined ? { workspaceType: input.workspaceType } : {}),
-      ...(workspaceSector !== undefined ? { workspaceSector } : {}),
+      ...(location ?? {}),
       ...(input.travelsToClients !== undefined ? { travelsToClients: input.travelsToClients } : {}),
     },
   });
@@ -222,8 +248,8 @@ export async function onboardingGaps(providerId: string): Promise<string[]> {
   const gaps: string[] = [];
   if (!provider.slug) gaps.push("Choose your storefront link.");
   if (provider.bio.trim().length < 20) gaps.push("Write a short bio (20 characters or more).");
-  if (provider.workspaceType !== "MOBILE" && !provider.workspaceSector) {
-    gaps.push("Add your workspace postcode.");
+  if (!provider.workspaceSector) {
+    gaps.push(provider.workspaceType === "MOBILE" ? "Add the postcode you travel from." : "Add your workspace postcode.");
   }
   if (provider._count.services === 0) gaps.push("Add at least one service to your menu.");
   if (provider._count.documents === 0) gaps.push("Upload your insurance certificate or licence.");

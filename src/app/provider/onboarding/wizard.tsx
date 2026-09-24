@@ -27,6 +27,9 @@ import {
   Trash,
 } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui";
+import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
+import { MapView } from "@/components/map-view";
+import { formatPostcode } from "@/lib/domain/postcode";
 import { BioLink } from "@/components/bio-link";
 import { BrandImage } from "@/components/brand-image";
 import { DocumentUpload } from "@/components/document-upload";
@@ -149,6 +152,7 @@ export function OnboardingWizard(props: {
   });
   const [looks, setLooks] = useState<Look[]>(() => [0, 1, 2].map((at) => props.lookbook[at] ?? null));
   const [docKind, setDocKind] = useState<string>("INSURANCE");
+  const [area, setArea] = useState<ResolvedPlace | null>(null);
   const [slugState, setSlugState] = useState<"idle" | "checking" | "free" | "taken">(
     props.profile.slug ? "free" : "idle",
   );
@@ -244,6 +248,10 @@ export function OnboardingWizard(props: {
         return hubs.length > 0 ? null : "Pick at least one specialty.";
       case "menu":
         return chosenItems.some((item) => item.kind !== "ADDON") ? null : "Add at least one service to your menu.";
+      case "workspace":
+        return formatPostcode(profile.workspacePostcode)
+          ? null
+          : "Enter the full postcode you work from, like S10 2HN.";
       case "storefront":
         if (slugState === "checking") return "Checking your link — one moment.";
         if (slugState !== "free") return "Choose an available storefront link.";
@@ -314,7 +322,7 @@ export function OnboardingWizard(props: {
     specialties: hubs.length > 0,
     menu: chosenItems.some((item) => item.kind !== "ADDON"),
     storefront: Boolean(profile.slug) && profile.bio.trim().length >= 20,
-    workspace: profile.workspaceType === "MOBILE" || Boolean(profile.workspacePostcode.trim()),
+    workspace: Boolean(formatPostcode(profile.workspacePostcode)),
     lookbook: looks.some((look) => look !== null),
     compliance: props.documents.length > 0,
     payouts: profile.payoutsEnabled,
@@ -660,18 +668,14 @@ export function OnboardingWizard(props: {
                   })}
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label={profile.workspaceType === "MOBILE" ? "Your base postcode" : "Workspace postcode"} hint="Only the sector (e.g. S10) is shown.">
-                    <span className="relative block">
-                      <MapPin size={16} className="absolute left-3.5 top-[calc(50%+3px)] -translate-y-1/2 text-ink-muted" aria-hidden />
-                      <input
-                        value={profile.workspacePostcode}
-                        onChange={(e) => set("workspacePostcode", e.target.value.toUpperCase())}
-                        placeholder="S10"
-                        autoComplete="postal-code"
-                        className={`${inputClass} pl-9`}
-                      />
-                    </span>
-                  </Field>
+                  <PostcodeField
+                    label={profile.workspaceType === "MOBILE" ? "The postcode you travel from" : "Your workspace postcode"}
+                    value={profile.workspacePostcode}
+                    onChange={(value) => set("workspacePostcode", value)}
+                    onResolved={setArea}
+                    allowLocate={false}
+                    hint="Anywhere in the UK. Clients only see your area, like S10."
+                  />
                   {profile.workspaceType !== "MOBILE" ? (
                     <div className="flex items-end">
                       <Toggle
@@ -682,6 +686,21 @@ export function OnboardingWizard(props: {
                     </div>
                   ) : null}
                 </div>
+                {area ? (
+                  <div className="rise-in">
+                    <MapView
+                      label="Your area"
+                      center={area}
+                      zoom={13}
+                      area={{ lat: area.lat, lng: area.lng, radiusM: 900 }}
+                      className="h-56"
+                    />
+                    <p className="mt-2 text-xs text-ink-muted">
+                      This is roughly what clients see: {area.city}, {area.outcode}. Your exact address is only shared
+                      with a client once they have booked.
+                    </p>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
