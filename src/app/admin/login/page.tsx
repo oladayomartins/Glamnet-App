@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ next?: string; error?: string; notice?: string }>;
 }) {
   return <SignInScreen audience="admin" searchParams={searchParams} />;
 }

@@ -54,6 +54,9 @@ export function AdminNav({ email }: { email: string }) {
             <Link
               key={href}
               href={href}
+              // Each prefetch is a full server render with its own auth check;
+              // ten of them on every admin page load is wasted work.
+              prefetch={false}
               aria-current={current ? "page" : undefined}
               className={`flex min-h-10 shrink-0 items-center gap-2.5 rounded-full px-3.5 text-sm font-medium transition duration-[180ms] ease-glam lg:rounded-glam-sm ${
                 current
