@@ -189,6 +189,10 @@ export async function requireRole(
   role: Role,
   returnTo: string,
 ): Promise<SessionUser> {
+  // Staff pages send a signed-out visitor to the staff door.
+  if (role === "ADMIN" && !(await getSessionUser())) {
+    redirect(`/admin/login?next=${encodeURIComponent(returnTo)}`);
+  }
   const user = await requireUser(returnTo);
   if (user.role !== role) redirect("/forbidden");
   return user;

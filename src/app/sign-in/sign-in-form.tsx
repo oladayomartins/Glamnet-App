@@ -19,7 +19,16 @@ import { callbackUrl, FormError, GoogleButton, inputClass } from "@/components/a
  * reports "check your inbox", and a failed password is "those details did
  * not match". Anything more specific lets anyone list who has an account.
  */
-export function SignInForm({ next }: { next: string }) {
+export function SignInForm({
+  next,
+  allowCreate = false,
+  showGoogle = true,
+}: {
+  next: string;
+  /** Let the email link create a login on first use (the admin door only). */
+  allowCreate?: boolean;
+  showGoogle?: boolean;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<"link" | "password">("link");
   const [email, setEmail] = useState("");
@@ -32,8 +41,9 @@ export function SignInForm({ next }: { next: string }) {
   const sendLink = async () => {
     const { error: otpError } = await createSupabaseBrowserClient().auth.signInWithOtp({
       email: email.trim(),
-      // Sign-in never creates an account; that is what sign-up is for.
-      options: { shouldCreateUser: false, emailRedirectTo: callbackUrl(next) },
+      // Sign-in never creates an account; that is what sign-up is for. The
+      // admin door is the exception, as admins have no sign-up of their own.
+      options: { shouldCreateUser: allowCreate, emailRedirectTo: callbackUrl(next) },
     });
     // A rate limit is worth reporting; "no such user" is deliberately not.
     if (otpError && otpError.status === 429) {
@@ -91,7 +101,7 @@ export function SignInForm({ next }: { next: string }) {
 
   return (
     <div>
-      <GoogleButton next={next} />
+      {showGoogle ? <GoogleButton next={next} /> : null}
 
       <form onSubmit={submit} className="space-y-3">
         <label className="block">
