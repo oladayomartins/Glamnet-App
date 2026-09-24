@@ -583,6 +583,70 @@ time,
   }
 }
 
+/* --- Onboarding wizard ------------------------------------------------
+   A step slides in from the direction of travel; a selection pops. Both are
+   short and use the one brand curve, and the reduced-motion rule below turns
+   them off entirely. */
+@keyframes glam-step-forward {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes glam-step-back {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes glam-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes glam-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.step-forward {
+  animation: glam-step-forward var(--glam-screen) var(--glam-ease) both;
+}
+.step-back {
+  animation: glam-step-back var(--glam-screen) var(--glam-ease) both;
+}
+.pop-in {
+  animation: glam-pop var(--glam-sheet) var(--glam-ease) both;
+}
+.rise-in {
+  animation: glam-rise var(--glam-screen) var(--glam-ease) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
