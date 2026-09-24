@@ -27,20 +27,18 @@ export default async function SignUpPage({
 
   return (
     <AuthLayout
-      title={vendorFirst ? "Apply as a vendor" : "Create your account"}
+      eyebrow={vendorFirst ? "For pros" : "Join GLAMNET"}
+      title={vendorFirst ? "Claim your free storefront" : "Create your account"}
       lede={
         vendorFirst
-          ? "Set your own hours and take bookings in your sector."
-          : "Book beauty services at your door, or join as a vendor."
+          ? "Your own booking page, your prices, and 0% commission on clients from your link."
+          : "Book verified beauty pros across Sheffield — at their studio or at your door."
       }
-      reassurance="Vendor accounts are vetted before they can take work."
+      reassurance="Every pro is checked before their storefront goes live."
       footer={
         <>
           Already have an account?{" "}
-          <Link
-            href="/sign-in"
-            className="font-semibold text-brand-700 hover:underline"
-          >
+          <Link href={vendorFirst ? "/sign-in/vendor" : "/sign-in"} className="font-semibold text-accent-700 hover:underline">
             Sign in
           </Link>
         </>
