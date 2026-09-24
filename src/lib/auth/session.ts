@@ -1,4 +1,6 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
 import { createSupabaseServerClient } from "./supabase-server";
 
@@ -36,7 +38,18 @@ function adminEmails(): string[] {
  * with Supabase, while a session read trusts a cookie the browser could have
  * tampered with. Authorisation must not rest on an unverified cookie.
  */
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(loadSessionUser);
+
+/**
+ * The work behind {@link getSessionUser}.
+ *
+ * Wrapped in React's `cache` above so the header, the page and anything else
+ * rendering in one request share a single lookup. Before that, a new user's
+ * first page load ran this twice at once, both found no account, both tried
+ * to create one, and the loser crashed the page with a unique-constraint
+ * error.
+ */
+async function loadSessionUser(): Promise<SessionUser | null> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -64,10 +77,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   let appUser = existing;
 
-  if (!appUser) {
-    // First sign-in: create the login and the matching profile together, so a
-    // signed-in user always has somewhere to hang bookings or work.
-    appUser = await prisma.$transaction(async (tx) => {
+  const createAppUser = () =>
+    prisma.$transaction(async (tx) => {
       const created = await tx.appUser.create({
         data: {
           authUserId: user.id,
@@ -117,6 +128,27 @@ export async function getSessionUser(): Promise<SessionUser | null> {
         where: { id: created.id },
         include: { customer: true, provider: true },
       });
+    });
+
+  if (!appUser) {
+    // First sign-in: create the login and the matching profile together, so a
+    // signed-in user always has somewhere to hang bookings or work.
+    appUser = await createAppUser().catch(async (error: unknown) => {
+      // Two requests for the same brand-new user (two tabs, or a prefetch
+      // beside the page) can still race past the lookup above. The loser's
+      // insert hits the unique key on authUserId — the account exists now, so
+      // read the one the winner made instead of failing the page.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const created = await prisma.appUser.findUnique({
+          where: { authUserId: user.id },
+          include: { customer: true, provider: true },
+        });
+        if (created) return created;
+      }
+      throw error;
     });
   } else if (shouldBeAdmin && appUser.role !== "ADMIN") {
     // Keep the allowlist authoritative: adding an email promotes on next

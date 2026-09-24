@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/server/prisma";
@@ -26,6 +27,16 @@ export default async function AccountPage({
     requireUser("/account"),
     searchParams,
   ]);
+
+  // A new pro's first stop is their storefront, not a customer bookings
+  // list with nothing in it. Sign-up and email links land here by default.
+  if (user.role === "PROVIDER" && user.providerId && !user.providerApproved) {
+    const provider = await prisma.provider.findUnique({
+      where: { id: user.providerId },
+      select: { onboardedAt: true },
+    });
+    if (!provider?.onboardedAt) redirect("/provider/onboarding");
+  }
 
   const tab: Tab = TABS.some((entry) => entry.key === requestedTab)
     ? (requestedTab as Tab)
@@ -78,7 +89,9 @@ export default async function AccountPage({
         </Link>
         {user.role === "PROVIDER" ? (
           <Link
-            href={user.providerApproved ? `/provider/${user.providerId}` : "/provider/pending"}
+            // /provider routes an applicant to the storefront wizard or the
+            // waiting screen, whichever they need.
+            href={user.providerApproved ? `/provider/${user.providerId}` : "/provider"}
             className="rounded-glam-sm bg-surface px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-line"
           >
             Vendor dashboard
