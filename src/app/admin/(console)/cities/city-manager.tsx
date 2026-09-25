@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowSquareOut, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import { Button, Card, EmptyState, Pill, SectionTitle } from "@/components/ui";
-import { ErrorNote, fieldClass } from "../_components/bits";
+import { ErrorNote, LiveSwitch, fieldClass } from "../_components/bits";
 import { useAdminAction } from "../_components/use-admin-action";
 
 interface City {
@@ -70,7 +70,7 @@ export function CityManager({ cities }: { cities: City[] }) {
               }}
             />
           ) : (
-            <Card key={city.id} className={`flex min-w-0 gap-3 p-3 ${city.isActive ? "" : "opacity-60"}`}>
+            <Card key={city.id} className={`flex min-w-0 gap-3 p-3 ${city.isActive ? "" : "opacity-70"}`}>
               {city.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element -- ImageKit thumbnail
                 <img src={thumb(city.imageUrl)} alt="" className="h-14 w-16 shrink-0 rounded-glam-sm sm:h-16 sm:w-20 object-cover" />
@@ -82,7 +82,6 @@ export function CityManager({ cities }: { cities: City[] }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold text-ink">{city.label || city.name}</span>
-                  {!city.isActive ? <Pill tone="muted">hidden</Pill> : null}
                   {!city.imageUrl ? <Pill tone="muted">no photo</Pill> : null}
                 </div>
                 <p className="text-xs text-ink-muted">
@@ -93,36 +92,44 @@ export function CityManager({ cities }: { cities: City[] }) {
                   /{city.slug} · {city.outcode} · order {city.sortOrder}
                 </p>
               </div>
-              <div className="flex shrink-0 items-start gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => setEditing(city.id)}
-                  aria-label={`Edit ${city.name}`}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-sunken hover:text-ink"
-                >
-                  <PencilSimple size={16} />
-                </button>
-                <a
-                  href={`/${city.slug}/salons`}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Open the ${city.name} page`}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-sunken hover:text-ink"
-                >
-                  <ArrowSquareOut size={16} />
-                </a>
-                <button
-                  type="button"
-                  aria-label={`Remove ${city.name}`}
-                  onClick={() => {
-                    if (window.confirm(`Remove ${city.label || city.name} from Browse by city? Its vendors are not affected.`)) {
-                      void run(`city:${city.id}`, `/api/admin/cities/${city.id}`, "DELETE");
-                    }
-                  }}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-sunken hover:text-warning"
-                >
-                  <Trash size={16} />
-                </button>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <LiveSwitch
+                  on={city.isActive}
+                  busy={busy === `city:${city.id}`}
+                  label={`${city.label || city.name} on the home page`}
+                  onToggle={() => run(`city:${city.id}`, `/api/admin/cities/${city.id}`, "PATCH", { isActive: !city.isActive })}
+                />
+                <div className="flex items-start gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditing(city.id)}
+                    aria-label={`Edit ${city.name}`}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-sunken hover:text-ink"
+                  >
+                    <PencilSimple size={16} />
+                  </button>
+                  <a
+                    href={`/${city.slug}/salons`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Open the ${city.name} page`}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-sunken hover:text-ink"
+                  >
+                    <ArrowSquareOut size={16} />
+                  </a>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${city.name}`}
+                    onClick={() => {
+                      if (window.confirm(`Remove ${city.label || city.name} from Browse by city? Its vendors are not affected.`)) {
+                        void run(`city:${city.id}`, `/api/admin/cities/${city.id}`, "DELETE");
+                      }
+                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-sunken hover:text-warning"
+                  >
+                    <Trash size={16} />
+                  </button>
+                </div>
               </div>
             </Card>
           ),
