@@ -82,6 +82,16 @@ describe("matchServices", () => {
     expect(names("please")).toEqual([]);
   });
 
+  it("completes the word still being typed", () => {
+    expect(names("brai")[0]).toMatch(/Braids/);
+    expect(names("knot")[0]).toMatch(/Braids/);
+    expect(names("plai")[0]).toMatch(/Braids/);
+    expect(names("manic")).toContain("Gel Manicure");
+    // Two letters is too little to guess from, and a finished word means itself.
+    expect(names("br")).toEqual([]);
+    expect(names("brai ")).toEqual([]);
+  });
+
   it("never returns more than the caller asked for", () => {
     expect(names("hair makeup nails", 2)).toHaveLength(2);
   });

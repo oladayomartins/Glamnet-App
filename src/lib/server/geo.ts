@@ -129,18 +129,24 @@ export async function reverseGeocode(point: LatLng): Promise<Place | null> {
   return first ? fromPostcode(first) : null;
 }
 
-/** Up to ten postcodes starting with what has been typed so far. */
+/** Up to eight postcodes starting with what has been typed so far. */
 export async function autocompletePostcodes(prefix: string): Promise<string[]> {
-  const compact = prefix.toUpperCase().replace(/[^A-Z0-9 ]/g, "").trim();
+  const compact = prefix.toUpperCase().replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
   if (compact.replace(/ /g, "").length < 2) return [];
-  // The service ignores the space, so "BT1 1" also matches BT11 postcodes.
-  // Ask for more and keep only those that really start with what was typed.
-  const spaced = compact.includes(" ");
-  const body = await getJson<{ result: string[] | null }>(
-    `/postcodes/${encodeURIComponent(compact.replace(/ /g, ""))}/autocomplete?limit=${spaced ? 100 : 8}`,
-  );
-  const results = body?.result ?? [];
-  return (spaced ? results.filter((postcode) => postcode.startsWith(compact.replace(/\s+/g, " "))) : results).slice(0, 8);
+  const fetchPrefix = async (query: string) =>
+    (await getJson<{ result: string[] | null }>(`/postcodes/${encodeURIComponent(query)}/autocomplete?limit=20`))?.result ?? [];
+
+  if (!compact.includes(" ")) return (await fetchPrefix(compact)).slice(0, 8);
+
+  // The service ignores the space, so "DA1 1" also matches every DA11
+  // postcode, which sort first and crowd the real answers out. An inward code
+  // is a digit then two letters, so adding a letter after the digit makes the
+  // prefix unambiguous: "DA11A" can only be DA1 1A…, never DA11 A….
+  const [outward, inward] = compact.split(" ");
+  const wanted = `${outward} ${inward}`;
+  const queries = inward.length === 1 ? [`${outward}${inward}A`, `${outward}${inward}B`] : [`${outward}${inward}`];
+  const results = (await Promise.all(queries.map(fetchPrefix))).flat();
+  return results.filter((postcode) => postcode.startsWith(wanted)).slice(0, 8);
 }
 
 /**
@@ -188,4 +194,52 @@ export async function backfillHubCoordinates(): Promise<void> {
       }
     }),
   );
+}
+
+/** A town, village or district from the Ordnance Survey names gazetteer. */
+export interface NamedPlace extends LatLng {
+  name: string;
+  /** County or borough, to tell apart the several Newports. */
+  detail: string;
+  outcode: string;
+}
+
+interface PlaceResult {
+  name_1: string;
+  local_type: string;
+  outcode: string | null;
+  county_unitary: string | null;
+  district_borough: string | null;
+  region: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/** Settlements only: not hills, woods or farms that share a name. */
+const SETTLEMENTS = new Set(["City", "Town", "Village", "Hamlet", "Suburban Area", "Other Settlement"]);
+const SETTLEMENT_RANK: Record<string, number> = { City: 0, Town: 1, "Suburban Area": 2, Village: 3, Hamlet: 4, "Other Settlement": 5 };
+
+/** Up to six UK places whose name starts with what was typed: "dartf" → Dartford. */
+export async function searchPlaces(prefix: string): Promise<NamedPlace[]> {
+  const q = prefix.replace(/[^\p{L}\p{N}' -]/gu, "").trim().slice(0, 40);
+  if (q.length < 2) return [];
+  const body = await getJson<{ result: PlaceResult[] | null }>(`/places?q=${encodeURIComponent(q)}&limit=30`);
+  const seen = new Set<string>();
+  return (body?.result ?? [])
+    .filter((place) => SETTLEMENTS.has(place.local_type) && place.outcode && place.latitude !== null && place.longitude !== null)
+    .sort((a, b) => (SETTLEMENT_RANK[a.local_type] ?? 9) - (SETTLEMENT_RANK[b.local_type] ?? 9))
+    .map((place) => ({
+      name: place.name_1,
+      detail: place.county_unitary || place.district_borough || place.region || "",
+      outcode: place.outcode!,
+      lat: place.latitude!,
+      lng: place.longitude!,
+    }))
+    .filter((place) => {
+      const key = `${place.name}|${place.detail}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 6);
 }
