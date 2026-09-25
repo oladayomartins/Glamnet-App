@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import { Button, Card, EmptyState, Pill, SectionTitle } from "@/components/ui";
-import { ErrorNote, fieldClass } from "../_components/bits";
+import { ErrorNote, LiveSwitch, fieldClass } from "../_components/bits";
 import { useAdminAction } from "../_components/use-admin-action";
 
 interface Category {
@@ -30,6 +30,7 @@ interface Service {
   durationMinutes: number;
   isActive: boolean;
   vendorCount: number;
+  bookingCount: number;
 }
 
 const pounds = (minor: number) => `£${(minor / 100).toFixed(2)}`;
@@ -39,6 +40,8 @@ export function CatalogueManager({ categories, services }: { categories: Categor
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
+  // A category being deleted that still has services: where they go.
+  const [deleting, setDeleting] = useState<{ id: string; moveTo: string } | null>(null);
 
   const shown = filter === "ALL" ? services : services.filter((service) => service.category === filter);
 
@@ -87,7 +90,7 @@ export function CatalogueManager({ categories, services }: { categories: Categor
                 }}
               />
             ) : (
-              <Card key={category.id} className={`flex gap-3 p-4 ${category.isActive ? "" : "opacity-60"}`}>
+              <Card key={category.id} className={`flex min-w-0 flex-wrap gap-3 p-4 ${category.isActive ? "" : "opacity-70"}`}>
                 {category.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- ImageKit thumbnail
                   <img src={`${category.imageUrl}?tr=w-128,h-128,fo-auto`} alt="" className="h-14 w-14 shrink-0 rounded-glam-sm object-cover" />
@@ -96,31 +99,43 @@ export function CatalogueManager({ categories, services }: { categories: Categor
                     {category.emoji || "✨"}
                   </span>
                 )}
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-40">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-ink">{category.name}</span>
-                    {!category.isActive ? <Pill tone="muted">hidden</Pill> : null}
                   </div>
                   <p className="text-xs text-ink-muted">{category.blurb || "No description"}</p>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-muted">
                     /{category.slug} · {category.serviceCount} services · order {category.sortOrder}
                   </p>
                 </div>
-                <div className="flex shrink-0 flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setEditingCategory(category.id)}
-                    aria-label={`Edit ${category.name}`}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-sunken hover:text-ink"
-                  >
-                    <PencilSimple size={16} />
-                  </button>
-                  {category.serviceCount === 0 ? (
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <LiveSwitch
+                    on={category.isActive}
+                    busy={busy === `category:${category.id}`}
+                    label={`${category.name} on the site`}
+                    onToggle={() =>
+                      run(`category:${category.id}`, `/api/admin/categories/${category.id}`, "PATCH", {
+                        isActive: !category.isActive,
+                      })
+                    }
+                  />
+                  <div className="flex gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditingCategory(category.id)}
+                      aria-label={`Edit ${category.name}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-sunken hover:text-ink"
+                    >
+                      <PencilSimple size={16} />
+                    </button>
                     <button
                       type="button"
                       aria-label={`Delete ${category.name}`}
                       onClick={() => {
-                        if (window.confirm(`Delete the ${category.name} category?`)) {
+                        if (category.serviceCount > 0) {
+                          const other = categories.find((option) => option.id !== category.id);
+                          setDeleting({ id: category.id, moveTo: other?.name ?? "" });
+                        } else if (window.confirm(`Delete the ${category.name} category?`)) {
                           void run(`category:${category.id}`, `/api/admin/categories/${category.id}`, "DELETE");
                         }
                       }}
@@ -128,8 +143,49 @@ export function CatalogueManager({ categories, services }: { categories: Categor
                     >
                       <Trash size={16} />
                     </button>
-                  ) : null}
+                  </div>
                 </div>
+                {deleting?.id === category.id ? (
+                  <div className="basis-full rounded-glam-sm border border-warning/50 bg-sunken p-3 text-sm">
+                    <p className="text-ink">
+                      {category.name} has {category.serviceCount} service{category.serviceCount === 1 ? "" : "s"}. Move{" "}
+                      {category.serviceCount === 1 ? "it" : "them"} to:
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <select
+                        value={deleting.moveTo}
+                        onChange={(e) => setDeleting({ id: category.id, moveTo: e.target.value })}
+                        className={`${fieldClass} mt-0 w-auto`}
+                        aria-label="Move services to"
+                      >
+                        {categories
+                          .filter((option) => option.id !== category.id)
+                          .map((option) => (
+                            <option key={option.id} value={option.name}>
+                              {option.name}
+                            </option>
+                          ))}
+                      </select>
+                      <Button
+                        variant="secondary"
+                        disabled={!deleting.moveTo || busy === `category:${category.id}`}
+                        onClick={async () => {
+                          const moved = await run(
+                            `category:${category.id}`,
+                            `/api/admin/categories/${category.id}?moveTo=${encodeURIComponent(deleting.moveTo)}`,
+                            "DELETE",
+                          );
+                          if (moved) setDeleting(null);
+                        }}
+                      >
+                        Move and delete
+                      </Button>
+                      <button type="button" onClick={() => setDeleting(null)} className="text-sm font-semibold text-ink-muted hover:text-ink">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </Card>
             ),
           )}
@@ -221,24 +277,43 @@ export function CatalogueManager({ categories, services }: { categories: Categor
                   >
                     Edit
                   </button>
-                  <button
-                    type="button"
-                    disabled={busy === `service:${service.id}`}
-                    onClick={() =>
+                  <LiveSwitch
+                    on={service.isActive}
+                    busy={busy === `service:${service.id}`}
+                    label={`${service.name} bookable`}
+                    onToggle={() =>
                       run(`service:${service.id}`, `/api/admin/services/${service.id}`, "PATCH", { isActive: !service.isActive })
                     }
-                    className="text-sm font-semibold text-ink-muted hover:text-ink"
-                  >
-                    {service.isActive ? "Hide" : "Show"}
-                  </button>
+                  />
+                  {service.bookingCount === 0 ? (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${service.name}`}
+                      disabled={busy === `service:${service.id}`}
+                      onClick={() => {
+                        const menus = service.vendorCount
+                          ? ` It will also come off ${service.vendorCount} vendor menu${service.vendorCount === 1 ? "" : "s"}.`
+                          : "";
+                        if (window.confirm(`Delete ${service.name}?${menus}`)) {
+                          void run(`service:${service.id}`, `/api/admin/services/${service.id}`, "DELETE");
+                        }
+                      }}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-sunken hover:text-warning"
+                    >
+                      <Trash size={16} />
+                    </button>
+                  ) : (
+                    <span className="h-9 w-9" aria-hidden />
+                  )}
                 </div>
               ),
             )
           )}
         </Card>
         <p className="mt-2 text-xs text-ink-muted">
-          Services are hidden rather than deleted, because past bookings refer to them. The price here is the default;
-          each vendor can set their own.
+          Switch a service off to take it off every menu and search. Services that have never been booked can be
+          deleted; booked ones can only be switched off, because past invoices refer to them. The price here is the
+          default; each vendor can set their own.
         </p>
       </section>
     </div>

@@ -52,3 +52,43 @@ export function ErrorNote({ children }: { children: ReactNode }) {
 
 export const fieldClass =
   "mt-1 w-full rounded-glam-sm border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-accent-500";
+
+/**
+ * One-click on/off for anything the site shows or hides: categories, cities,
+ * services, campaigns, ads, promo codes.
+ */
+export function LiveSwitch({
+  on,
+  busy,
+  onToggle,
+  label,
+}: {
+  on: boolean;
+  busy?: boolean;
+  onToggle: () => void;
+  /** What is being switched, for screen readers: "Leeds on the home page". */
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      disabled={busy}
+      onClick={onToggle}
+      className="group inline-flex min-h-9 items-center gap-2 rounded-full px-1 text-xs font-semibold text-ink-muted disabled:opacity-50"
+    >
+      <span
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition ${
+          on ? "bg-metal" : "bg-sunken ring-1 ring-line"
+        }`}
+      >
+        <span
+          className={`absolute h-4 w-4 rounded-full bg-surface shadow transition-transform ${on ? "translate-x-[18px]" : "translate-x-0.5"}`}
+        />
+      </span>
+      <span className={on ? "text-ink" : ""}>{on ? "On" : "Off"}</span>
+    </button>
+  );
+}

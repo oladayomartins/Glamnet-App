@@ -14,7 +14,7 @@ export default async function AdminCataloguePage() {
     prisma.category.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     prisma.service.findMany({
       orderBy: [{ category: "asc" }, { kind: "asc" }, { name: "asc" }],
-      include: { _count: { select: { providers: true } } },
+      include: { _count: { select: { providers: true, bookingItems: true } } },
     }),
   ]);
 
@@ -47,6 +47,7 @@ export default async function AdminCataloguePage() {
           durationMinutes: service.durationMinutes,
           isActive: service.isActive,
           vendorCount: service._count.providers,
+          bookingCount: service._count.bookingItems,
         }))}
       />
     </div>
