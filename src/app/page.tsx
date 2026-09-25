@@ -486,20 +486,31 @@ export default async function MarketingPage() {
                   href={`/${citySlug(city.city)}/salons`}
                   className="group relative w-[200px] shrink-0 snap-start overflow-hidden rounded-glam sm:w-[240px]"
                 >
-                  {/* No city photography exists yet, so this is the brand
-                      metal rather than a stock skyline nobody chose. */}
-                  <span
-                    aria-hidden
-                    className="block aspect-[4/3] w-full bg-metal transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
-                  />
-                  {/* The city's initial, faint, so a rail of gold tiles still
-                      reads as different places at a glance. */}
-                  <span
-                    aria-hidden
-                    className="absolute -top-2 right-3 font-display text-[96px] font-extrabold leading-none text-black/10"
-                  >
-                    {city.label.slice(0, 1)}
-                  </span>
+                  {city.image ? (
+                    <BrandImage
+                      path={city.image}
+                      alt=""
+                      width={480}
+                      height={360}
+                      sizes="240px"
+                      className="block aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <>
+                      {/* No photograph for this city yet: the brand metal,
+                          with its initial so the rail still reads as places. */}
+                      <span
+                        aria-hidden
+                        className="block aspect-[4/3] w-full bg-metal transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                      />
+                      <span
+                        aria-hidden
+                        className="absolute -top-2 right-3 font-display text-[96px] font-extrabold leading-none text-black/10"
+                      >
+                        {city.label.slice(0, 1)}
+                      </span>
+                    </>
+                  )}
                   {/* Name over the image, so the scrim is load-bearing and
                       stays fixed in both themes. */}
                   <span

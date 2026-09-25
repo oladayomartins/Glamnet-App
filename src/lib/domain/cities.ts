@@ -13,6 +13,8 @@ export interface LaunchCity {
   name: string;
   /** Shown on the tile when it reads better than the district name. */
   label?: string;
+  /** Photograph in the brand media library, e.g. "/Leeds city.png". */
+  image?: string;
   /** A central outward code, used as the search area for the city. */
   outcode: string;
   lat: number;
@@ -20,14 +22,14 @@ export interface LaunchCity {
 }
 
 export const LAUNCH_CITIES: readonly LaunchCity[] = [
-  { name: "London", outcode: "WC2N", lat: 51.5072, lng: -0.1283 },
-  { name: "Birmingham", outcode: "B2", lat: 52.4777, lng: -1.898 },
-  { name: "Manchester", outcode: "M2", lat: 53.4793, lng: -2.2446 },
-  { name: "Leeds", outcode: "LS1", lat: 53.7951, lng: -1.5467 },
+  { name: "London", image: "/London City.png", outcode: "WC2N", lat: 51.5072, lng: -0.1283 },
+  { name: "Birmingham", image: "/Birminigham City.png", outcode: "B2", lat: 52.4777, lng: -1.898 },
+  { name: "Manchester", image: "/Manchester City.png", outcode: "M2", lat: 53.4793, lng: -2.2446 },
+  { name: "Leeds", image: "/Leeds city.png", outcode: "LS1", lat: 53.7951, lng: -1.5467 },
   { name: "Glasgow", outcode: "G1", lat: 55.8612, lng: -4.2447 },
-  { name: "Liverpool", outcode: "L1", lat: 53.4064, lng: -2.9789 },
+  { name: "Liverpool", image: "/Liverpool city.png", outcode: "L1", lat: 53.4064, lng: -2.9789 },
   { name: "Bristol", outcode: "BS1", lat: 51.4517, lng: -2.5969 },
-  { name: "Sheffield", outcode: "S1", lat: 53.3804, lng: -1.4699 },
+  { name: "Sheffield", image: "/Sheffield city.png", outcode: "S1", lat: 53.3804, lng: -1.4699 },
   { name: "Edinburgh", outcode: "EH1", lat: 55.9503, lng: -3.193 },
   { name: "Leicester", outcode: "LE1", lat: 52.635, lng: -1.1372 },
   { name: "Coventry", outcode: "CV1", lat: 52.4079, lng: -1.5118 },
@@ -45,7 +47,7 @@ export const LAUNCH_CITIES: readonly LaunchCity[] = [
   { name: "Derby", outcode: "DE1", lat: 52.9243, lng: -1.4888 },
   { name: "Stoke-on-Trent", outcode: "ST1", lat: 53.0244, lng: -2.1763 },
   { name: "Plymouth", outcode: "PL1", lat: 50.3725, lng: -4.1378 },
-  { name: "Portsmouth", outcode: "PO1", lat: 50.7973, lng: -1.0913 },
+  { name: "Portsmouth", image: "/Portsmouth.png", outcode: "PO1", lat: 50.7973, lng: -1.0913 },
   { name: "Aberdeen", outcode: "AB10", lat: 57.1496, lng: -2.0969 },
   { name: "Cambridge", outcode: "CB2", lat: 52.2048, lng: 0.1193 },
   { name: "Oxford", outcode: "OX1", lat: 51.7549, lng: -1.2541 },
@@ -64,12 +66,15 @@ export interface CityTile {
   sector: string;
   hubId: string | null;
   providerCount: number;
+  /** Brand media path, or null to draw the metal tile. */
+  image: string | null;
 }
 
 /**
  * The "Browse by city" rail: every launch city, plus any other city where a
- * pro is already live, each with its live-pro count. Busiest first; ties keep
- * the launch order, and cities off the list follow alphabetically.
+ * pro is already live, each with its live-pro count. Busiest first; ties put
+ * photographed cities first, then launch order; cities off the list follow
+ * alphabetically.
  */
 export function cityTiles(live: { city: string; hubId: string; sector: string; providerCount: number }[]): CityTile[] {
   const byCity = new Map<string, { hubId: string; sector: string; providerCount: number; best: number }>();
@@ -87,6 +92,7 @@ export function cityTiles(live: { city: string; hubId: string; sector: string; p
     return {
       city: city.name,
       label: city.label ?? city.name,
+      image: city.image ?? null,
       sector: city.outcode,
       hubId: found?.hubId ?? null,
       providerCount: found?.providerCount ?? 0,
@@ -99,14 +105,22 @@ export function cityTiles(live: { city: string; hubId: string; sector: string; p
     if (listed.has(key) || hub.providerCount === 0) continue;
     listed.add(key);
     const entry = byCity.get(key)!;
-    tiles.push({ city: hub.city, label: hub.city, sector: entry.sector, hubId: entry.hubId, providerCount: entry.providerCount, order: Number.MAX_SAFE_INTEGER });
+    tiles.push({ city: hub.city, label: hub.city, image: null, sector: entry.sector, hubId: entry.hubId, providerCount: entry.providerCount, order: Number.MAX_SAFE_INTEGER });
   }
 
   return tiles
-    .sort((a, b) => b.providerCount - a.providerCount || a.order - b.order || a.city.localeCompare(b.city))
+    // Among cities with the same count, photographed ones lead the rail.
+    .sort(
+      (a, b) =>
+        b.providerCount - a.providerCount ||
+        Number(Boolean(b.image)) - Number(Boolean(a.image)) ||
+        a.order - b.order ||
+        a.city.localeCompare(b.city),
+    )
     .map((tile) => ({
       city: tile.city,
       label: tile.label,
+      image: tile.image,
       sector: tile.sector,
       hubId: tile.hubId,
       providerCount: tile.providerCount,
