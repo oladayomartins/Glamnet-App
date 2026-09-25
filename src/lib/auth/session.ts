@@ -11,6 +11,10 @@ export interface SessionUser {
   appUserId: string;
   authUserId: string;
   email: string;
+  /** What to call them in the header: vendor or customer name, else the email's first part. */
+  name: string;
+  /** Profile photo, or "" to show initials. */
+  avatarUrl: string;
   role: Role;
   customerId: string | null;
   providerId: string | null;
@@ -222,6 +226,12 @@ async function loadSessionUser(): Promise<(SessionUser & { suspendedAt: Date | n
     appUserId: appUser.id,
     authUserId: appUser.authUserId,
     email: appUser.email,
+    name:
+      appUser.provider?.name.trim() ||
+      appUser.customer?.name.trim() ||
+      String(user.user_metadata?.name ?? "").trim() ||
+      appUser.email.split("@")[0],
+    avatarUrl: appUser.provider?.avatarUrl || appUser.customer?.avatarUrl || "",
     role: appUser.role as Role,
     customerId: appUser.customer?.id ?? null,
     providerId: appUser.provider?.id ?? null,

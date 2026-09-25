@@ -90,6 +90,10 @@ model Customer {
   postcode  String   @default("")
   latitude  Float?
   longitude Float?
+  /// Profile photo shown in the header menu. fileId lets a replaced photo be
+  /// deleted from ImageKit rather than orphaned.
+  avatarUrl    String @default("")
+  avatarFileId String @default("")
 
   /// Null for seeded demo records that have no login yet.
   appUserId String?  @unique
