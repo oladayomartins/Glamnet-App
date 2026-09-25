@@ -19,6 +19,7 @@ import {
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MobileMenu } from "@/components/mobile-menu";
+import { UserMenu } from "@/components/user-menu";
 import { OfflineNotice } from "@/components/offline-notice";
 
 /**
@@ -163,12 +164,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 ))}
 
                 {user ? (
-                  <Link
-                    href="/account"
-                    className="tap-44 ml-1 inline-flex min-h-10 items-center rounded-full bg-metal px-4 text-sm font-bold text-metal-ink transition hover:brightness-105"
-                  >
-                    Account
-                  </Link>
+                  <UserMenu name={user.name} email={user.email} avatarUrl={user.avatarUrl} role={user.role} />
                 ) : (
                   <>
                     {/* Sign up is the quiet option, Sign in the button. */}

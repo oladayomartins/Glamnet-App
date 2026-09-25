@@ -6,6 +6,8 @@ const user = (overrides: Partial<SessionUser> = {}): SessionUser => ({
   appUserId: "app-1",
   authUserId: "auth-1",
   email: "someone@example.com",
+  name: "Someone",
+  avatarUrl: "",
   role: "PROVIDER",
   customerId: null,
   providerId: "provider-1",

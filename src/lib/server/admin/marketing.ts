@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchSchema } from "@/lib/api/patch-schema";
 import { prisma } from "../prisma";
 import { sendEmails } from "../email";
 import { deleteImageKitFiles } from "../imagekit-admin";
@@ -65,7 +66,7 @@ export async function createCampaign(actorEmail: string, raw: unknown) {
 }
 
 export async function updateCampaign(actorEmail: string, id: string, raw: unknown) {
-  const { startsAt, endsAt, ctaUrl, ...rest } = campaignInput.partial().parse(raw);
+  const { startsAt, endsAt, ctaUrl, ...rest } = patchSchema(campaignInput).parse(raw);
   const current = await prisma.campaign.findUnique({ where: { id } });
   if (!current) throw new AdminError("That campaign no longer exists.", 404, "NOT_FOUND");
   checkWindow(startsAt ?? current.startsAt, endsAt === undefined ? current.endsAt : endsAt);
@@ -214,7 +215,7 @@ export async function createAd(actorEmail: string, raw: unknown) {
 }
 
 export async function updateAd(actorEmail: string, id: string, raw: unknown) {
-  const { startsAt, endsAt, linkUrl, ...rest } = adInput.partial().parse(raw);
+  const { startsAt, endsAt, linkUrl, ...rest } = patchSchema(adInput).parse(raw);
   const current = await prisma.adPlacement.findUnique({ where: { id } });
   if (!current) throw new AdminError("That ad no longer exists.", 404, "NOT_FOUND");
   checkWindow(startsAt ?? current.startsAt, endsAt === undefined ? current.endsAt : endsAt);

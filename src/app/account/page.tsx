@@ -12,6 +12,7 @@ import { formatCustomerDayTime, formatMoney } from "@/lib/format";
 import { formatMiles, milesToKm } from "@/lib/domain/postcode";
 import { NearYou } from "./near-you";
 import { DetailsForm } from "./details-form";
+import { PhotoPicker } from "./photo-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -283,9 +284,14 @@ export default async function AccountPage({
       </section>
 
       {/* --- Details ---------------------------------------------------------- */}
-      <section className="grid gap-6 md:grid-cols-[minmax(0,1fr)_16rem]">
+      <section id="details" className="scroll-mt-24 grid gap-6 md:grid-cols-[minmax(0,1fr)_16rem]">
         <Card className="p-5">
           <SectionTitle>Your details</SectionTitle>
+          <div className="mb-5">
+            <PhotoPicker
+              initial={customer?.avatarUrl ? { url: customer.avatarUrl, fileId: customer.avatarFileId } : null}
+            />
+          </div>
           <DetailsForm name={customer?.name ?? ""} phone={customer?.phone ?? ""} email={user.email} />
         </Card>
         <Card className="flex flex-col justify-between gap-4 p-5">

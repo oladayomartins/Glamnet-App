@@ -108,11 +108,13 @@ export function categoryImagePath(category: string): string | null {
 export const IMAGE_FOLDERS = {
   reference: "/glamnet/booking-references",
   provider: "/glamnet/providers",
+  customer: "/glamnet/customers",
   service: "/glamnet/services",
   /** The three finished-work photos behind every PIN release. */
   completion: "/glamnet/completion-evidence",
   lookbook: "/glamnet/lookbooks",
   category: "/glamnet/categories",
+  city: "/glamnet/cities",
   ad: "/glamnet/ads",
 } as const;
 

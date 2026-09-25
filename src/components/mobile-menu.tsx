@@ -69,13 +69,23 @@ export function MobileMenu({
             </ul>
             <div className="mt-4 flex items-center gap-3">
               {signedIn ? (
-                <Link
-                  href="/account"
-                  onClick={close}
-                  className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink"
-                >
-                  My account
-                </Link>
+                <>
+                  <Link
+                    href="/account"
+                    onClick={close}
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink"
+                  >
+                    My account
+                  </Link>
+                  <form action="/auth/sign-out" method="post" className="flex-1">
+                    <button
+                      type="submit"
+                      className="inline-flex min-h-12 w-full items-center justify-center text-sm font-semibold text-ink"
+                    >
+                      Sign out
+                    </button>
+                  </form>
+                </>
               ) : (
                 <>
                   <Link

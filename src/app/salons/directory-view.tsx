@@ -143,6 +143,18 @@ export async function DirectoryView({
               See every category
             </Link>
           ) : null}
+          {city && !place && !hub ? (
+            <span className="mt-4 block">
+              Pros are joining {city} now.{" "}
+              <Link href="/become-a-vendor" className="font-semibold text-accent-700">
+                Are you a pro here? Be one of the first
+              </Link>
+              {" · "}
+              <Link href="/salons" className="font-semibold text-accent-700">
+                See pros across the UK
+              </Link>
+            </span>
+          ) : null}
         </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">

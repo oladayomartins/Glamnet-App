@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchSchema } from "@/lib/api/patch-schema";
 import { prisma } from "../prisma";
 import { deleteImageKitFiles } from "../imagekit-admin";
 import { slugify } from "@/lib/domain/storefront";
@@ -37,7 +38,7 @@ export async function createCategory(actorEmail: string, raw: unknown) {
 }
 
 export async function updateCategory(actorEmail: string, id: string, raw: unknown) {
-  const input = categoryInput.partial().parse(raw);
+  const input = patchSchema(categoryInput).parse(raw);
   const current = await prisma.category.findUnique({ where: { id } });
   if (!current) throw new AdminError("That category no longer exists.", 404, "NOT_FOUND");
 
@@ -113,7 +114,7 @@ export async function createService(actorEmail: string, raw: unknown) {
 }
 
 export async function updateService(actorEmail: string, id: string, raw: unknown) {
-  const input = serviceInput.partial().parse(raw);
+  const input = patchSchema(serviceInput).parse(raw);
   if (input.category) await assertCategory(input.category);
   const exists = await prisma.service.findUnique({ where: { id } });
   if (!exists) throw new AdminError("That service no longer exists.", 404, "NOT_FOUND");

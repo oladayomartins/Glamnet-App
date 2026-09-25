@@ -6,11 +6,15 @@ import { requireApiRole } from "@/lib/auth/api-guard";
 import { BookingError } from "@/lib/server/booking-service";
 import { lookupPlace } from "@/lib/server/geo";
 import { formatPostcode, outwardCode } from "@/lib/domain/postcode";
+import { isTrustedImageUrl } from "@/lib/imagekit";
+import { deleteImageKitFiles } from "@/lib/server/imagekit-admin";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   phone: z.string().trim().max(30).optional(),
   postcode: z.string().trim().max(10).optional(),
+  /** null removes the photo. */
+  avatar: z.object({ url: z.string().url().max(500), fileId: z.string().max(100) }).nullable().optional(),
 });
 
 /**
@@ -25,6 +29,13 @@ export async function PATCH(request: Request) {
     if (!auth.user.customerId) throw new BookingError("No customer profile.", "NOT_FOUND", 404);
 
     const input = schema.parse(await request.json());
+    if (input.avatar && !isTrustedImageUrl(input.avatar.url)) {
+      throw new BookingError("Upload the photo through the app.", "INVALID_TRANSITION", 422);
+    }
+    const before =
+      input.avatar !== undefined
+        ? await prisma.customer.findUnique({ where: { id: auth.user.customerId }, select: { avatarFileId: true } })
+        : null;
     let location: { postcode: string; latitude: number | null; longitude: number | null } | undefined;
     if (input.postcode !== undefined) {
       if (!input.postcode) {
@@ -48,9 +59,16 @@ export async function PATCH(request: Request) {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.phone !== undefined ? { phone: input.phone } : {}),
         ...(location ?? {}),
+        ...(input.avatar !== undefined
+          ? { avatarUrl: input.avatar?.url ?? "", avatarFileId: input.avatar?.fileId ?? "" }
+          : {}),
       },
-      select: { name: true, phone: true, postcode: true },
+      select: { name: true, phone: true, postcode: true, avatarUrl: true },
     });
+    // The replaced photo is removed from the media library, not orphaned.
+    if (before?.avatarFileId && before.avatarFileId !== (input.avatar?.fileId ?? "")) {
+      await deleteImageKitFiles([before.avatarFileId]);
+    }
     return NextResponse.json({ customer });
   } catch (error) {
     return errorResponse(error);

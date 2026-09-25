@@ -135,8 +135,16 @@ function meaningful(tokens: string[]): string[] {
  * makeup while "make my hair" does not — the words have to actually sit
  * together for the phrase to have been used.
  */
-function impliedWords(tokens: string[]): Set<string> {
+function impliedWords(tokens: string[], partial: string | null = null): Set<string> {
   const implied = new Set<string>();
+  // The word still being typed completes to an alias: "plai" → plaits → braids.
+  if (partial) {
+    for (const alias of ALIASES) {
+      if (alias.phrase.length === 1 && alias.phrase[0].startsWith(partial)) {
+        for (const word of alias.means) implied.add(word);
+      }
+    }
+  }
   const pairs = new Set<string>();
   for (let i = 0; i < tokens.length - 1; i += 1) {
     pairs.add(`${tokens[i]} ${tokens[i + 1]}`);
@@ -174,7 +182,13 @@ export function matchServices<T extends CatalogueEntry>(
   const tokens = meaningful(tokenise(query));
   if (tokens.length === 0) return [];
 
-  const implied = impliedWords(tokens);
+  // Search-as-you-type: the last word may be half-finished ("brai"), so it
+  // also counts when it starts a word — but only from three letters, and only
+  // while the query doesn't end in a space (a finished word means itself).
+  const last = tokens[tokens.length - 1];
+  const partial = !/\s$/.test(query) && last.length >= 3 ? last : null;
+
+  const implied = impliedWords(tokens, partial);
 
   const matches: ServiceMatch<T>[] = [];
 
@@ -192,6 +206,11 @@ export function matchServices<T extends CatalogueEntry>(
       }
     }
 
+    if (partial && !nameWords.has(partial) && [...nameWords].some((word) => word.startsWith(partial))) {
+      score += 8;
+      reason = "name";
+    }
+
     for (const word of implied) {
       if (nameWords.has(word)) {
         score += 6;
@@ -207,6 +226,9 @@ export function matchServices<T extends CatalogueEntry>(
         score += 3;
         break;
       }
+    }
+    if (partial && score === 0 && [...categoryWords].some((word) => word.startsWith(partial))) {
+      score += 3;
     }
 
     if (score > 0) matches.push({ service, score, reason });

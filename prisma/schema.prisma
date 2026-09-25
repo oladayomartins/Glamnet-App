@@ -90,6 +90,10 @@ model Customer {
   postcode  String   @default("")
   latitude  Float?
   longitude Float?
+  /// Profile photo shown in the header menu. fileId lets a replaced photo be
+  /// deleted from ImageKit rather than orphaned.
+  avatarUrl    String @default("")
+  avatarFileId String @default("")
 
   /// Null for seeded demo records that have no login yet.
   appUserId String?  @unique
@@ -495,6 +499,30 @@ model Category {
   imageUrl    String   @default("")
   imageFileId String   @default("")
   sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+/// A city listed under "Browse by city", managed by admins.
+///
+/// `name` is the district postcodes in the city resolve to ("Brighton and
+/// Hove", "Newcastle upon Tyne") — vendors are counted by their Beauty Hub's
+/// city, so it must match. `label` is what the tile shows, when different.
+model City {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String   @unique
+  label       String   @default("")
+  /// A central outward code: the search area when the tile is used.
+  outcode     String
+  latitude    Float
+  longitude   Float
+  imageUrl    String   @default("")
+  imageFileId String   @default("")
+  sortOrder   Int      @default(100)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -3,20 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CalendarBlank,
-  CaretDown,
-  CaretLeft,
   CaretRight,
-  Lightning,
   MagnifyingGlass,
   MapPin,
+  NavigationArrow,
   SpinnerGap,
   SquaresFour,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui";
 import { formatDuration, formatMoney } from "@/lib/format";
 import { useTypedPlaceholder } from "@/components/use-typed-placeholder";
-import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
 
 export interface ServiceArea {
   hubId: string;
@@ -36,39 +32,38 @@ interface ServiceOption {
   reason?: "name" | "phrase" | "category";
 }
 
-type When =
-  | { kind: "now" }
-  /** A day, with no time yet — what you get before a service is chosen. */
-  | { kind: "day"; date: string }
-  /** A real slot off a vendor's calendar. `label` is what the pill shows. */
-  | { kind: "time"; date: string; at: string; label: string };
-
 interface CategoryGroup {
   name: string;
   services: ServiceOption[];
 }
 
-/** How many days ahead a customer may pick. Matches the offer horizon. */
-const HORIZON_DAYS = 7;
+interface LocationSuggestion {
+  kind: "postcode" | "place";
+  label: string;
+  detail: string;
+  lookup: string;
+}
+
+/** A place the customer picked, and the area it resolved to. */
+interface ChosenArea extends ServiceArea {
+  /** What the field shows: "Dartford", "DA1 1AA". */
+  label: string;
+}
 
 /**
- * The hero booking bar (§C-01 block 1).
+ * The hero search bar (§C-01 block 1).
  *
- * A bar of fixed height, not a stack that grows. Each control opens its panel
- * as an OVERLAY — absolutely positioned, floating over whatever is beneath —
- * so answering a question never changes the height of anything. That matters
- * here more than it usually would: the hero band's height decides how far the
- * photograph behind it has to crop, so a module that grew as it was filled in
- * re-cropped the picture under the customer's hands while they used it.
+ * Two fields you type straight into — where, and what — with suggestions
+ * dropping beneath each as you go. "Where" takes a town ("Dartford") or any
+ * UK postcode, full or partial, and resolves it to the Beauty Hub for that
+ * outward code. "What" takes the customer's own words and suggests real
+ * catalogue services; free text is fine too, and goes to /search as typed.
  *
- * The timing pill sits above the bar, the way the reference puts "Pickup now"
- * above its fields, and defaults to the soonest slot — which is what most
- * people want and means the bar needs only two answers before it can search.
+ * The suggestion lists float over the page rather than pushing it down, so
+ * the hero photograph behind the bar never re-crops while someone types.
  *
- * It stops short of committing to anything. Submitting hands the answers to
- * /search, which computes real offers from real calendars; this never prices,
- * never reserves, and never decides whether a booking is an emergency. It
- * states the rule and lets the server apply it.
+ * Timing is not asked here. /search sorts soonest-first across the whole
+ * booking horizon, which is what most people want, and filters by day there.
  */
 export function BookingLauncher({
   areas,
@@ -82,29 +77,41 @@ export function BookingLauncher({
   thresholdMinutes: number;
 }) {
   const router = useRouter();
-  const [area, setArea] = useState<ServiceArea | null>(null);
-  const [service, setService] = useState<ServiceOption | null>(null);
-  // Defaulted rather than required. "As soon as someone is free" is both the
-  // commonest answer and the one the marketplace is built around, so asking
-  // for it up front would be asking a question already answered.
-  const [when, setWhen] = useState<When>({ kind: "now" });
-  const [open, setOpen] = useState<"where" | "what" | "when" | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const whatRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState<"where" | "what" | null>(null);
+
+  const [whereText, setWhereText] = useState("");
+  const [area, setArea] = useState<ChosenArea | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [whereError, setWhereError] = useState<string | null>(null);
+
+  const [whatText, setWhatText] = useState("");
+  const [service, setService] = useState<ServiceOption | null>(null);
+  const [whatFocused, setWhatFocused] = useState(false);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
+  const typedHint = useTypedPlaceholder(hints, !whatFocused && whatText === "");
 
-  // A panel that floats over the page has to close when attention leaves it,
-  // or it sits on top of whatever the customer looks at next.
+  const places = useSuggestions<LocationSuggestion[]>(
+    area ? "" : whereText,
+    (q) => `/api/geo/suggest?q=${encodeURIComponent(q)}`,
+    (payload) => payload.suggestions ?? [],
+  );
+  const services = useSuggestions<{ matches: ServiceOption[]; categories: CategoryGroup[] }>(
+    service ? "" : whatText,
+    (q) => `/api/services/match?q=${encodeURIComponent(q)}`,
+    (payload) => ({ matches: payload.matches ?? [], categories: payload.categories ?? [] }),
+    true,
+  );
+
+  // A list floating over the page has to close when attention leaves it.
   useEffect(() => {
     if (!open) return;
-
     const onDown = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(null);
     };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(null);
-    };
-
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpen(null);
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -113,300 +120,502 @@ export function BookingLauncher({
     };
   }, [open]);
 
-  const go = () => {
-    if (!area || !service) return;
-    const params = new URLSearchParams({
-      q: service.name,
-      location: area.sector,
-    });
-    // "As soon as someone is free" sends NO timing filter. It used to send
-    // availableToday=1, which restricts offers to slots starting before
-    // midnight — so a search after the last appointment of the day returned
-    // "nobody covers that yet" while vendors were free in the morning.
-    // Offers already sort soonest-first over the whole horizon, which is what
-    // the words promise.
-    if (when.kind === "day") params.set("date", when.date);
-    if (when.kind === "time") params.set("at", when.at);
-    router.push(`/search?${params.toString()}`);
+  /** A postcode, outward code or town's outward code → its Beauty Hub. */
+  const resolveArea = async (lookup: string, label: string): Promise<ChosenArea | null> => {
+    setResolving(true);
+    setWhereError(null);
+    try {
+      const response = await fetch(`/api/geo/lookup?q=${encodeURIComponent(lookup)}&hub=1`);
+      const payload = await response.json();
+      if (!response.ok || !payload.hub) throw new Error(payload.error?.message);
+      const chosen = {
+        hubId: payload.hub.id,
+        sector: payload.hub.sector,
+        city: payload.hub.city,
+        name: payload.hub.name,
+        label,
+      };
+      setArea(chosen);
+      setWhereText(label);
+      return chosen;
+    } catch {
+      setWhereError("We couldn't find that place. Try a town or a postcode.");
+      return null;
+    } finally {
+      setResolving(false);
+    }
   };
+
+  const pickPlace = async (lookup: string, label: string) => {
+    setOpen(null);
+    if (await resolveArea(lookup, label)) {
+      // Straight on to "What" where there's room. On a phone its list would
+      // cover the search button and the keyboard would jump up, so it waits.
+      if (!service && !whatText && window.matchMedia("(min-width: 640px)").matches) {
+        whatRef.current?.focus();
+        setOpen("what");
+      }
+    }
+  };
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      setWhereError("This browser can't share your location. Type a town or postcode.");
+      return;
+    }
+    setResolving(true);
+    setOpen(null);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const response = await fetch(`/api/geo/reverse?lat=${coords.latitude}&lng=${coords.longitude}`);
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error?.message);
+          await pickPlace(payload.place.postcode ?? payload.place.outcode, payload.place.postcode ?? payload.place.outcode);
+        } catch (cause) {
+          setResolving(false);
+          setWhereError(cause instanceof Error && cause.message ? cause.message : "We couldn't find where you are. Type it instead.");
+        }
+      },
+      () => {
+        setResolving(false);
+        setWhereError("Location is switched off. Type a town or postcode instead.");
+      },
+      { timeout: 10_000, maximumAge: 300_000 },
+    );
+  };
+
+  const pickService = (picked: ServiceOption) => {
+    setService(picked);
+    setWhatText(picked.name);
+    setOpen(null);
+  };
+
+  const go = async () => {
+    // A place typed but not picked from the list: take the best suggestion,
+    // or look up what was typed directly.
+    let chosen = area;
+    const typedPlace = whereText.trim();
+    if (!chosen && typedPlace) {
+      const first = places.loading ? undefined : places.data?.[0];
+      chosen = first ? await resolveArea(first.lookup, first.label) : await resolveArea(typedPlace, typedPlace.toUpperCase());
+      if (!chosen) return;
+    }
+    const params = new URLSearchParams();
+    const q = service?.name ?? whatText.trim();
+    if (q) params.set("q", q);
+    if (chosen) params.set("location", chosen.sector);
+    setOpen(null);
+    router.push(`/search${params.size ? `?${params.toString()}` : ""}`);
+  };
+
+  const canSearch = Boolean(whereText.trim() || whatText.trim());
+  const coveredCities = [...new Map(areas.map((entry) => [entry.city, entry])).values()].slice(0, 6);
+
+  const placeRows = whereText.trim().length >= 2 && !area ? (places.data ?? []) : [];
+  const serviceRows = whatText.trim().length >= 2 && !service ? (services.data?.matches ?? []) : [];
 
   return (
     <div ref={rootRef} className="relative">
-      {/* When — the pill above the bar, already answered. */}
-      <div className="relative inline-block">
-        <button
-          type="button"
-          onClick={() => setOpen(open === "when" ? null : "when")}
-          aria-expanded={open === "when"}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-sm font-semibold text-ink shadow-card ring-1 ring-line transition duration-[180ms] ease-glam hover:bg-sunken"
-        >
-          {when.kind === "now" ? (
-            <Lightning size={15} weight="light" aria-hidden />
-          ) : (
-            <CalendarBlank size={15} weight="light" aria-hidden />
-          )}
-          {when.kind === "now"
-            ? "As soon as someone is free"
-            : when.kind === "time"
-              ? when.label
-              : formatDayLabel(when.date)}
-          <CaretDown
-            size={13}
-            weight="bold"
-            aria-hidden
-            className="text-ink-muted"
-          />
-        </button>
-      </div>
-
-      {/*
-        The bar. One row from `sm`, stacked below it, and its height does not
-        depend on what has been answered — the dividers move, nothing grows.
-      */}
-      {/* The bar and its two panels share a positioning context, so a panel
-          hangs off the BAR rather than off the fine print beneath it. */}
-      <div className="relative mt-3">
-        <div className="flex flex-col gap-2 rounded-glam border border-line bg-surface p-2 shadow-card sm:flex-row sm:items-center sm:gap-0">
-          <Field
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void go();
+        }}
+        className="flex flex-col gap-2 rounded-glam border border-line bg-surface p-2 shadow-card sm:flex-row sm:items-center sm:gap-0"
+      >
+        {/* Where */}
+        <div className="relative min-w-0 flex-1">
+          <InputField
             label="Where"
-            value={area ? `${area.sector} · ${area.city}` : null}
-            placeholder="Your postcode"
             icon={<MapPin size={17} weight="light" aria-hidden />}
-            open={open === "where"}
-            onToggle={() => setOpen(open === "where" ? null : "where")}
+            value={whereText}
+            placeholder="Town or postcode"
+            active={open === "where"}
+            busy={resolving || (places.loading && !area)}
+            autoComplete="off"
+            onFocus={() => setOpen("where")}
+            onChange={(value) => {
+              setWhereText(value);
+              setArea(null);
+              setWhereError(null);
+              setOpen("where");
+            }}
+            listKeys={placeRows.length}
+            onPickIndex={(index) => {
+              const row = placeRows[index];
+              if (row) void pickPlace(row.lookup, row.label);
+            }}
           />
+          {open === "where" ? (
+            <Dropdown className="sm:right-auto sm:w-[max(100%,22rem)]">
+              {placeRows.length > 0 ? (
+                <ul role="listbox" aria-label="Places">
+                  {placeRows.map((row, index) => (
+                    <li key={`${row.kind}-${row.label}-${row.detail}`}>
+                      <button
+                        type="button"
+                        data-option={index}
+                        onClick={() => void pickPlace(row.lookup, row.label)}
+                        className="flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 py-1.5 text-left transition hover:bg-sunken focus:bg-sunken focus:outline-none"
+                      >
+                        <MapPin size={16} weight="light" className="shrink-0 text-ink-muted" aria-hidden />
+                        <span className="min-w-0">
+                          <span
+                            className={`block truncate text-[15px] font-medium text-ink ${
+                              row.kind === "postcode" ? "[word-spacing:0.25em]" : ""
+                            }`}
+                          >
+                            <Highlight text={row.label} query={whereText} />
+                          </span>
+                          <span className="block truncate text-xs text-ink-muted">{row.detail}</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : whereText.trim().length >= 2 && !area && !places.loading ? (
+                <p className="px-3 py-2 text-sm text-ink-muted">
+                  No town or postcode starts with that. Check the spelling, or try your postcode.
+                </p>
+              ) : null}
 
-          <div className="hidden h-9 w-px shrink-0 bg-line sm:block" />
-
-          <Field
-            label="What"
-            value={service ? service.name : null}
-            placeholder="Search for a service…"
-            icon={<MagnifyingGlass size={17} weight="light" aria-hidden />}
-            open={open === "what"}
-            onToggle={() => setOpen(open === "what" ? null : "what")}
-          />
-
-          <Button
-            onClick={go}
-            disabled={!area || !service}
-            className="shrink-0 sm:ml-2 sm:w-auto"
-          >
-            Find my glam
-          </Button>
+              {whereText.trim().length < 2 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={useMyLocation}
+                    className="flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 text-left text-[15px] font-semibold text-accent-700 transition hover:bg-sunken"
+                  >
+                    <NavigationArrow size={16} weight="fill" aria-hidden />
+                    Use my current location
+                  </button>
+                  {coveredCities.length > 0 ? (
+                    <>
+                      <p className="px-3 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                        Areas with pros on GLAMNET
+                      </p>
+                      <ul className="grid grid-cols-2 gap-0.5">
+                        {coveredCities.map((entry) => (
+                          <li key={entry.hubId}>
+                            <button
+                              type="button"
+                              onClick={() => void pickPlace(entry.sector, entry.city)}
+                              className="flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 text-left transition hover:bg-sunken"
+                            >
+                              <MapPin size={15} weight="light" className="shrink-0 text-ink-muted" aria-hidden />
+                              <span className="min-w-0 truncate text-[15px] text-ink">
+                                {entry.city} <span className="text-xs text-ink-muted">{entry.sector}</span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+            </Dropdown>
+          ) : null}
         </div>
 
-        <Panel open={open === "where"} className="inset-x-0">
-          <AreaPicker
-            areas={areas}
-            onPick={(picked) => {
-              setArea(picked);
-              // Where you are can change what is bookable, so an answer taken
-              // under the old location is cleared rather than carried over —
-              // including the time, which came off one hub's vendors and means
-              // nothing against another's.
-              setService(null);
-              setWhen(forgetSlot(when));
+        <div className="hidden h-9 w-px shrink-0 bg-line sm:block" />
+
+        {/* What */}
+        <div className="relative min-w-0 flex-1">
+          <InputField
+            inputRef={whatRef}
+            label="What"
+            icon={<MagnifyingGlass size={17} weight="light" aria-hidden />}
+            value={whatText}
+            placeholder={typedHint || "Braids, nails, massage…"}
+            active={open === "what"}
+            busy={services.loading && !service}
+            autoComplete="off"
+            onFocus={() => {
+              setWhatFocused(true);
               setOpen("what");
             }}
-          />
-        </Panel>
-
-        {/*
-          All three panels hang off the BAR, including the timing one whose
-          control sits above it. A panel dropping from the pill landed on top
-          of the bar and covered the two fields the customer had just been
-          reading.
-        */}
-        <Panel
-          open={open === "when"}
-          fit
-          className="left-0 w-[min(23rem,calc(100vw-2rem))]"
-        >
-          <WhenPicker
-            thresholdHours={thresholdHours}
-            area={area}
-            service={service}
-            value={when}
-            onPick={(picked) => {
-              setWhen(picked);
-              setOpen(null);
+            onBlur={() => setWhatFocused(false)}
+            onChange={(value) => {
+              setWhatText(value);
+              setService(null);
+              setOpen("what");
             }}
+            listKeys={serviceRows.length}
           />
-        </Panel>
+          {open === "what" ? (
+            <Dropdown className="sm:left-auto sm:right-0 sm:w-[max(100%,24rem)]">
+              <ServiceSuggestions
+                query={whatText}
+                picked={Boolean(service)}
+                matches={serviceRows}
+                loading={services.loading}
+                categories={services.data?.categories ?? []}
+                onPick={pickService}
+              />
+            </Dropdown>
+          ) : null}
+        </div>
 
-        <Panel open={open === "what"} className="inset-x-0">
-          <ServicePicker
-            hints={hints}
-            onPick={(picked) => {
-              setService(picked);
-              // A slot was free for the old service's duration. A longer one
-              // may not fit in it, so the time goes back to the soonest rather
-              // than submitting a start nobody can take.
-              setWhen(forgetSlot(when));
-              setOpen(null);
-            }}
-          />
-        </Panel>
-      </div>
+        <Button type="submit" disabled={!canSearch || resolving} className="shrink-0 sm:ml-2 sm:w-auto">
+          Find my glam
+        </Button>
+      </form>
 
-      <p className="mt-2 text-xs text-ink-muted">
-        {/*
-          The rule, not a verdict. Whether a booking is an emergency is decided
-          on the server from the gap between placing it and the appointment,
-          and nothing chosen here can change that.
-        */}
-        Within {thresholdHours} hours of booking counts as an emergency booking.
-      </p>
+      {whereError ? (
+        <p role="alert" className="mt-2 text-xs text-warning">
+          {whereError}
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-ink-muted">
+          {/* The rule, not a verdict: the server decides from the real gap. */}
+          Anywhere in the UK. Within {thresholdHours} hours of booking counts as an emergency booking.
+        </p>
+      )}
     </div>
   );
 }
 
 /**
- * A floating panel.
- *
- * Absolute, so opening one cannot move anything. It is rendered only while
- * open rather than hidden: a panel that is merely invisible still holds its
- * contents in the tab order, and this one is full of buttons.
+ * Debounced suggestions for a typed term, keyed to the term they answer so a
+ * slow reply for an old query can never paint over a newer one. With
+ * `loadEmpty`, the empty term is fetched once too (for browse lists).
  */
-function Panel({
-  open,
-  fit,
-  className = "",
-  children,
-}: {
-  open: boolean;
-  /**
-   * A panel holding one fixed thing rather than a list — the calendar. It is
-   * given room to show all of itself: a month that scrolls is worse than a
-   * month that is tall, because scrolling hides the weeks a customer is
-   * trying to compare.
-   */
-  fit?: boolean;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  if (!open) return null;
+function useSuggestions<T>(
+  text: string,
+  url: (q: string) => string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON from our own API
+  pick: (payload: any) => T,
+  loadEmpty = false,
+): { data: T | null; loading: boolean } {
+  const term = text.trim();
+  const ready = term.length >= 2;
+  const [state, setState] = useState<{ key: string; data: T } | null>(null);
+  const [empty, setEmpty] = useState<T | null>(null);
+  const pickRef = useRef(pick);
+  const urlRef = useRef(url);
+  useEffect(() => {
+    pickRef.current = pick;
+    urlRef.current = url;
+  });
 
+  useEffect(() => {
+    if (!ready && (!loadEmpty || empty !== null)) return;
+    const key = ready ? term : "";
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => {
+        void (async () => {
+          try {
+            const response = await fetch(urlRef.current(key), { signal: controller.signal });
+            if (!response.ok) return;
+            const data = pickRef.current(await response.json());
+            if (key) setState({ key, data });
+            else setEmpty(data);
+          } catch {
+            // An abandoned keystroke is not an error worth showing.
+          }
+        })();
+      },
+      ready ? 180 : 0,
+    );
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [ready, term, loadEmpty, empty]);
+
+  if (!ready) return { data: empty, loading: false };
+  return { data: state?.key === term ? state.data : (state?.data ?? empty), loading: state?.key !== term };
+}
+
+/** A labelled input living in the bar, with arrow-key and Enter support for its list. */
+function InputField({
+  label,
+  icon,
+  value,
+  placeholder,
+  active,
+  busy,
+  autoComplete,
+  inputRef,
+  onFocus,
+  onBlur,
+  onChange,
+  listKeys,
+  onPickIndex,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  placeholder: string;
+  active: boolean;
+  busy: boolean;
+  autoComplete: string;
+  inputRef?: React.Ref<HTMLInputElement>;
+  onFocus: () => void;
+  onBlur?: () => void;
+  onChange: (value: string) => void;
+  /** How many suggestions are showing, for ArrowDown to move into. */
+  listKeys: number;
+  /** Enter on a half-typed word takes this row; without it, Enter submits. */
+  onPickIndex?: (index: number) => void;
+}) {
+  return (
+    <label
+      className={`focus-shell flex min-h-12 cursor-text items-center gap-2.5 rounded-glam-sm px-3 transition duration-[180ms] ease-glam hover:bg-sunken ${
+        active ? "bg-sunken" : ""
+      }`}
+    >
+      <span className="shrink-0 text-ink-muted">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-ink-muted">{label}</span>
+        <input
+          ref={inputRef}
+          value={value}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          spellCheck={false}
+          enterKeyHint="search"
+          onFocus={onFocus}
+          onBlur={onBlur}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            // ArrowDown moves into the list; the options are buttons, so Tab
+            // and Enter work on them natively from there.
+            if (event.key === "ArrowDown" && listKeys > 0) {
+              event.preventDefault();
+              const list = event.currentTarget.closest(".relative")?.querySelector<HTMLButtonElement>("[data-option='0']");
+              list?.focus();
+            }
+            if (onPickIndex && event.key === "Enter" && listKeys > 0 && event.currentTarget.value.trim().length >= 2) {
+              // "dartf" + Enter means Dartford: take the top suggestion.
+              event.preventDefault();
+              onPickIndex(0);
+            }
+          }}
+          className="block w-full truncate bg-transparent text-[15px] font-semibold leading-tight text-ink [word-spacing:0.2em] outline-none placeholder:font-normal placeholder:text-ink-muted placeholder:[word-spacing:normal]"
+        />
+      </span>
+      {busy ? <SpinnerGap size={16} className="shrink-0 animate-spin text-ink-muted" aria-hidden /> : null}
+    </label>
+  );
+}
+
+/**
+ * A floating list under a field. Absolute, so opening one moves nothing; and
+ * ArrowUp/ArrowDown walk its options.
+ */
+function Dropdown({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return (
     <div
-      className={`absolute top-full z-30 mt-2 overflow-y-auto rounded-glam border border-line bg-surface p-3 shadow-raised ${
-        fit ? "max-h-[min(34rem,85vh)]" : "max-h-[min(22rem,60vh)]"
-      } ${className}`}
+      onKeyDown={(event) => {
+        if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+        const options = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
+        const at = options.indexOf(document.activeElement as HTMLButtonElement);
+        const next = options[at + (event.key === "ArrowDown" ? 1 : -1)];
+        if (next) {
+          event.preventDefault();
+          next.focus();
+        }
+      }}
+      className={`absolute inset-x-0 top-full z-30 mt-2 max-h-[min(24rem,60vh)] overflow-y-auto rounded-glam border border-line bg-surface p-2 shadow-raised ${className}`}
     >
       {children}
     </div>
   );
 }
 
-/** One control in the bar: a label, and either the answer or the prompt. */
-function Field({
-  label,
-  value,
-  placeholder,
-  icon,
-  open,
-  onToggle,
-}: {
-  label: string;
-  value: string | null;
-  placeholder: string;
-  icon: React.ReactNode;
-  open: boolean;
-  onToggle: () => void;
-}) {
+/** Bold the part of a suggestion that matches what was typed. */
+function Highlight({ text, query }: { text: string; query: string }) {
+  const q = query.trim().toLowerCase();
+  const at = q ? text.toLowerCase().indexOf(q) : -1;
+  if (at < 0) return <>{text}</>;
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      className={`flex min-h-12 min-w-0 flex-1 items-center gap-2.5 rounded-glam-sm px-3 text-left transition duration-[180ms] ease-glam hover:bg-sunken ${
-        open ? "bg-sunken" : ""
-      }`}
-    >
-      <span className="shrink-0 text-ink-muted">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-ink-muted">
-          {label}
-        </span>
-        <span
-          className={`block truncate text-[15px] leading-tight ${
-            value ? "font-semibold text-ink" : "text-ink-muted"
-          }`}
-        >
-          {value ?? placeholder}
-        </span>
-      </span>
-    </button>
+    <>
+      {text.slice(0, at)}
+      <span className="text-accent-700">{text.slice(at, at + q.length)}</span>
+      {text.slice(at + q.length)}
+    </>
   );
 }
 
 /**
- * Where the vendor is coming to: any UK postcode.
- *
- * Typed (with suggestions), or taken from the phone's location. It resolves
- * to the Beauty Hub for that outward code — created on first use — so the
- * rest of the flow, and the search behind it, can measure distance from a
- * real point. Areas that already have pros are offered underneath as quick
- * picks. The exact door is taken later, on the confirm screen.
+ * What the customer wants, in their words — matched to the catalogue. Free
+ * text is allowed (it searches as typed), and the whole catalogue is one tap
+ * away for anyone who can't name what they want.
  */
-function AreaPicker({
-  areas,
+function ServiceSuggestions({
+  query,
+  picked,
+  matches,
+  loading,
+  categories,
   onPick,
 }: {
-  areas: ServiceArea[];
-  onPick: (area: ServiceArea) => void;
+  query: string;
+  picked: boolean;
+  matches: ServiceOption[];
+  loading: boolean;
+  categories: CategoryGroup[];
+  onPick: (service: ServiceOption) => void;
 }) {
-  const [postcode, setPostcode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const resolve = async (place: ResolvedPlace | null) => {
-    if (!place) return;
-    try {
-      const response = await fetch(`/api/geo/lookup?q=${encodeURIComponent(place.postcode ?? place.outcode)}&hub=1`);
-      const payload = await response.json();
-      if (!response.ok || !payload.hub) throw new Error(payload.error?.message);
-      setError(null);
-      onPick({ hubId: payload.hub.id, sector: payload.hub.sector, city: payload.hub.city, name: payload.hub.name });
-    } catch {
-      setError("We couldn't look that postcode up just now. Try again in a moment.");
-    }
-  };
-
-  const cities = [...new Map(areas.map((area) => [area.city, area])).values()].slice(0, 6);
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
+  const typing = query.trim().length >= 2 && !picked;
 
   return (
     <div>
-      <PostcodeField
-        label="Your postcode"
-        value={postcode}
-        onChange={setPostcode}
-        onResolved={(place) => void resolve(place)}
-        allowOutcode
-        autoFocus
-        inlineSuggestions
-        placeholder="e.g. M1 1AE or LS1"
-        hint="Anywhere in the UK — we'll find pros near you."
-      />
-      {error ? <p className="mt-1 text-xs text-warning">{error}</p> : null}
+      {typing ? (
+        matches.length > 0 ? (
+          <ul role="listbox" aria-label="Services">
+            {matches.map((match, index) => (
+              <li key={match.id}>
+                <ServiceRow service={match} index={index} query={query} onPick={onPick} />
+              </li>
+            ))}
+          </ul>
+        ) : loading ? null : (
+          <p className="px-3 py-2 text-sm text-ink-muted">
+            Nothing matches that exactly — press <span className="font-semibold text-ink">Find my glam</span> to search
+            anyway, or browse below.
+          </p>
+        )
+      ) : null}
 
-      {cities.length > 0 ? (
+      {categories.length > 0 ? (
         <>
-          <p className="mt-3 px-1 text-xs font-medium text-ink-muted">Or pick an area with pros already on GLAMNET</p>
-          <ul className="mt-1 grid gap-1 sm:grid-cols-2">
-            {cities.map((area) => (
-              <li key={area.hubId}>
+          <p className="flex items-center gap-2 px-3 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+            <SquaresFour size={12} aria-hidden /> {typing ? "Or browse" : "Browse services"}
+          </p>
+          <ul>
+            {categories.map((category) => (
+              <li key={category.name}>
                 <button
                   type="button"
-                  onClick={() => onPick(area)}
-                  className="flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 text-left transition duration-[180ms] hover:bg-surface"
+                  onClick={() => setOpenCategory(openCategory === category.name ? null : category.name)}
+                  aria-expanded={openCategory === category.name}
+                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-glam-sm px-3 text-left transition hover:bg-sunken focus:bg-sunken focus:outline-none"
                 >
-                  <MapPin size={16} weight="light" className="shrink-0 text-ink-muted" aria-hidden />
-                  <span className="min-w-0">
-                    <span className="block truncate text-[15px] text-ink">{area.city}</span>
-                    <span className="block truncate text-xs text-ink-muted">{area.sector}</span>
+                  <span className="text-[15px] font-medium text-ink">{category.name}</span>
+                  <span className="flex items-center gap-1 text-xs text-ink-muted">
+                    {category.services.length}
+                    <CaretRight
+                      size={12}
+                      aria-hidden
+                      className={`transition-transform ${openCategory === category.name ? "rotate-90" : ""}`}
+                    />
                   </span>
                 </button>
+                {openCategory === category.name ? (
+                  <ul className="pl-3">
+                    {category.services.map((option) => (
+                      <li key={option.id}>
+                        <ServiceRow service={option} onPick={onPick} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -416,722 +625,37 @@ function AreaPicker({
   );
 }
 
-/**
- * What the customer wants, in their words — resolved to the catalogue.
- *
- * The field accepts anything. What comes back is always a real service with
- * an id, a price and a duration, because the booking that follows is made
- * against that id and nothing else. "What did you mean?" is the honest
- * heading for it: the platform is interpreting, and saying so.
- *
- * "Browse services" is not a fallback for a broken search. Plenty of people
- * cannot name what they want and should not have to guess at a word to get
- * anywhere, so the whole catalogue is one tap away at every point.
- */
-function ServicePicker({
-  hints,
-  onPick,
-}: {
-  hints: string[];
-  onPick: (service: ServiceOption) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [focused, setFocused] = useState(false);
-  const [browsing, setBrowsing] = useState(false);
-  const [openCategory, setOpenCategory] = useState<string | null>(null);
-  const [data, setData] = useState<{
-    key: string;
-    matches: ServiceOption[];
-    categories: CategoryGroup[];
-  } | null>(null);
-  const loadedRef = useRef(false);
-
-  const term = query.trim();
-  const ready = term.length >= 2;
-  // Keyed to the term it answers, so a slow reply for an old query can never
-  // paint itself over a newer one.
-  const matches = ready && data?.key === term ? data.matches : [];
-  const loading = ready && data?.key !== term;
-  const categories = data?.categories ?? [];
-
-  // Stops on a whole phrase the moment the field is in use, and never starts
-  // at all under prefers-reduced-motion.
-  const placeholder = useTypedPlaceholder(hints, !focused && query === "");
-
-  useEffect(() => {
-    const key = ready ? term : "";
-    if (!ready && loadedRef.current) return;
-
-    const controller = new AbortController();
-    const timer = setTimeout(
-      () => {
-        void (async () => {
-          try {
-            const response = await fetch(
-              `/api/services/match?q=${encodeURIComponent(key)}`,
-              { signal: controller.signal },
-            );
-            if (!response.ok) return;
-            const payload = await response.json();
-            loadedRef.current = true;
-            setData({
-              key,
-              matches: payload.matches ?? [],
-              categories: payload.categories ?? [],
-            });
-          } catch {
-            // An abandoned keystroke is not an error worth showing.
-          }
-        })();
-      },
-      ready ? 160 : 0,
-    );
-
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [ready, term]);
-
-  return (
-    <div>
-      <label className="flex items-center gap-2 rounded-glam-sm border border-line bg-surface px-3">
-        <MagnifyingGlass
-          size={16}
-          weight="light"
-          className="shrink-0 text-ink-muted"
-          aria-hidden
-        />
-        <span className="sr-only">What would you like done?</span>
-        <input
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setBrowsing(false);
-          }}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          placeholder={placeholder}
-          autoComplete="off"
-          className="min-h-11 w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-muted"
-        />
-        {loading ? (
-          <SpinnerGap
-            size={16}
-            className="shrink-0 animate-spin text-ink-muted"
-            aria-hidden
-          />
-        ) : null}
-      </label>
-
-      {ready && !browsing ? (
-        matches.length > 0 ? (
-          <>
-            <p className="px-1 pb-1 pt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-              What did you mean?
-            </p>
-            <ul className="space-y-1">
-              {matches.map((match) => (
-                <li key={match.id}>
-                  <ServiceRow service={match} onPick={onPick} />
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : loading ? null : (
-          <p className="px-1 pt-3 text-sm text-ink-muted">
-            Nothing in the catalogue matches that. Browse below and pick the
-            closest — you can say the rest in the notes when you book.
-          </p>
-        )
-      ) : null}
-
-      <button
-        type="button"
-        onClick={() => setBrowsing(!browsing)}
-        aria-expanded={browsing}
-        className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-700 hover:underline"
-      >
-        <SquaresFour size={16} weight="light" aria-hidden />
-        {browsing ? "Hide services" : "Not sure what you need? Browse services"}
-      </button>
-
-      {browsing ? (
-        <ul className="mt-2 space-y-1">
-          {categories.map((category) => (
-            <li key={category.name}>
-              <button
-                type="button"
-                onClick={() =>
-                  setOpenCategory(
-                    openCategory === category.name ? null : category.name,
-                  )
-                }
-                aria-expanded={openCategory === category.name}
-                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-glam-sm px-3 text-left transition duration-[180ms] hover:bg-surface"
-              >
-                <span className="text-[15px] font-semibold text-ink">
-                  {category.name}
-                </span>
-                <span className="text-xs text-ink-muted">
-                  {category.services.length}
-                </span>
-              </button>
-
-              {openCategory === category.name ? (
-                <ul className="space-y-1 pl-3">
-                  {category.services.map((option) => (
-                    <li key={option.id}>
-                      <ServiceRow service={option} onPick={onPick} />
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
 /** One catalogue row: what it is, what it costs, how long it takes. */
 function ServiceRow({
   service,
+  index,
+  query = "",
   onPick,
 }: {
   service: ServiceOption;
+  index?: number;
+  query?: string;
   onPick: (service: ServiceOption) => void;
 }) {
   return (
     <button
       type="button"
+      data-option={index}
       onClick={() => onPick(service)}
-      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-glam-sm px-3 py-2 text-left transition duration-[180ms] hover:bg-surface"
+      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-glam-sm px-3 py-2 text-left transition hover:bg-sunken focus:bg-sunken focus:outline-none"
     >
       <span className="min-w-0">
         <span className="block truncate text-[15px] text-ink">
-          {service.name}
+          <Highlight text={service.name} query={query} />
         </span>
-        <span className="block truncate text-xs text-ink-muted">
-          {service.description || service.category}
-        </span>
+        <span className="block truncate text-xs text-ink-muted">{service.description || service.category}</span>
       </span>
       <span className="shrink-0 text-right">
         <span data-numeric className="block text-sm font-semibold text-ink">
           from {formatMoney(service.priceMinor)}
         </span>
-        <span className="block text-xs text-ink-muted">
-          {formatDuration(service.durationMinutes)}
-        </span>
+        <span className="block text-xs text-ink-muted">{formatDuration(service.durationMinutes)}</span>
       </span>
     </button>
   );
-}
-
-/**
- * Now, or a day.
- *
- * "Now" is not labelled EMERGENCY here even though it usually produces one.
- * The classification belongs to the server and depends on what is actually
- * free — a vendor whose first slot is the day after tomorrow makes "now" a
- * normal booking — so the button promises the earliest someone can come and
- * the note states the rule that will be applied.
- */
-function WhenPicker({
-  thresholdHours,
-  area,
-  service,
-  value,
-  onPick,
-}: {
-  thresholdHours: number;
-  /** Both are needed before real times can be asked for. */
-  area: ServiceArea | null;
-  service: ServiceOption | null;
-  value: When;
-  onPick: (value: When) => void;
-}) {
-  const today = startOfToday();
-  // Offers look HORIZON_DAYS ahead and no further, so that is exactly how far
-  // a day can be chosen. A calendar that accepted a date the matcher cannot
-  // answer would be collecting an answer in order to throw it away.
-  const lastBookable = addDays(today, HORIZON_DAYS - 1);
-
-  const [month, setMonth] = useState(() => startOfMonth(today));
-  // The day being looked at, which is not yet the answer: choosing a day opens
-  // its times, and the answer is the time.
-  const [day, setDay] = useState<string | null>(null);
-
-  const canAskForTimes = Boolean(area && service);
-
-  if (day && canAskForTimes) {
-    return (
-      <TimePicker
-        day={day}
-        area={area!}
-        service={service!}
-        thresholdHours={thresholdHours}
-        onBack={() => setDay(null)}
-        onPick={onPick}
-      />
-    );
-  }
-
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => onPick({ kind: "now" })}
-        aria-pressed={value.kind === "now"}
-        className={`flex min-h-11 w-full items-center gap-3 rounded-glam-sm px-3 py-2.5 text-left ring-1 transition duration-[180ms] ${
-          value.kind === "now"
-            ? "bg-brand-50 ring-brand-200"
-            : "ring-line hover:bg-sunken"
-        }`}
-      >
-        <Lightning size={18} weight="light" aria-hidden className="shrink-0" />
-        <span>
-          <span className="block text-[15px] font-semibold text-ink">
-            As soon as someone is free
-          </span>
-          <span className="block text-xs text-ink-muted">
-            The earliest a vetted vendor can reach you
-          </span>
-        </span>
-      </button>
-
-      <div className="mt-3 border-t border-line pt-3">
-        <div className="flex items-center justify-between">
-          <MonthArrow
-            direction="back"
-            disabled={month <= startOfMonth(today)}
-            onClick={() => setMonth(addMonths(month, -1))}
-          />
-          <p aria-live="polite" className="text-sm font-semibold text-ink">
-            {month.toLocaleDateString("en-GB", {
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-          <MonthArrow
-            direction="forward"
-            disabled={month >= startOfMonth(lastBookable)}
-            onClick={() => setMonth(addMonths(month, 1))}
-          />
-        </div>
-
-        {/*
-          A real grid, Monday first, so the days sit under the weekday they
-          fall on — a row of pills could never show that, and "Mon 14" in a
-          scrolling strip made the customer read rather than look.
-        */}
-        <div
-          role="grid"
-          aria-label="Choose a day"
-          className="mt-2 grid grid-cols-7 gap-1"
-        >
-          {["M", "T", "W", "T", "F", "S", "S"].map((initial, index) => (
-            <div
-              key={index}
-              role="columnheader"
-              aria-label={WEEKDAY_NAMES[index]}
-              className="pb-1 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted"
-            >
-              {initial}
-            </div>
-          ))}
-
-          {monthGrid(month).map((date, index) => {
-            // Leading blanks before the first of the month. Keyed by position,
-            // which is stable for a given month.
-            if (!date) return <div key={`pad-${index}`} aria-hidden />;
-
-            const dayValue = toDayValue(date);
-            const bookable = date >= today && date <= lastBookable;
-            const selected =
-              (value.kind === "day" || value.kind === "time") &&
-              value.date === dayValue;
-            const isToday = date.getTime() === today.getTime();
-
-            return (
-              <button
-                key={dayValue}
-                type="button"
-                role="gridcell"
-                disabled={!bookable}
-                aria-selected={selected}
-                aria-label={`${date.toLocaleDateString("en-GB", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}${bookable ? "" : " — not bookable"}`}
-                onClick={() =>
-                  canAskForTimes
-                    ? setDay(dayValue)
-                    : onPick({ kind: "day", date: dayValue })
-                }
-                className={`flex h-11 items-center justify-center rounded-glam-sm text-sm tabular-nums transition duration-[180ms] ${
-                  selected
-                    ? "bg-metal font-bold text-metal-ink"
-                    : bookable
-                      ? "text-ink hover:bg-sunken"
-                      : "text-ink-muted/45"
-                } ${isToday && !selected ? "font-bold ring-1 ring-brand-200" : ""}`}
-              >
-                {date.getDate()}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <p className="mt-3 text-xs text-ink-muted">
-        {canAskForTimes
-          ? `Pick a day to see the times vendors actually have. Days are bookable ${HORIZON_DAYS} days ahead.`
-          : `Choose where and what first and the times for a day appear here. Days are bookable ${HORIZON_DAYS} days ahead.`}{" "}
-        A slot within {thresholdHours} hours of booking is an emergency booking.
-      </p>
-    </div>
-  );
-}
-
-interface Slot {
-  startAt: string;
-  bookingType: string;
-  providerCount: number;
-}
-
-/**
- * The times on a chosen day.
- *
- * Every one of these comes from the server, off the same grid the booking
- * flow uses: the vendors who can deliver this service in this sector, their
- * working hours, their existing appointments and the transition buffer
- * between jobs. Nothing here is a guess at what a salon day looks like.
- *
- * Slots nobody is free for are shown struck through rather than left out —
- * an absent 16:00 reads as "they do not work then", which is a different and
- * untrue statement — and the emergency tag on a slot is the server's
- * classification, not a comparison done here.
- */
-function TimePicker({
-  day,
-  area,
-  service,
-  thresholdHours,
-  onBack,
-  onPick,
-}: {
-  day: string;
-  area: ServiceArea;
-  service: ServiceOption;
-  thresholdHours: number;
-  onBack: () => void;
-  onPick: (value: When) => void;
-}) {
-  const [state, setState] = useState<
-    | { status: "loading" }
-    | { status: "ready"; slots: Slot[] }
-    | { status: "error" }
-  >({ status: "loading" });
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    void (async () => {
-      try {
-        const response = await fetch("/api/availability", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            hubId: area.hubId,
-            serviceIds: [service.id],
-            // The plain day, not an instant. `new Date(day).toISOString()`
-            // converts the client's midnight to UTC, so a BST browser asking
-            // for the 20th sent 2026-09-19T23:00Z and a UTC server read it
-            // back as the 19th — the previous day's times under the next
-            // day's heading. The booking flow has always sent this form.
-            date: day,
-          }),
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error("unavailable");
-        const payload = await response.json();
-        setState({ status: "ready", slots: payload.slots ?? [] });
-      } catch (cause) {
-        if ((cause as Error).name !== "AbortError")
-          setState({ status: "error" });
-      }
-    })();
-
-    return () => controller.abort();
-  }, [day, area.hubId, service.id]);
-
-  const hours = state.status === "ready" ? hourlyStarts(state.slots) : [];
-  const free = hours.filter((hour) => hour.slot);
-
-  return (
-    <div>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition duration-[180ms] hover:bg-sunken hover:text-ink"
-          aria-label="Back to the calendar"
-        >
-          <CaretLeft size={16} weight="bold" aria-hidden />
-        </button>
-        <p className="text-sm font-semibold text-ink">{formatFullDay(day)}</p>
-      </div>
-
-      <p className="mt-1 px-1 text-xs text-ink-muted">
-        {service.name} · {formatDuration(service.durationMinutes)} ·{" "}
-        {area.sector}
-      </p>
-
-      {state.status === "loading" ? (
-        <p className="px-1 py-6 text-center text-sm text-ink-muted">
-          Reading vendors&rsquo; calendars…
-        </p>
-      ) : state.status === "error" ? (
-        <p role="alert" className="px-1 py-6 text-center text-sm text-warning">
-          Could not read the calendars just now. Pick another day, or search
-          without a time.
-        </p>
-      ) : free.length === 0 ? (
-        <p className="px-1 py-6 text-center text-sm text-ink-muted">
-          Nobody is free that day. Try another, or ask for the soonest slot.
-        </p>
-      ) : (
-        <div className="mt-3">
-          {/*
-            Emergency is never signalled by colour alone. Every hour in this
-            grid that the server classified as emergency carries the bolt, and
-            the band above says the word — the red ring is the third signal,
-            not the only one.
-          */}
-          {hours.some((hour) => hour.slot?.bookingType === "EMERGENCY") ? (
-            <p className="mb-2 flex items-center gap-1.5 rounded-glam-sm bg-emergency-soft px-2.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-emergency-ink">
-              <Lightning size={12} weight="fill" aria-hidden />
-              Emergency — within {thresholdHours} hours
-            </p>
-          ) : null}
-
-          <div className="grid grid-cols-4 gap-1.5">
-            {hours.map((hour) => {
-              const taken = !hour.slot;
-              const emergency = hour.slot?.bookingType === "EMERGENCY";
-
-              return (
-                <button
-                  key={hour.label}
-                  type="button"
-                  disabled={taken}
-                  onClick={() =>
-                    hour.slot &&
-                    onPick({
-                      kind: "time",
-                      date: day,
-                      at: hour.slot.startAt,
-                      label: `${formatDayLabel(day)}, ${formatClock(hour.slot.startAt)}`,
-                    })
-                  }
-                  aria-label={`${hour.label}${taken ? " — nobody free" : ""}${
-                    emergency ? " — emergency booking" : ""
-                  }`}
-                  className={`flex h-11 items-center justify-center rounded-glam-sm text-sm tabular-nums ring-1 transition duration-[180ms] ${
-                    taken
-                      ? "text-ink-muted/45 line-through ring-line/60"
-                      : emergency
-                        ? "text-emergency-ink ring-emergency/40 hover:bg-emergency-soft"
-                        : "text-ink ring-line hover:bg-sunken"
-                  }`}
-                >
-                  {emergency ? (
-                    <Lightning
-                      size={11}
-                      weight="fill"
-                      aria-hidden
-                      className="mr-1 shrink-0"
-                    />
-                  ) : null}
-                  {hour.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <p className="mt-3 text-xs text-ink-muted">
-        We show the first appointment from the hour you pick; struck-through
-        hours are ones nobody is free for. A slot within {thresholdHours} hours
-        of booking is an emergency booking.
-      </p>
-    </div>
-  );
-}
-
-/** One month step. Disabled when there is nothing bookable that way. */
-function MonthArrow({
-  direction,
-  disabled,
-  onClick,
-}: {
-  direction: "back" | "forward";
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  const Icon = direction === "back" ? CaretLeft : CaretRight;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={direction === "back" ? "Previous month" : "Next month"}
-      className="flex h-11 w-11 items-center justify-center rounded-full text-ink-muted transition duration-[180ms] enabled:hover:bg-sunken enabled:hover:text-ink disabled:opacity-30"
-    >
-      <Icon size={16} weight="bold" aria-hidden />
-    </button>
-  );
-}
-
-const WEEKDAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-
-/**
- * The cells of a month, Monday first, padded with nulls to the first weekday.
- *
- * Trailing padding is left off deliberately: an empty cell at the end of the
- * last row shows nothing and costs a row of height in a panel that is already
- * floating over the page.
- */
-function monthGrid(month: Date): (Date | null)[] {
-  const first = startOfMonth(month);
-  // getDay() is Sunday-first; the grid is Monday-first.
-  const lead = (first.getDay() + 6) % 7;
-  const daysInMonth = new Date(
-    month.getFullYear(),
-    month.getMonth() + 1,
-    0,
-  ).getDate();
-
-  return [
-    ...Array.from({ length: lead }, () => null),
-    ...Array.from(
-      { length: daysInMonth },
-      (_, index) => new Date(month.getFullYear(), month.getMonth(), index + 1),
-    ),
-  ];
-}
-
-function startOfToday(): Date {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function addMonths(date: Date, months: number): Date {
-  return new Date(date.getFullYear(), date.getMonth() + months, 1);
-}
-
-/** Local YYYY-MM-DD. `toISOString` would shift the day in any western zone. */
-function toDayValue(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-function formatDayLabel(value: string): string {
-  const date = new Date(`${value}T00:00:00`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.round((date.getTime() - today.getTime()) / 86_400_000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Tomorrow";
-  return date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
-}
-
-/** "Tuesday 15 September", for the heading over a day's times. */
-function formatFullDay(value: string): string {
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-}
-
-/** 24-hour clock: a booking time is a fact, not a conversation. */
-function formatClock(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-/**
- * One button per working hour, carrying that hour's earliest free slot.
- *
- * The server's grid is every quarter hour, which is right for the booking
- * screen — where a slot is a thing being reserved — and far too much for a
- * hero dropdown, where the customer is saying roughly when. Forty-odd buttons
- * is a wall; a dozen is a choice.
- *
- * Reducing rather than filtering keeps it honest twice over. An hour is
- * offered only if a vendor is genuinely free inside it, and the value sent is
- * that vendor's real start time — never the round hour itself, which might be
- * a moment nobody is free. An hour with nothing in it is still drawn, struck
- * through, because an absent 16:00 reads as "they do not work then".
- */
-function hourlyStarts(slots: Slot[]): { label: string; slot: Slot | null }[] {
-  const byHour = new Map<number, Slot>();
-  let first: number | null = null;
-  let last: number | null = null;
-
-  for (const slot of slots) {
-    const hour = new Date(slot.startAt).getHours();
-    if (first === null || hour < first) first = hour;
-    if (last === null || hour > last) last = hour;
-    if (slot.providerCount > 0 && !byHour.has(hour)) byHour.set(hour, slot);
-  }
-
-  if (first === null || last === null) return [];
-
-  return Array.from({ length: last - first + 1 }, (_, index) => {
-    const hour = first + index;
-    return {
-      label: `${String(hour).padStart(2, "0")}:00`,
-      slot: byHour.get(hour) ?? null,
-    };
-  });
-}
-
-/**
- * Drop a chosen slot, keeping anything coarser.
- *
- * A time is only meaningful for the hub and service it was picked against: it
- * came off those vendors' calendars, for that duration. A day survives — it
- * is a preference, not an offer — and "soonest" always survives.
- */
-function forgetSlot(value: When): When {
-  return value.kind === "time" ? { kind: "day", date: value.date } : value;
 }

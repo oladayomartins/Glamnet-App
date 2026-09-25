@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchSchema } from "@/lib/api/patch-schema";
 import { prisma } from "../prisma";
 import { normalisePromoCode, PROMO_CODE_PATTERN } from "@/lib/domain/promo";
 import { AdminError, audit } from "./core";
@@ -70,7 +71,7 @@ export async function createPromo(actorEmail: string, raw: unknown) {
 }
 
 export async function updatePromo(actorEmail: string, id: string, raw: unknown) {
-  const { startsAt, endsAt, ...rest } = promoInput.partial().parse(raw);
+  const { startsAt, endsAt, ...rest } = patchSchema(promoInput).parse(raw);
   const current = await prisma.promoCode.findUnique({ where: { id } });
   if (!current) throw new AdminError("That code no longer exists.", 404, "NOT_FOUND");
   checkRules({

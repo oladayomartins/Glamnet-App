@@ -33,6 +33,7 @@ import {
   HERO_IMAGE_PATH,
   categoryImagePath,
   HOW_IT_WORKS_IMAGE_PATHS,
+  brandMediaOrigin,
 } from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
 
@@ -128,12 +129,15 @@ export default async function MarketingPage() {
     await Promise.all([getMarketingData(), getPricingContext(), getSessionUser()]);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
-  const areas = cities.map((city) => ({
-    hubId: city.hubId,
-    name: city.city,
-    city: city.city,
-    sector: city.sector,
-  }));
+  // Quick picks in the search bar: only areas where someone can be booked.
+  const areas = cities
+    .filter((city) => city.providerCount > 0 && city.hubId)
+    .map((city) => ({
+      hubId: city.hubId!,
+      name: city.label,
+      city: city.label,
+      sector: city.sector,
+    }));
 
   const cards: ProviderCardData[] = providers.map((provider) => ({
     id: provider.id,
@@ -483,12 +487,44 @@ export default async function MarketingPage() {
                   href={`/${citySlug(city.city)}/salons`}
                   className="group relative w-[200px] shrink-0 snap-start overflow-hidden rounded-glam sm:w-[240px]"
                 >
-                  {/* No city photography exists yet, so this is the brand
-                      metal rather than a stock skyline nobody chose. */}
-                  <span
-                    aria-hidden
-                    className="block aspect-[4/3] w-full bg-metal transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
-                  />
+                  {city.image ? (
+                    // Photos in our own library render even if the upload
+                    // endpoint variable is unset; anything else is checked.
+                    city.image.startsWith(`${brandMediaOrigin()}/`) ? (
+                      <BrandImage
+                        path={decodeURI(city.image.slice(brandMediaOrigin().length))}
+                        alt=""
+                        width={480}
+                        height={360}
+                        sizes="240px"
+                        className="block aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                    <GlamImage
+                      src={city.image}
+                      alt=""
+                      width={480}
+                      height={360}
+                      sizes="240px"
+                      className="block aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                    />
+                    )
+                  ) : (
+                    <>
+                      {/* No photograph for this city yet: the brand metal,
+                          with its initial so the rail still reads as places. */}
+                      <span
+                        aria-hidden
+                        className="block aspect-[4/3] w-full bg-metal transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                      />
+                      <span
+                        aria-hidden
+                        className="absolute -top-2 right-3 font-display text-[96px] font-extrabold leading-none text-black/10"
+                      >
+                        {city.label.slice(0, 1)}
+                      </span>
+                    </>
+                  )}
                   {/* Name over the image, so the scrim is load-bearing and
                       stays fixed in both themes. */}
                   <span
@@ -497,12 +533,12 @@ export default async function MarketingPage() {
                   />
                   <span className="absolute inset-x-0 bottom-0 p-3.5">
                     <span className="block text-sm font-bold text-white">
-                      {city.city}
+                      {city.label}
                     </span>
                     <span className="mt-0.5 block text-xs text-white/80">
-                      {city.providerCount}{" "}
-                      {city.providerCount === 1 ? "provider" : "providers"} ·{" "}
-                      {city.sector}
+                      {city.providerCount > 0
+                        ? `${city.providerCount} ${city.providerCount === 1 ? "provider" : "providers"}`
+                        : "Pros joining soon"}
                     </span>
                   </span>
                 </Link>
