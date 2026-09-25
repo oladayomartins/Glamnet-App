@@ -45,8 +45,9 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Skip static assets and image optimisation: refreshing a session for a
-  // font or an icon is wasted work on every page load.
+  // font or an icon is wasted work on every page load. Stripe's webhooks
+  // carry no session either.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|api/webhooks|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

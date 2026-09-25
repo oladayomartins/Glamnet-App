@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { createBookingSchema } from "@/lib/api/schemas";
 import { createBooking } from "@/lib/server/booking-service";
+import { startPayment } from "@/lib/server/payment-flow";
 import { requireApiRole } from "@/lib/auth/api-guard";
 import { withoutPin } from "@/lib/api/redact";
 
@@ -48,10 +49,11 @@ export async function GET(request: Request) {
 /**
  * POST /api/bookings — place a booking.
  *
- * Corresponds to the point in the journey (spec §13) just after Stripe
- * pre-authorisation: the booking is created and immediately broadcast to the
- * top five eligible vendors. Classification and price are recomputed here
- * from the request's intent, never read from the client.
+ * The booking is created, then its card taken: the response carries the
+ * Stripe client secret when the customer still has to enter a card, and the
+ * request is broadcast to the top five eligible vendors only once the card is
+ * secured. Classification and price are recomputed here from the request's
+ * intent, never read from the client.
  */
 export async function POST(request: Request) {
   try {
@@ -67,8 +69,12 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
-    const booking = await createBooking(input);
-    return NextResponse.json({ booking }, { status: 201 });
+    const created = await createBooking(input);
+    // The request goes out to vendors once the card is secured — straight
+    // away on the simulated gateway, after Stripe Elements otherwise.
+    const payment = await startPayment(created.id);
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id: created.id } });
+    return NextResponse.json({ booking, payment }, { status: 201 });
   } catch (error) {
     return errorResponse(error);
   }

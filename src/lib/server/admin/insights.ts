@@ -67,7 +67,7 @@ export async function overviewStats() {
 
 export async function financeSummary(range: { from: Date; to: Date }) {
   const where = { bookingCreatedAt: { gte: range.from, lt: range.to }, ...NOT_CANCELLED };
-  const [totals, bySource, escrowHeld, released, disputed, vendorRows] = await Promise.all([
+  const [totals, bySource, escrowHeld, released, disputed, vendorRows, refunds, savedCards] = await Promise.all([
     prisma.booking.aggregate({
       where,
       _count: true,
@@ -110,6 +110,17 @@ export async function financeSummary(range: { from: Date; to: Date }) {
       orderBy: { _sum: { totalInvoicePriceMinor: "desc" } },
       take: 25,
     }),
+    // Refunds follow the booking wherever it ended up, cancelled included.
+    prisma.booking.aggregate({
+      where: { bookingCreatedAt: { gte: range.from, lt: range.to }, refundedMinor: { gt: 0 } },
+      _count: true,
+      _sum: { refundedMinor: true, clawbackMinor: true },
+    }),
+    prisma.booking.aggregate({
+      where: { paymentStatus: "CARD_SAVED" },
+      _count: true,
+      _sum: { totalInvoicePriceMinor: true },
+    }),
   ]);
 
   const vendorIds = vendorRows.map((row) => row.providerId!).filter(Boolean);
@@ -137,6 +148,12 @@ export async function financeSummary(range: { from: Date; to: Date }) {
     escrowHeld: { bookings: escrowHeld._count, amountMinor: escrowHeld._sum.totalInvoicePriceMinor ?? 0 },
     released: { bookings: released._count, amountMinor: released._sum.providerPayoutMinor ?? 0 },
     disputed: { bookings: disputed._count, amountMinor: disputed._sum.totalInvoicePriceMinor ?? 0 },
+    refunds: {
+      bookings: refunds._count,
+      refundedMinor: refunds._sum.refundedMinor ?? 0,
+      recoveredMinor: refunds._sum.clawbackMinor ?? 0,
+    },
+    savedCards: { bookings: savedCards._count, amountMinor: savedCards._sum.totalInvoicePriceMinor ?? 0 },
     vendors: vendorRows.map((row) => ({
       id: row.providerId!,
       name: byId.get(row.providerId!)?.name ?? "Unknown vendor",

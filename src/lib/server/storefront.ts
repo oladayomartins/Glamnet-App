@@ -2,7 +2,6 @@ import { prisma } from "./prisma";
 import { BookingError, settlementFields } from "./booking-service";
 import { getActiveEmergencyConfig } from "./emergency-config";
 import { CALENDAR_HOLDING_STATUSES, loadProviderSchedule } from "./schedules";
-import { paymentGateway, type Authorisation } from "./payments";
 import { hasPriorBooking } from "./escrow";
 import { evaluatePromoCode, type PromoResult } from "./promos";
 import { lookupOutcode } from "./geo";
@@ -400,7 +399,7 @@ export async function quoteStorefront(
 export async function createStorefrontBooking(
   request: StorefrontCheckoutRequest,
   now = new Date(),
-): Promise<{ bookingId: string; authorisation: Authorisation }> {
+): Promise<{ bookingId: string }> {
   await releaseAbandonedCheckouts(request.providerId, now);
   const quote = await quoteStorefront(request, now);
   if (quote.promo && !quote.promo.outcome.ok) {
@@ -524,18 +523,9 @@ export async function createStorefrontBooking(
     { maxWait: 8_000, timeout: 15_000 },
   );
 
-  const authorisation = await paymentGateway().authorise({
-    bookingId: booking.id,
-    amountMinor: quote.price.totalMinor + quote.settlement.tipMinor - quote.settlement.discountMinor,
-    customerEmail: request.customerEmail,
-    description: `GLAMNET — ${quote.provider.name}`,
-  });
-  await prisma.booking.update({
-    where: { id: booking.id },
-    data: { paymentIntentId: authorisation.paymentIntentId },
-  });
-
-  return { bookingId: booking.id, authorisation };
+  // The card is taken by startPayment (payment-flow), shared with the
+  // broadcast checkout: a hold now, or a saved card for a far-off date.
+  return { bookingId: booking.id };
 }
 
 export interface DirectoryVendor {

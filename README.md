@@ -299,26 +299,47 @@ documents on file, which is what puts the storefront and its calendar live.
 - **Payment now releases on the PIN, not the review**, so the lifecycle order
   changed to `COMPLETED → PAYMENT_RELEASED → REVIEWED`.
 
+## Payments: holds, saved cards, webhooks and disputes
+
+Every checkout — storefront and broadcast (`/book`, `/search`) — takes the
+card through one path, `src/lib/server/payment-flow.ts`:
+
+- **Within 5 days of the appointment:** a manual-capture PaymentIntent (a
+  hold). A broadcast request only goes out to vendors once the hold is in
+  place.
+- **More than 5 days away:** Stripe drops uncaptured holds after about seven
+  days, so the card is saved instead (a SetupIntent on a Stripe Customer). The
+  daily job (`/api/cron/settlements`) holds it off-session five days before.
+  If the bank declines, the customer is emailed to update their card from the
+  booking page; still no card a day before, and the booking is cancelled and
+  the vendor told.
+- **Housekeeping, same job:** abandoned checkouts and broadcasts nobody
+  accepted release their holds (unanswered broadcasts also release as soon as
+  the customer's searching screen notices).
+- **Webhooks:** `POST /api/webhooks/stripe`, verified against
+  `STRIPE_WEBHOOK_SECRET`. Handles `payment_intent.amount_capturable_updated`,
+  `setup_intent.succeeded`, `payment_intent.canceled`, `account.updated`,
+  `charge.refunded`, `charge.dispute.created` and `charge.dispute.closed`.
+  Each event is handled once.
+- **Disputes:** an admin rules from the booking page (Admin → Bookings →
+  Disputed). Before release, only what's owed is captured and the vendor is
+  paid their reduced share; after release, the customer is refunded and the
+  vendor's transfer partly reversed. GLAMNET absorbs whatever it refunds but
+  doesn't recover.
+
+Environment for real payments: `STRIPE_SECRET_KEY`,
+`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, and
+`CRON_SECRET` for the daily job.
+
 ## Not built
 
 Scoped out deliberately, and worth naming so the gaps are not mistaken for
 oversights:
 
-- **Card holds on the broadcast checkout under real Stripe.** Storefront
-  checkout collects a card with Stripe Elements. The older `/book` and
-  `/search` confirm screens do not yet; they get a simulated hold only when
-  Stripe is unconfigured.
-- **Holds longer than 7 days.** Stripe expires uncaptured authorisations after
-  about 7 days. A booking further out needs a saved card (SetupIntent) and an
-  off-session authorisation nearer the date, which needs a scheduler.
-- **Stripe webhooks.** Holds and payout status are read back from Stripe on
-  return rather than pushed by webhook.
 - **Real push notifications.** Notification records are written to the database
   (including "your checkout PIN is ready"), and the customer's booking page
   refreshes itself while a PIN is live, but there is no Web Push service
   worker, so nothing is pushed to a locked phone.
-- **Dispute resolution.** A dispute is recorded and flagged to admins; refunds
-  and clawbacks are handled by hand.
 - **Offline support.** No service worker; the app is installable but needs a
   connection.
 - **External calendar sync.** Explicitly out of scope per §14.

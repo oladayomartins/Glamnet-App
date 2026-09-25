@@ -5,7 +5,7 @@ import { storefrontCheckoutSchema } from "@/lib/api/schemas";
 import { requireApiRole } from "@/lib/auth/api-guard";
 import { BookingError } from "@/lib/server/booking-service";
 import { createStorefrontBooking } from "@/lib/server/storefront";
-import { markAuthorised } from "@/lib/server/escrow";
+import { startPayment } from "@/lib/server/payment-flow";
 import { paymentGateway } from "@/lib/server/payments";
 
 /**
@@ -30,24 +30,23 @@ export async function POST(
     const provider = await prisma.provider.findUnique({ where: { slug }, select: { id: true } });
     if (!provider) throw new BookingError("Storefront not found.", "NOT_FOUND", 404);
 
-    const { bookingId, authorisation } = await createStorefrontBooking({
+    const { bookingId } = await createStorefrontBooking({
       ...input,
       providerId: provider.id,
       customerId,
       customerEmail: email,
     });
-
-    if (authorisation.state === "AUTHORISED") {
-      const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
-      await markAuthorised(booking);
-    }
+    // A hold now, or a saved card for a far-off date; "secured" when nothing
+    // is left for the customer to do.
+    const payment = await startPayment(bookingId);
 
     return NextResponse.json(
       {
         bookingId,
         paymentMode: paymentGateway().mode,
-        clientSecret: authorisation.clientSecret,
-        authorised: authorisation.state === "AUTHORISED",
+        clientSecret: payment.kind === "card" ? payment.clientSecret : null,
+        cardMode: payment.kind === "card" ? payment.mode : null,
+        authorised: payment.kind === "secured",
       },
       { status: 201 },
     );

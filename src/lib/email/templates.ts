@@ -312,3 +312,37 @@ export function campaignEmail(input: {
   ]);
   return { subject: input.title, html, text };
 }
+
+/**
+ * A plain booking notice — a card that needs attention, a dispute ruling, a
+ * booking that couldn't go ahead. One template so every payment message reads
+ * the same way.
+ */
+export function bookingNoticeEmail(input: {
+  subject: string;
+  heading: string;
+  name: string;
+  lead: string;
+  facts?: Array<[string, string]>;
+  cta: { label: string; url: string };
+}): EmailBody {
+  const html = shell({
+    preheader: input.lead,
+    heading: input.heading,
+    body:
+      paragraph(`Hi ${input.name},`) +
+      paragraph(input.lead) +
+      (input.facts && input.facts.length > 0 ? factList(input.facts) : ""),
+    cta: input.cta,
+  });
+  const text = textBlock([
+    input.heading,
+    "",
+    `Hi ${input.name},`,
+    input.lead,
+    ...(input.facts ?? []).map(([label, value]) => `${label}: ${value}`),
+    "",
+    `${input.cta.label}: ${input.cta.url}`,
+  ]);
+  return { subject: input.subject, html, text };
+}

@@ -11,10 +11,7 @@ import {
 import { priceBooking, type PriceBreakdown } from "@/lib/domain/pricing";
 import { addMinutes, reservationWindow } from "@/lib/domain/availability";
 import { selectBroadcastTargets } from "@/lib/domain/matching";
-import {
-  BROADCAST_ACCEPTANCE_WINDOW_MINUTES,
-  TRANSITION_BUFFER_MINUTES,
-} from "@/lib/domain/constants";
+import { TRANSITION_BUFFER_MINUTES } from "@/lib/domain/constants";
 import type { BasketLine, BookingType } from "@/lib/domain/types";
 import { applyBps } from "@/lib/domain/pricing";
 import {
@@ -23,11 +20,7 @@ import {
   type BookingSource,
   type CommissionDecision,
 } from "@/lib/domain/settlement";
-import { paymentGateway } from "./payments";
-import {
-  deliverBookingConfirmedEmail,
-  deliverBroadcastEmails,
-} from "./notifications";
+import { deliverBookingConfirmedEmail } from "./notifications";
 
 export class BookingError extends Error {
   constructor(
@@ -96,7 +89,7 @@ export function settlementFields(
 }
 
 /** Customers each vendor has already served — they are no longer "new". */
-async function servedCustomer(
+export async function servedCustomer(
   customerId: string,
   providerIds: string[],
 ): Promise<Set<string>> {
@@ -242,11 +235,18 @@ export interface CreateBookingRequest extends QuoteRequest {
 }
 
 /**
- * Create a booking and broadcast it to the top five eligible vendors.
+ * Create a broadcast booking, ready for its card.
+ *
+ * The booking waits at REQUESTED until the customer's card is secured; only
+ * then is it broadcast (see `dispatchBroadcast` in payment-flow). Sending a
+ * request to five vendors before anyone knew the customer could pay meant
+ * vendors accepting jobs with no money behind them.
  *
  * The quote is recomputed here rather than accepted from the client, so the
  * stored classification, duration and price are all server-derived (spec §9,
- * §12 "Customer cannot override the classification").
+ * §12 "Customer cannot override the classification"). The vendor list is
+ * checked now so a customer isn't asked for a card when nobody could come,
+ * and again at broadcast time.
  */
 export async function createBooking(
   request: CreateBookingRequest,
@@ -262,135 +262,52 @@ export async function createBooking(
     );
   }
 
-  const expiresAt = addMinutes(now, BROADCAST_ACCEPTANCE_WINDOW_MINUTES);
-
-  // Dual commission: each invited vendor is quoted what *they* would earn —
-  // Rule B for a customer new to them, Rule A for one they have served.
-  const served = await servedCustomer(request.customerId, quote.eligibleProviderIds);
-  const source: BookingSource = "BROADCAST";
-  const quotedFor = (providerId: string) =>
-    settlementFields(
-      quote.price,
-      decideCommission({ source, hasPriorBooking: served.has(providerId) }),
-    );
+  // Provisional (Rule B) until a vendor accepts and the rule is final.
   const provisional = settlementFields(
     quote.price,
-    decideCommission({ source, hasPriorBooking: false }),
+    decideCommission({ source: "BROADCAST", hasPriorBooking: false }),
   );
 
-  const booking = await prisma.$transaction(async (tx) => {
-    const booking = await tx.booking.create({
-      data: {
-        bookingType: quote.bookingType,
-        bookingCreatedAt: now,
-        appointmentStartAt: quote.appointmentStartAt,
-        noticePeriodMinutes: quote.noticePeriodMinutes,
-        thresholdMinutesUsed: quote.thresholdMinutesUsed,
-        serviceDurationMinutes: quote.serviceDurationMinutes,
-        reservedDurationMinutes: quote.reservedDurationMinutes,
-        reservedUntilAt: quote.reservedUntilAt,
-        subtotalMinor: quote.price.subtotalMinor,
-        travelFeeMinor: quote.price.travelFeeMinor,
-        emergencySurchargeMinor: quote.price.emergencySurchargeMinor,
-        otherSurchargesMinor: quote.price.otherSurchargesMinor,
-        trustFeeMinor: quote.price.trustFeeMinor,
-        totalInvoicePriceMinor: quote.price.totalMinor,
-        // Provisional (Rule B) until a vendor accepts and the rule is final.
-        ...provisional,
-        source,
-        status: "BROADCAST",
-        sector: quote.sector,
-        addressLine: request.addressLine ?? "",
-        notes: request.notes ?? "",
-        referenceImageUrl: request.referenceImageUrl ?? "",
-        referenceImageFileId: request.referenceImageFileId ?? "",
-        customerId: request.customerId,
-        hubId: request.hubId,
-        items: {
-          create: quote.basket.map((line) => ({
-            serviceId: line.id,
-            name: line.name,
-            priceMinor: line.priceMinor,
-            durationMinutes: line.durationMinutes,
-            kind: line.kind,
-          })),
-        },
-        broadcasts: {
-          create: quote.eligibleProviderIds.map((providerId) => {
-            const quoted = quotedFor(providerId);
-            return {
-              providerId,
-              expiresAt,
-              earningsMinor: quoted.providerEarningsMinor,
-              emergencyEarningsMinor: quoted.providerEmergencyEarningsMinor,
-            };
-          }),
-        },
-        events: {
-          create: [
-            { fromStatus: null, toStatus: "REQUESTED", actor: "CUSTOMER" },
-            {
-              fromStatus: "REQUESTED",
-              toStatus: "BROADCAST",
-              actor: "SYSTEM",
-              note: `Broadcast to ${quote.eligibleProviderIds.length} provider(s).`,
-            },
-          ],
-        },
+  return prisma.booking.create({
+    data: {
+      bookingType: quote.bookingType,
+      bookingCreatedAt: now,
+      appointmentStartAt: quote.appointmentStartAt,
+      noticePeriodMinutes: quote.noticePeriodMinutes,
+      thresholdMinutesUsed: quote.thresholdMinutesUsed,
+      serviceDurationMinutes: quote.serviceDurationMinutes,
+      reservedDurationMinutes: quote.reservedDurationMinutes,
+      reservedUntilAt: quote.reservedUntilAt,
+      subtotalMinor: quote.price.subtotalMinor,
+      travelFeeMinor: quote.price.travelFeeMinor,
+      emergencySurchargeMinor: quote.price.emergencySurchargeMinor,
+      otherSurchargesMinor: quote.price.otherSurchargesMinor,
+      trustFeeMinor: quote.price.trustFeeMinor,
+      totalInvoicePriceMinor: quote.price.totalMinor,
+      ...provisional,
+      source: "BROADCAST",
+      status: "REQUESTED",
+      sector: quote.sector,
+      addressLine: request.addressLine ?? "",
+      notes: request.notes ?? "",
+      referenceImageUrl: request.referenceImageUrl ?? "",
+      referenceImageFileId: request.referenceImageFileId ?? "",
+      customerId: request.customerId,
+      hubId: request.hubId,
+      items: {
+        create: quote.basket.map((line) => ({
+          serviceId: line.id,
+          name: line.name,
+          priceMinor: line.priceMinor,
+          durationMinutes: line.durationMinutes,
+          kind: line.kind,
+        })),
       },
-      include: { items: true, broadcasts: true },
-    });
-
-    // Spec §11: the EMERGENCY tag must appear consistently in every channel.
-    const isEmergency = quote.bookingType === "EMERGENCY";
-    const thresholdHours = Math.round(quote.thresholdMinutesUsed / 60);
-    await tx.notification.createMany({
-      data: quote.eligibleProviderIds.map((providerId) => ({
-        bookingId: booking.id,
-        providerId,
-        audience: "PROVIDER",
-        channel: "PUSH",
-        bookingType: quote.bookingType,
-        title: isEmergency ? "EMERGENCY BOOKING REQUEST" : "New booking request",
-        body: isEmergency
-          ? `A customer needs a beauty service within the next ${thresholdHours} hours.`
-          : `New request in sector ${quote.sector}.`,
-      })),
-    });
-
-    return booking;
+      events: {
+        create: [{ fromStatus: null, toStatus: "REQUESTED", actor: "CUSTOMER", note: "Awaiting card." }],
+      },
+    },
   });
-
-  // Card hold. On the simulated gateway this completes at once; with Stripe
-  // the broadcast checkout does not yet collect a card in the browser, so the
-  // hold is left for the storefront flow (see README, "Not built").
-  const gateway = paymentGateway();
-  if (gateway.mode === "simulated") {
-    const hold = await gateway.authorise({
-      bookingId: booking.id,
-      amountMinor: quote.price.totalMinor,
-      customerEmail: "",
-      description: "GLAMNET booking",
-    });
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: { paymentIntentId: hold.paymentIntentId, paymentStatus: "AUTHORISED" },
-    });
-  }
-
-  // After the commit, never inside it: a slow Resend call must not hold the
-  // transaction open, and a failed one must not undo a valid booking.
-  await deliverBroadcastEmails({
-    bookingId: booking.id,
-    providerIds: quote.eligibleProviderIds,
-    isEmergency: quote.bookingType === "EMERGENCY",
-    serviceNames: quote.basket.map((line) => line.name),
-    appointmentStartAt: quote.appointmentStartAt,
-    sector: quote.sector,
-    providerEarningsMinor: quote.price.providerEarningsMinor,
-  });
-
-  return booking;
 }
 
 /**

@@ -67,6 +67,17 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
         <Stat label="Paid out to vendors" value={formatMoney(summary.released.amountMinor)} hint={`${summary.released.bookings} released by PIN`} />
         <Stat label="Held in escrow now" value={formatMoney(summary.escrowHeld.amountMinor)} hint={`${summary.escrowHeld.bookings} card holds`} />
         <Stat
+          label="Cards saved for later"
+          value={formatMoney(summary.savedCards.amountMinor)}
+          hint={`${summary.savedCards.bookings} bookings more than 5 days out`}
+        />
+        <Stat
+          label="Refunded after disputes"
+          value={formatMoney(summary.refunds.refundedMinor)}
+          hint={`${formatMoney(summary.refunds.recoveredMinor)} recovered from vendors · GLAMNET absorbed ${formatMoney(Math.max(0, summary.refunds.refundedMinor - summary.refunds.recoveredMinor))}`}
+          tone={summary.refunds.bookings ? "warning" : undefined}
+        />
+        <Stat
           label="Under dispute now"
           value={formatMoney(summary.disputed.amountMinor)}
           hint={`${summary.disputed.bookings} bookings`}

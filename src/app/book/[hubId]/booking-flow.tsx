@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle, Clock, Lightning, Plus } from "@phosphor-icons/react";
+import { CardHold } from "@/components/card-hold";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import {
   BookingTypeTag,
@@ -137,6 +138,13 @@ export function BookingFlow({
   const [referenceImage, setReferenceImage] = useState<UploadedImage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // The card step: shown once the booking exists, until Stripe has the card.
+  const [hold, setHold] = useState<{
+    id: string;
+    bookingType: string;
+    clientSecret: string;
+    mode: "payment" | "setup";
+  } | null>(null);
   const [confirmation, setConfirmation] = useState<{
     id: string;
     bookingType: string;
@@ -289,10 +297,19 @@ export function BookingFlow({
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error?.message ?? "Could not place the booking.");
-      setConfirmation({
-        id: payload.booking.id,
-        bookingType: payload.booking.bookingType,
-      });
+      if (payload.payment?.kind === "card") {
+        setHold({
+          id: payload.booking.id,
+          bookingType: payload.booking.bookingType,
+          clientSecret: payload.payment.clientSecret,
+          mode: payload.payment.mode,
+        });
+      } else {
+        setConfirmation({
+          id: payload.booking.id,
+          bookingType: payload.booking.bookingType,
+        });
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not place the booking.");
     } finally {
@@ -653,22 +670,38 @@ export function BookingFlow({
               </label>
             </Card>
 
-            <Button
-              variant={quote.isEmergency ? "emergency" : "primary"}
-              onClick={submit}
-              disabled={submitting || !customerId}
-              className="w-full"
-            >
-              {submitting
-                ? "Authorising…"
-                : quote.isEmergency
-                  ? "Confirm emergency booking"
-                  : "Confirm booking"}
-            </Button>
+            {hold ? (
+              <Card className="space-y-3 p-4">
+                <p className="font-display font-semibold text-ink">Add your card</p>
+                <CardHold
+                  bookingId={hold.id}
+                  clientSecret={hold.clientSecret}
+                  amountMinor={quote.price.totalMinor}
+                  mode={hold.mode}
+                  onAuthorised={() => setConfirmation({ id: hold.id, bookingType: hold.bookingType })}
+                />
+                <p className="text-xs text-ink-muted">
+                  Your request goes out to vendors as soon as your card is in place.
+                </p>
+              </Card>
+            ) : (
+              <Button
+                variant={quote.isEmergency ? "emergency" : "primary"}
+                onClick={submit}
+                disabled={submitting || !customerId}
+                className="w-full"
+              >
+                {submitting
+                  ? "Just a moment…"
+                  : quote.isEmergency
+                    ? "Confirm emergency booking"
+                    : "Confirm booking"}
+              </Button>
+            )}
             <p className="text-center text-xs text-ink-muted">
-              We pre-authorise {formatMoney(quote.price.totalMinor)} now and
-              release it to your provider after the appointment is completed and
-              rated.
+              We hold {formatMoney(quote.price.totalMinor)} on your card and only
+              take it when you give your vendor your PIN at the end of the
+              appointment.
             </p>
           </div>
         )}

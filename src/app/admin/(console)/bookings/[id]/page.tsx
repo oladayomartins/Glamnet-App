@@ -15,6 +15,10 @@ import {
   formatMoney,
   formatNotice,
 } from "@/lib/format";
+import { GlamImage } from "@/components/glam-image";
+import { chargeMinorOf, disputeStageOf } from "@/lib/domain/payment-rules";
+import { paymentGateway } from "@/lib/server/payments";
+import { DisputeResolver } from "./dispute-resolver";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +48,7 @@ export default async function AdminBookingPage({
       customer: { select: { name: true, email: true } },
       provider: { select: { id: true, name: true, rating: true } },
       events: { orderBy: { createdAt: "asc" } },
+      completionPhotos: { orderBy: { position: "asc" } },
       broadcasts: {
         orderBy: { sentAt: "asc" },
         include: { provider: { select: { id: true, name: true } } },
@@ -211,21 +216,76 @@ export default async function AdminBookingPage({
 
         {/* --- Payment --------------------------------------------------- */}
         <Card className="p-4">
-          <SectionTitle>Payment</SectionTitle>
-          {/* No Stripe reference is shown because there is none: no payment
-              vendor is wired up in this build. An "authorised" badge here
-              would be the single most misleading thing on the admin surface. */}
-          <p className="text-[15px] text-ink">
-            No payment vendor is connected in this build, so this booking
-            carries no authorisation reference.
-          </p>
-          <p className="mt-2 text-sm text-ink-muted">
-            The customer flow states that the total is pre-authorised at
-            checkout and released after the work is rated. Nothing has been
-            taken.
-          </p>
+          <SectionTitle hint={paymentGateway().mode === "simulated" ? "test mode" : "Stripe"}>Payment</SectionTitle>
+          <dl className="space-y-1.5 text-sm">
+            <Field name="payment_status">{booking.paymentStatus}</Field>
+            <Field name="charge">{formatMoney(chargeMinorOf(booking))}</Field>
+            {booking.paymentIntentId ? <Field name="payment_intent">{booking.paymentIntentId}</Field> : null}
+            {booking.setupIntentId ? <Field name="setup_intent">{booking.setupIntentId}</Field> : null}
+            {booking.holdAuthorisedAt ? <Field name="hold_authorised_at">{formatDayTime(booking.holdAuthorisedAt)}</Field> : null}
+            {booking.paymentFailureReason ? <Field name="last_failure">{booking.paymentFailureReason}</Field> : null}
+            {booking.transferId ? <Field name="transfer">{booking.transferId}</Field> : null}
+            <Field name="vendor_payout">{formatMoney(booking.providerPayoutMinor)}</Field>
+            <Field name="settlement_status">{booking.settlementStatus}</Field>
+            {booking.refundedMinor > 0 ? <Field name="refunded">{formatMoney(booking.refundedMinor)}{booking.refundId ? ` · ${booking.refundId}` : ""}</Field> : null}
+            {booking.clawbackMinor > 0 ? <Field name="recovered_from_vendor">{formatMoney(booking.clawbackMinor)}{booking.transferReversalId ? ` · ${booking.transferReversalId}` : ""}</Field> : null}
+          </dl>
+          {booking.paymentIntentId.startsWith("pi_") ? (
+            <a
+              href={`https://dashboard.stripe.com/payments/${booking.paymentIntentId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block text-sm font-semibold text-accent-700 hover:underline"
+            >
+              Open in Stripe →
+            </a>
+          ) : null}
         </Card>
       </div>
+
+      {/* --- Dispute ----------------------------------------------------- */}
+      {booking.status === "DISPUTED" && booking.settlementStatus === "DISPUTED" ? (
+        <DisputeResolver
+          bookingId={booking.id}
+          reason={booking.disputeReason}
+          stage={disputeStageOf(booking.paymentStatus)}
+          chargeMinor={chargeMinorOf(booking)}
+          payoutMinor={booking.providerPayoutMinor}
+        />
+      ) : null}
+
+      {booking.settlementStatus === "RESOLVED" ? (
+        <Card className="p-4">
+          <SectionTitle hint={booking.disputeResolvedAt ? formatDayTime(booking.disputeResolvedAt) : undefined}>
+            Dispute resolved
+          </SectionTitle>
+          <dl className="space-y-1.5 text-sm">
+            <Field name="customer_reason">{booking.disputeReason || "—"}</Field>
+            <Field name="refunded_to_customer">{formatMoney(booking.refundedMinor)}</Field>
+            <Field name="recovered_from_vendor">{formatMoney(booking.clawbackMinor)}</Field>
+            <Field name="resolved_by">{booking.disputeResolvedBy}</Field>
+            <Field name="note">{booking.disputeResolution}</Field>
+          </dl>
+        </Card>
+      ) : null}
+
+      {booking.completionPhotos.length > 0 ? (
+        <section>
+          <SectionTitle hint="Taken by the vendor at checkout">Finished work</SectionTitle>
+          <div className="grid max-w-xl grid-cols-3 gap-2">
+            {booking.completionPhotos.map((photo, index) => (
+              <GlamImage
+                key={photo.id}
+                src={photo.url}
+                alt={`Finished work, photo ${index + 1}`}
+                width={400}
+                height={500}
+                className="aspect-[4/5] w-full rounded-glam-sm object-cover"
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* --- Broadcast history ------------------------------------------- */}
       <section>
