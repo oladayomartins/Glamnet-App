@@ -31,7 +31,7 @@ export const BOOKING_STATUSES = [
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
 /** Terminal states that sit outside the happy path. */
-export const TERMINAL_STATUSES = ["CANCELLED", "EXPIRED", "DISPUTED"] as const;
+export const TERMINAL_STATUSES = ["CANCELLED", "EXPIRED", "DISPUTED", "NO_SHOW"] as const;
 export type TerminalStatus = (typeof TERMINAL_STATUSES)[number];
 
 export type AnyBookingStatus = BookingStatus | TerminalStatus;

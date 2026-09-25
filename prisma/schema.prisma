@@ -77,25 +77,45 @@ model AppUser {
   customer Customer?
   provider Provider?
 
+  pushSubscriptions PushSubscription[]
+
   @@index([role])
 }
 
+/// A browser or installed app that asked for push notifications. One person
+/// can have several (phone, laptop). Removed when the push service says the
+/// subscription is gone.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  appUserId  String
+  appUser    AppUser   @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+  /// The push service URL. Unique: re-subscribing the same browser updates it.
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String    @default("")
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([appUserId])
+}
+
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  phone     String   @default("")
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  name             String
+  email            String   @unique
+  phone            String   @default("")
+  createdAt        DateTime @default(now())
   /// The customer's home postcode, remembered for "pros near you". Private.
-  postcode  String   @default("")
-  latitude  Float?
-  longitude Float?
+  postcode         String   @default("")
+  latitude         Float?
+  longitude        Float?
   /// Stripe Customer, created the first time a card is saved for later.
-  stripeCustomerId String @default("")
+  stripeCustomerId String   @default("")
   /// Profile photo shown in the header menu. fileId lets a replaced photo be
   /// deleted from ImageKit rather than orphaned.
-  avatarUrl    String @default("")
-  avatarFileId String @default("")
+  avatarUrl        String   @default("")
+  avatarFileId     String   @default("")
 
   /// Null for seeded demo records that have no login yet.
   appUserId String?  @unique
@@ -326,6 +346,18 @@ model Booking {
   /// payment. Empty when they rated without writing anything.
   reviewNote           String  @default("")
   cancelledReason      String  @default("")
+  /// Who cancelled: "CUSTOMER", "PROVIDER", "ADMIN" or "SYSTEM".
+  cancelledBy          String  @default("")
+  cancelledAt          DateTime?
+  /// Set when the vendor marks the client as not having turned up.
+  noShowAt             DateTime?
+  /// A late-cancellation or missed-appointment fee taken from the card hold
+  /// (see domain/cancellation.ts), and the vendor's share of it. A fee is
+  /// released like a payment, so it can be disputed for 24 hours.
+  cancellationFeeMinor       Int @default(0)
+  cancellationFeePayoutMinor Int @default(0)
+  /// The "free cancellation ends soon" reminder, sent once.
+  reminderSentAt       DateTime?
 
   // --- Origin & commission (Directory §D, dual-commission protocol) --------
   /// "BROADCAST" (emergency/request flow), "MARKETPLACE" (chosen on the

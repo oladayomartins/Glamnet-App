@@ -13,6 +13,7 @@ import { formatMiles, milesToKm } from "@/lib/domain/postcode";
 import { NearYou } from "./near-you";
 import { DetailsForm } from "./details-form";
 import { PhotoPicker } from "./photo-picker";
+import { PushPrompt } from "@/components/push-prompt";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,7 @@ export default async function AccountPage({
   // Cancelled and disputed bookings leave the timeline entirely rather than
   // sitting in Past: a customer looking for what happened wants the ones that
   // happened.
-  const closed = ["CANCELLED", "EXPIRED", "DISPUTED"];
+  const closed = ["CANCELLED", "EXPIRED", "DISPUTED", "NO_SHOW"];
   const tabFilter =
     tab === "cancelled"
       ? { status: { in: closed } }
@@ -284,6 +285,8 @@ export default async function AccountPage({
       </section>
 
       {/* --- Details ---------------------------------------------------------- */}
+      <PushPrompt audience="CUSTOMER" />
+
       <section id="details" className="scroll-mt-24 grid gap-6 md:grid-cols-[minmax(0,1fr)_16rem]">
         <Card className="p-5">
           <SectionTitle>Your details</SectionTitle>

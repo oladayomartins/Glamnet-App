@@ -1,5 +1,5 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
-import { prisma } from "./prisma";
+import type { Prisma } from "@prisma/client";
+import { prisma, type Db } from "./prisma";
 import {
   describePromo,
   evaluatePromo,
@@ -14,11 +14,10 @@ import {
  * the discount. The rules themselves are in the pure domain module.
  */
 
-type Db = PrismaClient | Prisma.TransactionClient;
 
 /** A redemption or booking only counts while the booking is still live. */
 const LIVE_BOOKING: Prisma.BookingWhereInput = {
-  status: { notIn: ["CANCELLED", "EXPIRED"] },
+  status: { notIn: ["CANCELLED", "EXPIRED", "NO_SHOW"] },
   paymentStatus: { not: "VOIDED" },
 };
 

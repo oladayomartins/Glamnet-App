@@ -47,6 +47,9 @@ export function JobActions({
   addressUnlocked,
   paymentStatus,
   imageUploadsEnabled,
+  mayCancel = false,
+  noShowFrom = null,
+  noShowFromLabel = null,
 }: {
   bookingId: string;
   status: string;
@@ -55,6 +58,11 @@ export function JobActions({
   addressUnlocked: boolean;
   paymentStatus: string;
   imageUploadsEnabled: boolean;
+  /** The vendor can still call this job off (free for the client). */
+  mayCancel?: boolean;
+  /** ISO time from which the client can be marked a no-show, if at all. */
+  noShowFrom?: string | null;
+  noShowFromLabel?: string | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -177,7 +185,139 @@ export function JobActions({
           {error}
         </p>
       ) : null}
+
+      {noShowFrom ? <NoShow bookingId={bookingId} from={noShowFrom} fromLabel={noShowFromLabel} onDone={() => router.refresh()} /> : null}
+      {mayCancel ? <VendorCancel bookingId={bookingId} onDone={() => router.refresh()} /> : null}
     </Card>
+  );
+}
+
+/**
+ * [ Client didn't show ]. Available from the door (or, at the vendor's own
+ * workspace, while waiting) fifteen minutes after the start. Charges the
+ * missed-appointment fee; the client can dispute it for 24 hours, and the
+ * arrival time on the job is the evidence.
+ */
+function NoShow({
+  bookingId,
+  from,
+  fromLabel,
+  onDone,
+}: {
+  bookingId: string;
+  from: string;
+  fromLabel: string | null;
+  onDone: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const ready = now >= new Date(from).getTime();
+
+  const mark = async () => {
+    setNow(Date.now());
+    if (!window.confirm("Mark the client as a no-show? They'll be charged the missed-appointment fee, and can dispute it if they were there.")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await post(`/api/bookings/${bookingId}/no-show`);
+      onDone();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "That did not work.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 border-t border-line pt-4">
+      <Button variant="secondary" onClick={mark} disabled={busy || !ready} className="w-full">
+        {busy ? "Saving…" : "Client didn\u2019t show"}
+      </Button>
+      <p className="mt-2 text-center text-xs text-ink-muted">
+        {ready
+          ? "Tried calling? If they're not here, this charges the missed-appointment fee and frees your time."
+          : `Available from ${fromLabel ?? "15 minutes after the start"} — give the client 15 minutes.`}
+      </p>
+      {!ready ? (
+        <button type="button" onClick={() => setNow(Date.now())} className="tap-44 w-full text-center text-xs text-ink-muted hover:text-ink">
+          Check again
+        </button>
+      ) : null}
+      {error ? (
+        <p role="alert" className="mt-2 text-sm text-warning">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** [ Cancel this job ] — free for the client, and the reason goes to them. */
+function VendorCancel({ bookingId, onDone }: { bookingId: string; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const cancel = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await post(`/api/bookings/${bookingId}/cancel`, { reason });
+      onDone();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "That did not work.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="tap-44 mt-3 w-full text-center text-xs text-ink-muted hover:text-ink"
+      >
+        Can&rsquo;t make it? Cancel this job
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={cancel} className="mt-4 space-y-3 border-t border-line pt-4">
+      <p className="text-sm text-ink">
+        Your client isn&rsquo;t charged and their card hold is released. Cancelling close to the appointment lets a
+        client down, so please only do it if you have to — the team keeps an eye on late cancellations.
+      </p>
+      <label className="block">
+        <span className="text-sm font-medium text-ink">Why? Your client will see this.</span>
+        <textarea
+          required
+          minLength={5}
+          maxLength={500}
+          rows={2}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          className="mt-1 w-full rounded-glam-input border border-line bg-surface px-3 py-2 text-[15px] text-ink outline-none focus:border-accent-500"
+        />
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" variant="secondary" disabled={busy || reason.trim().length < 5}>
+          {busy ? "Cancelling…" : "Cancel this job"}
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
+          Keep it
+        </Button>
+      </div>
+      {error ? (
+        <p role="alert" className="text-sm text-warning">
+          {error}
+        </p>
+      ) : null}
+    </form>
   );
 }
 

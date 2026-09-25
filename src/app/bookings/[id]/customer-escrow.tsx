@@ -49,10 +49,13 @@ export function CheckoutPin({ pin, providerName }: { pin: string; providerName: 
 export function DisputeForm({
   bookingId,
   closesAt,
+  feeOnly = false,
 }: {
   bookingId: string;
   /** ISO time the window shuts, or null while payment is still held. */
   closesAt: string | null;
+  /** Disputing a late-cancellation or missed-appointment fee. */
+  feeOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -93,7 +96,7 @@ export function DisputeForm({
             : undefined
         }
       >
-        Something wrong?
+        {feeOnly ? "Think this fee is wrong?" : "Something wrong?"}
       </SectionTitle>
       {open ? (
         <form onSubmit={submit} className="space-y-3">
@@ -103,11 +106,11 @@ export function DisputeForm({
             rows={3}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Tell us what happened"
+            placeholder={feeOnly ? "Tell us what happened — for example, if you were there and the vendor wasn't" : "Tell us what happened"}
             className="w-full rounded-glam-input border border-line bg-surface px-3 py-2 text-[15px] text-ink outline-none focus:border-accent-500"
           />
           <Button type="submit" variant="secondary" disabled={busy || reason.trim().length < 10}>
-            {busy ? "Sending…" : "File a service dispute"}
+            {busy ? "Sending…" : feeOnly ? "Dispute this fee" : "File a service dispute"}
           </Button>
           {error ? (
             <p role="alert" className="text-sm text-warning">
@@ -117,12 +120,13 @@ export function DisputeForm({
         </form>
       ) : (
         <Button variant="secondary" onClick={() => setOpen(true)}>
-          File a service dispute
+          {feeOnly ? "Dispute this fee" : "File a service dispute"}
         </Button>
       )}
       <p className="mt-2 text-xs text-ink-muted">
-        Disputes can be filed for 24 hours after payment is released. After that the booking
-        is closed.
+        {feeOnly
+          ? "A fee can be disputed for 24 hours after it was charged. The team reviews it and refunds it if it wasn't fair."
+          : "Disputes can be filed for 24 hours after payment is released. After that the booking is closed."}
       </p>
     </Card>
   );

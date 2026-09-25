@@ -19,6 +19,10 @@ import { JobActions } from "./job-actions";
 import { ReviewForm } from "./review-form";
 import { CheckoutPin, DisputeForm } from "./customer-escrow";
 import { UpdateCard } from "./update-card";
+import { PushPrompt } from "@/components/push-prompt";
+import { CancelBooking, CancelTooLate } from "./cancel-booking";
+import { quoteCustomerCancellation, noShowAllowedFrom, PROVIDER_CANCELLABLE } from "@/lib/domain/cancellation";
+import { formatAppointment } from "@/lib/server/notifications";
 
 /**
  * Customer-facing booking record. Shows the classification and the surcharge
@@ -87,6 +91,13 @@ export default async function BookingPage({
     isTheCustomer &&
     ((booking.status === "COMPLETED" && booking.settlementStatus === "OPEN") ||
       canDispute(booking, now));
+  const ended = ["CANCELLED", "EXPIRED", "NO_SHOW"].includes(booking.status);
+  // What cancelling costs right now; the endpoint charges exactly this.
+  const cancelQuote = isTheCustomer && !ended ? quoteCustomerCancellation(booking, now) : null;
+  const arrivedAt = booking.events.findLast((event) => event.toStatus === "ARRIVED")?.createdAt ?? null;
+  const noShowFrom = isTheProvider
+    ? noShowAllowedFrom(booking, booking.serviceLocation === "VENDOR_PREMISES" ? null : arrivedAt)
+    : null;
 
   const priceRows = [
     ...booking.items.map((item) => ({
@@ -255,13 +266,61 @@ export default async function BookingPage({
       {isTheCustomer &&
       (booking.paymentStatus === "AUTHORISATION_FAILED" ||
         (booking.paymentStatus === "PENDING_AUTHORISATION" && ["REQUESTED", "ACCEPTED"].includes(booking.status))) &&
-      !["CANCELLED", "EXPIRED", "COMPLETED", "DISPUTED"].includes(booking.status) ? (
+      !["CANCELLED", "EXPIRED", "NO_SHOW", "COMPLETED", "DISPUTED"].includes(booking.status) ? (
         <UpdateCard
           bookingId={booking.id}
           amountMinor={booking.totalInvoicePriceMinor + booking.tipMinor - booking.discountMinor}
           reason={booking.paymentFailureReason}
           unfinished={booking.paymentStatus === "PENDING_AUTHORISATION"}
         />
+      ) : null}
+
+      {isTheCustomer && !["CANCELLED", "EXPIRED", "NO_SHOW", "REVIEWED"].includes(booking.status) ? (
+        <PushPrompt audience="CUSTOMER" />
+      ) : null}
+
+      {ended && booking.status !== "EXPIRED" ? (
+        <Card className="p-4">
+          <SectionTitle hint={booking.cancelledAt ? formatAppointment(booking.cancelledAt) : undefined}>
+            {booking.status === "NO_SHOW" ? "Missed appointment" : "Booking cancelled"}
+          </SectionTitle>
+          <p className="text-sm text-ink">
+            {booking.status === "NO_SHOW"
+              ? isTheCustomer
+                ? "Your vendor waited and marked this appointment as missed."
+                : "You marked the client as a no-show."
+              : booking.cancelledBy === "CUSTOMER"
+                ? isTheCustomer
+                  ? "You cancelled this booking."
+                  : "The client cancelled this booking."
+                : booking.cancelledBy === "PROVIDER"
+                  ? isTheCustomer
+                    ? "Your vendor had to cancel this booking."
+                    : "You cancelled this booking."
+                  : "This booking was cancelled."}{" "}
+            {booking.cancellationFeeMinor > 0
+              ? isTheProvider
+                ? `Under the cancellation policy you receive ${formatMoney(booking.cancellationFeePayoutMinor)}.`
+                : `A ${booking.status === "NO_SHOW" ? "missed-appointment" : "late-cancellation"} fee of ${formatMoney(booking.cancellationFeeMinor)} was charged; the rest of the hold was released.`
+              : isTheProvider
+                ? ""
+                : "Nothing was charged."}
+          </p>
+          {booking.cancelledBy === "PROVIDER" && isTheCustomer && booking.cancelledReason ? (
+            <p className="mt-2 text-sm text-ink-muted">{booking.cancelledReason.replace(/^Cancelled by the vendor: /, "")}</p>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {cancelQuote?.allowed ? (
+        <CancelBooking
+          bookingId={booking.id}
+          feeMinor={cancelQuote.feeMinor}
+          explanation={cancelQuote.explanation}
+          freeUntilLabel={cancelQuote.freeUntil ? formatAppointment(cancelQuote.freeUntil) : null}
+        />
+      ) : cancelQuote && booking.status === "ARRIVED" ? (
+        <CancelTooLate explanation={cancelQuote.explanation} />
       ) : null}
 
       {booking.settlementStatus === "RESOLVED" && (isTheCustomer || isTheProvider) ? (
@@ -313,6 +372,9 @@ export default async function BookingPage({
           addressUnlocked={booking.addressUnlocked}
           paymentStatus={booking.paymentStatus}
           imageUploadsEnabled={isImageKitConfigured()}
+          mayCancel={PROVIDER_CANCELLABLE.includes(booking.status)}
+          noShowFrom={noShowFrom?.toISOString() ?? null}
+          noShowFromLabel={noShowFrom ? formatAppointment(noShowFrom) : null}
         />
       ) : null}
 
@@ -324,6 +386,7 @@ export default async function BookingPage({
         <DisputeForm
           bookingId={booking.id}
           closesAt={booking.disputeWindowClosesAt?.toISOString() ?? null}
+          feeOnly={booking.cancellationFeeMinor > 0}
         />
       ) : null}
 

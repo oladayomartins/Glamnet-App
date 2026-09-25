@@ -16,7 +16,7 @@ import {
   formatNotice,
 } from "@/lib/format";
 import { GlamImage } from "@/components/glam-image";
-import { chargeMinorOf, disputeStageOf } from "@/lib/domain/payment-rules";
+import { chargeMinorOf, disputedAmountsOf, disputeStageOf } from "@/lib/domain/payment-rules";
 import { paymentGateway } from "@/lib/server/payments";
 import { DisputeResolver } from "./dispute-resolver";
 
@@ -227,6 +227,13 @@ export default async function AdminBookingPage({
             {booking.transferId ? <Field name="transfer">{booking.transferId}</Field> : null}
             <Field name="vendor_payout">{formatMoney(booking.providerPayoutMinor)}</Field>
             <Field name="settlement_status">{booking.settlementStatus}</Field>
+            {booking.cancelledBy ? <Field name="cancelled_by">{booking.cancelledBy}{booking.cancelledAt ? ` · ${formatDayTime(booking.cancelledAt)}` : ""}</Field> : null}
+            {booking.noShowAt ? <Field name="no_show_marked">{formatDayTime(booking.noShowAt)}</Field> : null}
+            {booking.cancellationFeeMinor > 0 ? (
+              <Field name="cancellation_fee">
+                {formatMoney(booking.cancellationFeeMinor)} · vendor {formatMoney(booking.cancellationFeePayoutMinor)}
+              </Field>
+            ) : null}
             {booking.refundedMinor > 0 ? <Field name="refunded">{formatMoney(booking.refundedMinor)}{booking.refundId ? ` · ${booking.refundId}` : ""}</Field> : null}
             {booking.clawbackMinor > 0 ? <Field name="recovered_from_vendor">{formatMoney(booking.clawbackMinor)}{booking.transferReversalId ? ` · ${booking.transferReversalId}` : ""}</Field> : null}
           </dl>
@@ -249,8 +256,9 @@ export default async function AdminBookingPage({
           bookingId={booking.id}
           reason={booking.disputeReason}
           stage={disputeStageOf(booking.paymentStatus)}
-          chargeMinor={chargeMinorOf(booking)}
-          payoutMinor={booking.providerPayoutMinor}
+          chargeMinor={disputedAmountsOf(booking).chargeMinor}
+          payoutMinor={disputedAmountsOf(booking).payoutMinor}
+          feeOnly={disputedAmountsOf(booking).feeOnly}
         />
       ) : null}
 

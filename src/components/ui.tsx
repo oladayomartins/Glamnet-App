@@ -140,6 +140,7 @@ const LIFECYCLE_CHIPS: Record<string, { label: string; tone: string; live?: bool
   CANCELLED: { label: "Cancelled", tone: "muted" },
   EXPIRED: { label: "Expired", tone: "muted" },
   DISPUTED: { label: "Disputed", tone: "muted" },
+  NO_SHOW: { label: "Missed", tone: "muted" },
 };
 
 const CHIP_TONES: Record<string, string> = {

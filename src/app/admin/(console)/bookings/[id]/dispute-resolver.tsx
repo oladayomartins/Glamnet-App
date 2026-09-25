@@ -27,12 +27,15 @@ export function DisputeResolver({
   stage,
   chargeMinor,
   payoutMinor,
+  feeOnly = false,
 }: {
   bookingId: string;
   reason: string;
   stage: DisputeStage;
   chargeMinor: number;
   payoutMinor: number;
+  /** The dispute is about a late-cancellation or missed-appointment fee. */
+  feeOnly?: boolean;
 }) {
   const { run, busy, error } = useAdminAction();
   const [refund, setRefund] = useState("0.00");
@@ -84,16 +87,19 @@ export function DisputeResolver({
         <p className="text-sm text-ink">
           <span className="text-ink-muted">Customer says: </span>&ldquo;{reason || "No reason given"}&rdquo;
         </p>
-        <p className="mt-1 text-xs text-ink-muted">{STAGE_LABEL[stage]}</p>
+        <p className="mt-1 text-xs text-ink-muted">
+          {feeOnly ? "About the cancellation fee only — the booking stays cancelled. " : ""}
+          {STAGE_LABEL[stage]}
+        </p>
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-glam-sm bg-sunken p-3">
-          <dt className="text-xs text-ink-muted">Customer paid</dt>
+          <dt className="text-xs text-ink-muted">{feeOnly ? "Fee charged" : "Customer paid"}</dt>
           <dd className="font-mono font-semibold text-ink">{formatMoney(chargeMinor)}</dd>
         </div>
         <div className="rounded-glam-sm bg-sunken p-3">
-          <dt className="text-xs text-ink-muted">Vendor payout</dt>
+          <dt className="text-xs text-ink-muted">{feeOnly ? "Vendor's share" : "Vendor payout"}</dt>
           <dd className="font-mono font-semibold text-ink">{formatMoney(payoutMinor)}</dd>
         </div>
       </dl>

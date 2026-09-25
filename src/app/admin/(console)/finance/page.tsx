@@ -72,6 +72,11 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
           hint={`${summary.savedCards.bookings} bookings more than 5 days out`}
         />
         <Stat
+          label="Cancellation fees"
+          value={formatMoney(summary.cancellationFees.amountMinor)}
+          hint={`${summary.cancellationFees.bookings} late cancellations and no-shows · ${formatMoney(summary.cancellationFees.toVendorsMinor)} to vendors`}
+        />
+        <Stat
           label="Refunded after disputes"
           value={formatMoney(summary.refunds.refundedMinor)}
           hint={`${formatMoney(summary.refunds.recoveredMinor)} recovered from vendors · GLAMNET absorbed ${formatMoney(Math.max(0, summary.refunds.refundedMinor - summary.refunds.recoveredMinor))}`}

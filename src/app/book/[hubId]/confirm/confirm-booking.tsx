@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lightning } from "@phosphor-icons/react";
 import { CardHold } from "@/components/card-hold";
+import { CancellationTerms } from "@/components/cancellation-terms";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import { BookingTypeTag, Button, Card, DurationStrip } from "@/components/ui";
 import { SearchingForProvider } from "../searching";
@@ -268,6 +269,8 @@ export function ConfirmBooking({
           />
         ) : null}
       </Card>
+
+      <CancellationTerms appointmentStartAt={quote.appointmentStartAt} />
 
       {hold ? (
         <Card className="space-y-3 p-4">

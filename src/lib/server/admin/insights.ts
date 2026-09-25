@@ -8,7 +8,7 @@ import { prisma } from "../prisma";
  * priced, so these totals agree with what Stripe was told to move.
  */
 
-const NOT_CANCELLED: Prisma.BookingWhereInput = { status: { notIn: ["CANCELLED", "EXPIRED"] } };
+const NOT_CANCELLED: Prisma.BookingWhereInput = { status: { notIn: ["CANCELLED", "EXPIRED", "NO_SHOW"] } };
 
 function startOfMonth(now = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -67,7 +67,7 @@ export async function overviewStats() {
 
 export async function financeSummary(range: { from: Date; to: Date }) {
   const where = { bookingCreatedAt: { gte: range.from, lt: range.to }, ...NOT_CANCELLED };
-  const [totals, bySource, escrowHeld, released, disputed, vendorRows, refunds, savedCards] = await Promise.all([
+  const [totals, bySource, escrowHeld, released, disputed, vendorRows, refunds, savedCards, fees] = await Promise.all([
     prisma.booking.aggregate({
       where,
       _count: true,
@@ -121,6 +121,13 @@ export async function financeSummary(range: { from: Date; to: Date }) {
       _count: true,
       _sum: { totalInvoicePriceMinor: true },
     }),
+    // Late cancellations and no-shows: outside the booking totals above,
+    // which leave cancelled bookings out.
+    prisma.booking.aggregate({
+      where: { cancelledAt: { gte: range.from, lt: range.to }, cancellationFeeMinor: { gt: 0 } },
+      _count: true,
+      _sum: { cancellationFeeMinor: true, cancellationFeePayoutMinor: true },
+    }),
   ]);
 
   const vendorIds = vendorRows.map((row) => row.providerId!).filter(Boolean);
@@ -154,6 +161,11 @@ export async function financeSummary(range: { from: Date; to: Date }) {
       recoveredMinor: refunds._sum.clawbackMinor ?? 0,
     },
     savedCards: { bookings: savedCards._count, amountMinor: savedCards._sum.totalInvoicePriceMinor ?? 0 },
+    cancellationFees: {
+      bookings: fees._count,
+      amountMinor: fees._sum.cancellationFeeMinor ?? 0,
+      toVendorsMinor: fees._sum.cancellationFeePayoutMinor ?? 0,
+    },
     vendors: vendorRows.map((row) => ({
       id: row.providerId!,
       name: byId.get(row.providerId!)?.name ?? "Unknown vendor",

@@ -1,3 +1,4 @@
+import { PushPrompt } from "@/components/push-prompt";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -40,6 +41,8 @@ export default async function AdminOverviewPage() {
   return (
     <div className="space-y-8">
       <AdminHeader title="Overview" lede="How GLAMNET is doing this month, and anything that needs a decision." />
+
+      <PushPrompt audience="ADMIN" />
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Bookings this month" value={String(stats.bookingsThisMonth)} />

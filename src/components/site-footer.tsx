@@ -92,6 +92,18 @@ export function SiteFooter() {
             short-notice appointments; the surcharge is always shown before
             payment.
           </p>
+          <nav aria-label="Legal" className="flex flex-wrap gap-x-4 gap-y-1">
+            {[
+              { href: "/terms", label: "Terms" },
+              { href: "/privacy", label: "Privacy" },
+              { href: "/cookies", label: "Cookies" },
+              { href: "/cancellations", label: "Cancellations & refunds" },
+            ].map((link) => (
+              <Link key={link.href} href={link.href} className="text-on-obsidian transition hover:text-accent-500">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
         </div>
       </div>
     </footer>
