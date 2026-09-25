@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api/respond";
 import { closeExpiredDisputeWindows } from "@/lib/server/escrow";
+import { runPaymentSweep } from "@/lib/server/payment-flow";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/cron/settlements — mark every booking past its 24-hour dispute
- * window as closed_uncontestable.
+ * GET /api/cron/settlements — the daily money job:
+ *   - mark every booking past its 24-hour dispute window closed_uncontestable;
+ *   - hold saved cards for bookings now within five days;
+ *   - cancel bookings still without a card a day before;
+ *   - release holds on abandoned checkouts and unanswered broadcasts.
  *
  * Run by Vercel Cron (vercel.json), which sends `Authorization: Bearer
  * $CRON_SECRET`. Without CRON_SECRET set the route refuses everything rather
@@ -24,7 +28,8 @@ export async function GET(request: Request) {
       );
     }
     const closed = await closeExpiredDisputeWindows();
-    return NextResponse.json({ closed });
+    const payments = await runPaymentSweep();
+    return NextResponse.json({ closed, payments });
   } catch (error) {
     return errorResponse(error);
   }

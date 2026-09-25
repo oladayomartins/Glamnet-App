@@ -90,6 +90,8 @@ model Customer {
   postcode  String   @default("")
   latitude  Float?
   longitude Float?
+  /// Stripe Customer, created the first time a card is saved for later.
+  stripeCustomerId String @default("")
   /// Profile photo shown in the header menu. fileId lets a replaced photo be
   /// deleted from ImageKit rather than orphaned.
   avatarUrl    String @default("")
@@ -345,11 +347,22 @@ model Booking {
   providerPayoutMinor     Int     @default(0)
 
   // --- Escrow (Directory §D, Flow 2) ---------------------------------------
-  /// "NOT_STARTED" | "PENDING_AUTHORISATION" | "AUTHORISED" |
-  /// "ESCROW_RELEASED" | "VOIDED".
+  /// "NOT_STARTED" | "PENDING_AUTHORISATION" | "CARD_SAVED" | "AUTHORISED" |
+  /// "AUTHORISATION_FAILED" | "ESCROW_RELEASED" | "VOIDED" | "REFUNDED" |
+  /// "PARTIALLY_REFUNDED".
   paymentStatus         String    @default("NOT_STARTED")
   paymentIntentId       String    @default("")
   transferId            String    @default("")
+  /// Bookings too far ahead for a card hold (Stripe drops one after about
+  /// seven days) save the card with a SetupIntent at checkout instead, and
+  /// the hold is placed off-session nearer the date.
+  setupIntentId         String    @default("")
+  paymentMethodId       String    @default("")
+  /// How many holds have been attempted; keys each one's idempotency.
+  holdAttempts          Int       @default(0)
+  holdAuthorisedAt      DateTime?
+  /// Why the last hold failed, in the card issuer's words, for the customer.
+  paymentFailureReason  String    @default("")
   /// One-time 4-digit code shown only to the customer. Never returned to the
   /// vendor, who has to be told it in person.
   completionPin         String    @default("")
@@ -362,6 +375,15 @@ model Booking {
   settlementStatus      String    @default("OPEN")
   disputeReason         String    @default("")
   disputedAt            DateTime?
+  /// An admin's ruling on a dispute: what the customer got back and what was
+  /// recovered from the vendor. settlementStatus becomes "RESOLVED".
+  refundedMinor         Int       @default(0)
+  clawbackMinor         Int       @default(0)
+  refundId              String    @default("")
+  transferReversalId    String    @default("")
+  disputeResolution     String    @default("")
+  disputeResolvedAt     DateTime?
+  disputeResolvedBy     String    @default("")
 
   // --- Promotions -------------------------------------------------------------
   /// Taken off what the customer is charged. Funded by GLAMNET: the vendor's
@@ -391,6 +413,7 @@ model Booking {
   @@index([appointmentStartAt])
   @@index([customerId, providerId])
   @@index([settlementStatus, disputeWindowClosesAt])
+  @@index([paymentStatus, appointmentStartAt])
 }
 
 /// One of the three mandatory photos of the finished work, taken by the
@@ -504,6 +527,14 @@ model Category {
   updatedAt   DateTime @updatedAt
 
   @@index([isActive, sortOrder])
+}
+
+/// Stripe webhook events already handled. Stripe retries and can deliver an
+/// event more than once; the id makes every handler run at most once.
+model StripeEvent {
+  id         String   @id
+  type       String
+  receivedAt DateTime @default(now())
 }
 
 /// A city listed under "Browse by city", managed by admins.

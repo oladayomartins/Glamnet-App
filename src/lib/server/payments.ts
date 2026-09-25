@@ -10,6 +10,13 @@
  *               source_transaction so it cannot outrun the funds.
  *   cancel    → cancel the PaymentIntent, releasing the hold.
  *
+ * Stripe drops an uncaptured hold after about seven days, so a booking
+ * further off saves the card instead (a SetupIntent on a Stripe Customer) and
+ * the hold is placed off-session a few days before the appointment.
+ *
+ * Disputes are settled with a partial capture (before release) or a refund
+ * plus a transfer reversal (after it).
+ *
  * Separate transfers rather than a destination charge because an emergency
  * broadcast is authorised before any vendor has accepted: there is no
  * destination to name at checkout. One model serves both flows.
@@ -51,15 +58,49 @@ export interface PaymentGateway {
     amountMinor: number;
     customerEmail: string;
     description: string;
+    /** 0 for the first hold on a booking; each retry needs a fresh key. */
+    attempt?: number;
   }): Promise<Authorisation>;
   authorisationState(paymentIntentId: string): Promise<AuthorisationState>;
+  /**
+   * Capture a hold and pay the vendor. `captureMinor` below the held amount
+   * captures part of it (the rest goes back to the customer); a zero
+   * `payoutMinor` captures without paying anyone.
+   */
   captureAndTransfer(input: {
     bookingId: string;
     paymentIntentId: string;
     destinationAccountId: string;
     payoutMinor: number;
+    captureMinor?: number;
   }): Promise<{ transferId: string }>;
   void(paymentIntentId: string): Promise<void>;
+
+  /** The Stripe Customer a saved card belongs to, created on first use. */
+  ensureCustomer(input: { customerId: string; email: string; name: string; existingId: string }): Promise<string>;
+  /** Save a card for later (a SetupIntent), for bookings too far off to hold. */
+  saveCard(input: { bookingId: string; stripeCustomerId: string; attempt?: number }): Promise<SavedCard>;
+  savedCardState(setupIntentId: string): Promise<SavedCard>;
+  /** Place a hold on a saved card, without the customer present. */
+  authoriseSaved(input: {
+    bookingId: string;
+    amountMinor: number;
+    stripeCustomerId: string;
+    paymentMethodId: string;
+    description: string;
+    attempt: number;
+  }): Promise<Authorisation & { failureReason: string }>;
+  /** Refund part or all of a captured charge. */
+  refund(input: { bookingId: string; paymentIntentId: string; amountMinor: number }): Promise<{ refundId: string }>;
+  /** Take back part or all of what a vendor was transferred. */
+  reverseTransfer(input: { bookingId: string; transferId: string; amountMinor: number }): Promise<{ reversalId: string }>;
+}
+
+export interface SavedCard {
+  setupIntentId: string;
+  clientSecret: string | null;
+  state: "PENDING" | "SAVED" | "FAILED";
+  paymentMethodId: string;
 }
 
 export class PaymentError extends Error {
@@ -71,7 +112,8 @@ export class PaymentError extends Error {
 
 // --- Stripe -------------------------------------------------------------
 
-const STRIPE_API = "https://api.stripe.com/v1";
+/** Overridable only so the Stripe paths can be exercised against a local stand-in. */
+const STRIPE_API = process.env.STRIPE_API_BASE?.trim() || "https://api.stripe.com/v1";
 
 /** Flatten nested params into Stripe's form encoding: a[b]=c. */
 function encodeForm(params: Record<string, unknown>, prefix = ""): string[] {
@@ -178,6 +220,7 @@ class StripeGateway implements PaymentGateway {
     amountMinor: number;
     customerEmail: string;
     description: string;
+    attempt?: number;
   }): Promise<Authorisation> {
     const intent = await this.call<{ id: string; client_secret: string; status: string }>(
       "POST",
@@ -193,7 +236,7 @@ class StripeGateway implements PaymentGateway {
         transfer_group: `booking_${input.bookingId}`,
         metadata: { bookingId: input.bookingId },
       },
-      `hold-${input.bookingId}`,
+      input.attempt ? `hold-${input.bookingId}-${input.attempt}` : `hold-${input.bookingId}`,
     );
     return {
       paymentIntentId: intent.id,
@@ -215,13 +258,15 @@ class StripeGateway implements PaymentGateway {
     paymentIntentId: string;
     destinationAccountId: string;
     payoutMinor: number;
+    captureMinor?: number;
   }) {
     const captured = await this.call<{ latest_charge: string | null }>(
       "POST",
       `/payment_intents/${encodeURIComponent(input.paymentIntentId)}/capture`,
-      {},
+      input.captureMinor !== undefined ? { amount_to_capture: input.captureMinor } : {},
       `capture-${input.bookingId}`,
     );
+    if (input.payoutMinor <= 0) return { transferId: "" };
     const transfer = await this.call<{ id: string }>(
       "POST",
       "/transfers",
@@ -244,6 +289,131 @@ class StripeGateway implements PaymentGateway {
       `/payment_intents/${encodeURIComponent(paymentIntentId)}/cancel`,
     );
   }
+
+  async ensureCustomer(input: { customerId: string; email: string; name: string; existingId: string }) {
+    if (input.existingId) return input.existingId;
+    const customer = await this.call<{ id: string }>(
+      "POST",
+      "/customers",
+      { email: input.email, name: input.name, metadata: { customerId: input.customerId } },
+      // Per attempt, like connected accounts: a fixed key would replay a
+      // failure for 24 hours. The caller stores the id, so a customer is
+      // created once in practice.
+      `customer-${input.customerId}-${randomUUID()}`,
+    );
+    return customer.id;
+  }
+
+  async saveCard(input: { bookingId: string; stripeCustomerId: string; attempt?: number }): Promise<SavedCard> {
+    const intent = await this.call<SetupIntentPayload>(
+      "POST",
+      "/setup_intents",
+      {
+        customer: input.stripeCustomerId,
+        usage: "off_session",
+        automatic_payment_methods: { enabled: true },
+        metadata: { bookingId: input.bookingId },
+      },
+      input.attempt ? `setup-${input.bookingId}-${input.attempt}` : `setup-${input.bookingId}`,
+    );
+    return fromSetupIntent(intent);
+  }
+
+  async savedCardState(setupIntentId: string): Promise<SavedCard> {
+    const intent = await this.call<SetupIntentPayload>(
+      "GET",
+      `/setup_intents/${encodeURIComponent(setupIntentId)}`,
+    );
+    return fromSetupIntent(intent);
+  }
+
+  async authoriseSaved(input: {
+    bookingId: string;
+    amountMinor: number;
+    stripeCustomerId: string;
+    paymentMethodId: string;
+    description: string;
+    attempt: number;
+  }) {
+    try {
+      const intent = await this.call<{ id: string; status: string; last_payment_error?: { message?: string } }>(
+        "POST",
+        "/payment_intents",
+        {
+          amount: input.amountMinor,
+          currency: "gbp",
+          capture_method: "manual",
+          customer: input.stripeCustomerId,
+          payment_method: input.paymentMethodId,
+          off_session: true,
+          confirm: true,
+          description: input.description,
+          transfer_group: `booking_${input.bookingId}`,
+          metadata: { bookingId: input.bookingId },
+        },
+        `hold-${input.bookingId}-${input.attempt}`,
+      );
+      return {
+        paymentIntentId: intent.id,
+        clientSecret: null,
+        state: mapIntentStatus(intent.status),
+        failureReason: intent.last_payment_error?.message ?? "",
+      };
+    } catch (error) {
+      // A declined saved card is an answer, not a crash: the customer is asked
+      // to put in another one.
+      if (error instanceof PaymentError) {
+        return { paymentIntentId: "", clientSecret: null, state: "FAILED" as const, failureReason: error.message };
+      }
+      throw error;
+    }
+  }
+
+  async refund(input: { bookingId: string; paymentIntentId: string; amountMinor: number }) {
+    const refund = await this.call<{ id: string }>(
+      "POST",
+      "/refunds",
+      {
+        payment_intent: input.paymentIntentId,
+        amount: input.amountMinor,
+        reason: "requested_by_customer",
+        metadata: { bookingId: input.bookingId },
+      },
+      `refund-${input.bookingId}`,
+    );
+    return { refundId: refund.id };
+  }
+
+  async reverseTransfer(input: { bookingId: string; transferId: string; amountMinor: number }) {
+    const reversal = await this.call<{ id: string }>(
+      "POST",
+      `/transfers/${encodeURIComponent(input.transferId)}/reversals`,
+      { amount: input.amountMinor, metadata: { bookingId: input.bookingId } },
+      `reversal-${input.bookingId}`,
+    );
+    return { reversalId: reversal.id };
+  }
+}
+
+interface SetupIntentPayload {
+  id: string;
+  client_secret: string;
+  status: string;
+  payment_method: string | null;
+}
+
+function fromSetupIntent(intent: SetupIntentPayload): SavedCard {
+  return {
+    setupIntentId: intent.id,
+    clientSecret: intent.client_secret,
+    state:
+      intent.status === "succeeded"
+        ? "SAVED"
+        : intent.status === "canceled"
+          ? "FAILED"
+          : "PENDING",
+    paymentMethodId: intent.payment_method ?? "",
+  };
 }
 
 function mapIntentStatus(status: string): AuthorisationState {
@@ -282,9 +452,9 @@ class SimulatedGateway implements PaymentGateway {
     return true;
   }
 
-  async authorise(input: { bookingId: string }): Promise<Authorisation> {
+  async authorise(input: { bookingId: string; attempt?: number }): Promise<Authorisation> {
     return {
-      paymentIntentId: `sim_pi_${input.bookingId}`,
+      paymentIntentId: input.attempt ? `sim_pi_${input.bookingId}_${input.attempt}` : `sim_pi_${input.bookingId}`,
       clientSecret: null,
       state: "AUTHORISED",
     };
@@ -294,11 +464,40 @@ class SimulatedGateway implements PaymentGateway {
     return "AUTHORISED" as const;
   }
 
-  async captureAndTransfer(input: { bookingId: string }) {
-    return { transferId: `sim_tr_${input.bookingId}` };
+  async captureAndTransfer(input: { bookingId: string; payoutMinor: number }) {
+    return { transferId: input.payoutMinor > 0 ? `sim_tr_${input.bookingId}` : "" };
   }
 
   async void() {}
+
+  async ensureCustomer(input: { customerId: string; existingId: string }) {
+    return input.existingId || `sim_cus_${input.customerId}`;
+  }
+
+  async saveCard(input: { bookingId: string }): Promise<SavedCard> {
+    return { setupIntentId: `sim_seti_${input.bookingId}`, clientSecret: null, state: "SAVED", paymentMethodId: "sim_pm_card" };
+  }
+
+  async savedCardState(setupIntentId: string): Promise<SavedCard> {
+    return { setupIntentId, clientSecret: null, state: "SAVED", paymentMethodId: "sim_pm_card" };
+  }
+
+  async authoriseSaved(input: { bookingId: string; attempt: number }) {
+    return {
+      paymentIntentId: `sim_pi_${input.bookingId}_${input.attempt}`,
+      clientSecret: null,
+      state: "AUTHORISED" as const,
+      failureReason: "",
+    };
+  }
+
+  async refund(input: { bookingId: string }) {
+    return { refundId: `sim_re_${input.bookingId}` };
+  }
+
+  async reverseTransfer(input: { bookingId: string }) {
+    return { reversalId: `sim_trr_${input.bookingId}` };
+  }
 }
 
 let gateway: PaymentGateway | null = null;

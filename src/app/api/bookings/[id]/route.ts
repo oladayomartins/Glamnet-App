@@ -4,6 +4,7 @@ import { errorResponse } from "@/lib/api/respond";
 import { BookingError } from "@/lib/server/booking-service";
 import { getSessionUser } from "@/lib/auth/session";
 import { withoutPin } from "@/lib/api/redact";
+import { expireUnansweredBroadcasts } from "@/lib/server/payment-flow";
 
 /** GET /api/bookings/:id — full booking record with lifecycle history. */
 export async function GET(
@@ -12,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const booking = await prisma.booking.findUnique({
+    const load = () => prisma.booking.findUnique({
       where: { id },
       include: {
         items: true,
@@ -23,6 +24,7 @@ export async function GET(
         broadcasts: { include: { provider: { select: { id: true, name: true } } } },
       },
     });
+    let booking = await load();
 
     if (!booking) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
 
@@ -39,6 +41,13 @@ export async function GET(
       // 404 rather than 403: confirming a booking exists to a stranger is
       // itself a disclosure.
       throw new BookingError("Booking not found.", "NOT_FOUND", 404);
+    }
+
+    // The searching screen polls this. A request every vendor let lapse is
+    // closed here, so the customer's hold is released at once rather than
+    // sitting on their card for days.
+    if (booking.status === "BROADCAST" && (await expireUnansweredBroadcasts(new Date(), id)) > 0) {
+      booking = (await load())!;
     }
 
     // The address is withheld until the ADDRESS_UNLOCKED step (spec §8).

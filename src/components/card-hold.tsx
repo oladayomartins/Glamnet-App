@@ -28,11 +28,17 @@ export function CardHold({
   bookingId,
   clientSecret,
   amountMinor,
+  mode = "payment",
   onAuthorised,
 }: {
   bookingId: string;
   clientSecret: string;
   amountMinor: number;
+  /**
+   * "payment" holds the amount now. "setup" saves the card for a booking too
+   * far off to hold yet; the hold is placed a few days before.
+   */
+  mode?: "payment" | "setup";
   onAuthorised: () => void;
 }) {
   const promise = useMemo(() => stripe(), []);
@@ -48,7 +54,7 @@ export function CardHold({
 
   return (
     <Elements stripe={promise} options={{ clientSecret, appearance: { theme: "night" } }}>
-      <HoldForm bookingId={bookingId} amountMinor={amountMinor} onAuthorised={onAuthorised} />
+      <HoldForm bookingId={bookingId} amountMinor={amountMinor} mode={mode} onAuthorised={onAuthorised} />
     </Elements>
   );
 }
@@ -56,10 +62,12 @@ export function CardHold({
 function HoldForm({
   bookingId,
   amountMinor,
+  mode,
   onAuthorised,
 }: {
   bookingId: string;
   amountMinor: number;
+  mode: "payment" | "setup";
   onAuthorised: () => void;
 }) {
   const stripeClient = useStripe();
@@ -73,12 +81,12 @@ function HoldForm({
     setBusy(true);
     setError(null);
     try {
-      const { error: confirmError } = await stripeClient.confirmPayment({
-        elements,
-        confirmParams: { return_url: `${window.location.origin}/bookings/${bookingId}` },
-        // Cards authorise in place; only a bank redirect leaves the page.
-        redirect: "if_required",
-      });
+      const confirmParams = { return_url: `${window.location.origin}/bookings/${bookingId}` };
+      // Cards authorise in place; only a bank redirect leaves the page.
+      const { error: confirmError } =
+        mode === "setup"
+          ? await stripeClient.confirmSetup({ elements, confirmParams, redirect: "if_required" })
+          : await stripeClient.confirmPayment({ elements, confirmParams, redirect: "if_required" });
       if (confirmError) throw new Error(confirmError.message ?? "Your card was not authorised.");
 
       const response = await fetch(`/api/bookings/${bookingId}/payment`, { method: "POST" });
@@ -95,8 +103,14 @@ function HoldForm({
   return (
     <form onSubmit={submit} className="space-y-3">
       <PaymentElement />
+      {mode === "setup" ? (
+        <p className="text-xs text-ink-muted">
+          Your appointment is more than five days away, so we save your card now and hold{" "}
+          {formatMoney(amountMinor)} five days before. Nothing is taken until the appointment is finished.
+        </p>
+      ) : null}
       <Button type="submit" disabled={busy || !stripeClient} className="w-full">
-        {busy ? "Authorising…" : `Hold ${formatMoney(amountMinor)} on my card`}
+        {busy ? "Authorising…" : mode === "setup" ? "Save my card" : `Hold ${formatMoney(amountMinor)} on my card`}
       </Button>
       {error ? (
         <p role="alert" className="rounded-glam border-l-4 border-warning bg-sunken p-3 text-sm text-ink">

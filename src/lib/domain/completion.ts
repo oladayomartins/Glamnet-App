@@ -54,7 +54,8 @@ export function disputeWindowClosesAt(releasedAt: Date): Date {
   return new Date(releasedAt.getTime() + DISPUTE_WINDOW_HOURS * 60 * 60_000);
 }
 
-export type SettlementStatus = "OPEN" | "DISPUTED" | "CLOSED_UNCONTESTABLE";
+/** RESOLVED: an admin has ruled on a dispute; final, like CLOSED_UNCONTESTABLE. */
+export type SettlementStatus = "OPEN" | "DISPUTED" | "CLOSED_UNCONTESTABLE" | "RESOLVED";
 
 /**
  * Whether the customer may still dispute this booking.
@@ -85,6 +86,7 @@ export function effectiveSettlementStatus(
   now: Date,
 ): SettlementStatus {
   if (booking.settlementStatus === "DISPUTED") return "DISPUTED";
+  if (booking.settlementStatus === "RESOLVED") return "RESOLVED";
   if (booking.settlementStatus === "CLOSED_UNCONTESTABLE") {
     return "CLOSED_UNCONTESTABLE";
   }

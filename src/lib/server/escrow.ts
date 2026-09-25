@@ -3,6 +3,7 @@ import type { Booking } from "@prisma/client";
 import { prisma } from "./prisma";
 import { BookingError } from "./booking-service";
 import { paymentGateway, PaymentError } from "./payments";
+import { holdSavedCard } from "./payment-flow";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import {
   canDispute,
@@ -44,8 +45,13 @@ export async function hasPriorBooking(
 /**
  * Release the card hold on a cancelled booking. Never throws: the
  * cancellation stands either way, and an uncaptured hold lapses on its own.
+ * A card only saved for later has nothing to release; it is simply not used.
  */
 export async function voidPaymentForBooking(booking: Booking): Promise<void> {
+  if (booking.paymentStatus === "CARD_SAVED" || booking.paymentStatus === "AUTHORISATION_FAILED") {
+    await prisma.booking.update({ where: { id: booking.id }, data: { paymentStatus: "VOIDED" } });
+    return;
+  }
   if (
     !booking.paymentIntentId ||
     (booking.paymentStatus !== "AUTHORISED" &&
@@ -62,86 +68,6 @@ export async function voidPaymentForBooking(booking: Booking): Promise<void> {
   } catch (error) {
     console.error("Could not void the card hold", booking.id, error);
   }
-}
-
-/**
- * Check a checkout's card hold with the gateway and, once it is in place,
- * confirm a storefront booking.
- *
- * Called by the customer's browser after Stripe.js confirms the card. The
- * browser's word is not taken for it: the state is read back from the
- * gateway, so a tampered client cannot confirm a booking with no hold.
- */
-export async function confirmAuthorisation(bookingId: string, customerId: string) {
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-  if (!booking || booking.customerId !== customerId) {
-    throw new BookingError("Booking not found.", "NOT_FOUND", 404);
-  }
-  if (booking.paymentStatus === "AUTHORISED") return booking;
-  if (booking.paymentStatus !== "PENDING_AUTHORISATION" || !booking.paymentIntentId) {
-    throw new BookingError("This booking has no card hold to confirm.", "INVALID_TRANSITION", 409);
-  }
-
-  const state = await paymentGateway().authorisationState(booking.paymentIntentId);
-  if (state !== "AUTHORISED") {
-    throw new BookingError(
-      "Your card has not been authorised yet. Please try again.",
-      "INVALID_TRANSITION",
-      402,
-    );
-  }
-
-  return markAuthorised(booking);
-}
-
-/**
- * Record a successful hold. A storefront booking waits at ACCEPTED (its
- * calendar slot held) until then, and moves to CONFIRMED here.
- */
-export async function markAuthorised(booking: Booking) {
-  return prisma.$transaction(async (tx) => {
-    const promote = booking.status === "ACCEPTED" && booking.source !== "BROADCAST";
-    const updated = await tx.booking.update({
-      where: { id: booking.id },
-      data: {
-        paymentStatus: "AUTHORISED",
-        ...(promote ? { status: "CONFIRMED" } : {}),
-      },
-    });
-    if (promote) {
-      await tx.bookingStatusEvent.create({
-        data: {
-          bookingId: booking.id,
-          fromStatus: "ACCEPTED",
-          toStatus: "CONFIRMED",
-          actor: "SYSTEM",
-          note: "Card hold in place.",
-        },
-      });
-      await tx.notification.createMany({
-        data: [
-          {
-            bookingId: booking.id,
-            audience: "CUSTOMER",
-            channel: "PUSH",
-            bookingType: booking.bookingType,
-            title: "Booking confirmed",
-            body: "Your card hold is in place. Nothing is taken until your appointment is finished.",
-          },
-          {
-            bookingId: booking.id,
-            audience: "PROVIDER",
-            providerId: booking.providerId,
-            channel: "PUSH",
-            bookingType: booking.bookingType,
-            title: "New booking from your storefront",
-            body: "A client has booked you and the card hold is in place.",
-          },
-        ],
-      });
-    }
-    return updated;
-  });
 }
 
 async function loadProviderJob(bookingId: string, providerId: string) {
@@ -292,6 +218,28 @@ export async function releaseWithPin(
       "INVALID_TRANSITION",
       422,
     );
+  }
+
+  if (booking.paymentStatus === "AUTHORISATION_FAILED" || booking.paymentStatus === "PENDING_AUTHORISATION") {
+    throw new BookingError(
+      "The client's card isn't secured yet. We've asked them to update it; the PIN will work once they have.",
+      "INVALID_TRANSITION",
+      402,
+    );
+  }
+
+  // A saved card the daily job hasn't held yet is held now, so the vendor
+  // isn't kept waiting for it.
+  if (booking.paymentStatus === "CARD_SAVED") {
+    const held = await holdSavedCard(bookingId, now);
+    if (!held) {
+      throw new BookingError(
+        "The client's card couldn't be charged. We've asked them to update it; the PIN will work once they have.",
+        "INVALID_TRANSITION",
+        402,
+      );
+    }
+    Object.assign(booking, await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } }));
   }
 
   // Money first, then the record: a booking must never say "released" for a

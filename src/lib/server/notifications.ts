@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { sendEmail, sendEmails } from "./email";
 import {
+  bookingNoticeEmail,
   customerBookingConfirmedEmail,
   providerApprovalEmail,
   providerBroadcastEmail,
@@ -138,3 +139,36 @@ export async function deliverApprovalEmail(input: {
     console.error("[notifications] approval email failed:", cause);
   }
 }
+
+/** Email one person a booking notice (card problems, dispute outcomes). */
+export async function deliverBookingNotice(input: {
+  to: string;
+  name: string;
+  bookingId: string;
+  /** Where the button goes; defaults to the customer's booking page. */
+  path?: string;
+  subject: string;
+  heading: string;
+  lead: string;
+  facts?: Array<[string, string]>;
+  cta: string;
+}): Promise<void> {
+  if (!input.to) return;
+  try {
+    await sendEmail({
+      to: input.to,
+      ...bookingNoticeEmail({
+        subject: input.subject,
+        heading: input.heading,
+        name: input.name,
+        lead: input.lead,
+        facts: input.facts,
+        cta: { label: input.cta, url: bookingUrl(input.path ?? `/bookings/${input.bookingId}`) },
+      }),
+    });
+  } catch (cause) {
+    console.error("[notifications] booking notice failed:", cause);
+  }
+}
+
+export { formatAppointment };

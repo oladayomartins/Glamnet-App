@@ -68,6 +68,19 @@ export function JobActions({
 
   // A storefront booking is not the vendor's to start until the card hold
   // is in place.
+  if (paymentStatus === "AUTHORISATION_FAILED") {
+    return (
+      <Card className="border-warning/60 p-4">
+        <SectionTitle>Waiting on the client&rsquo;s card</SectionTitle>
+        <p className="text-sm text-ink-muted">
+          We couldn&rsquo;t hold the client&rsquo;s payment, and we&rsquo;ve asked them to update their card. If
+          it isn&rsquo;t sorted a day before the appointment, the booking is cancelled and you&rsquo;ll be told —
+          please don&rsquo;t travel until this message has gone.
+        </p>
+      </Card>
+    );
+  }
+
   if (paymentStatus === "PENDING_AUTHORISATION") {
     return (
       <Card className="p-4">

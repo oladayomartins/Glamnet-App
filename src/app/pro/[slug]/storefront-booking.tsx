@@ -90,7 +90,7 @@ export function StorefrontBooking({
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [hold, setHold] = useState<{ bookingId: string; clientSecret: string } | null>(null);
+  const [hold, setHold] = useState<{ bookingId: string; clientSecret: string; mode: "payment" | "setup" } | null>(null);
 
   const chosen = menu.filter((item) => basket.includes(item.id));
   const hasService = chosen.some((item) => item.kind === "SERVICE");
@@ -207,7 +207,7 @@ export function StorefrontBooking({
       if (payload.authorised || !payload.clientSecret) {
         router.push(`/bookings/${payload.bookingId}`);
       } else {
-        setHold({ bookingId: payload.bookingId, clientSecret: payload.clientSecret });
+        setHold({ bookingId: payload.bookingId, clientSecret: payload.clientSecret, mode: payload.cardMode ?? "payment" });
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not place the booking.");
@@ -491,6 +491,7 @@ export function StorefrontBooking({
                 bookingId={hold.bookingId}
                 clientSecret={hold.clientSecret}
                 amountMinor={quote.chargeMinor}
+                mode={hold.mode}
                 onAuthorised={() => router.push(`/bookings/${hold.bookingId}`)}
               />
             ) : signedInAsCustomer ? (

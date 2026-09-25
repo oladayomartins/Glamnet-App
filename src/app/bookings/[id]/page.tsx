@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { confirmPayment } from "@/lib/server/payment-flow";
 import { prisma } from "@/lib/server/prisma";
 import { requireUser } from "@/lib/auth/session";
 import { BookingTypeTag, Card, SectionTitle, LifecycleChip } from "@/components/ui";
@@ -17,6 +18,7 @@ import { GlamImage } from "@/components/glam-image";
 import { JobActions } from "./job-actions";
 import { ReviewForm } from "./review-form";
 import { CheckoutPin, DisputeForm } from "./customer-escrow";
+import { UpdateCard } from "./update-card";
 
 /**
  * Customer-facing booking record. Shows the classification and the surcharge
@@ -52,6 +54,18 @@ export default async function BookingPage({
     viewer.customerId === booking.customerId ||
     (booking.providerId !== null && viewer.providerId === booking.providerId);
   if (!mayView) notFound();
+
+  // Back from a bank's approval page (3-D Secure), or a checkout left
+  // half-way: ask Stripe whether the card went through, and if it did, move
+  // the booking on before showing it.
+  if (viewer.customerId === booking.customerId && booking.paymentStatus === "PENDING_AUTHORISATION") {
+    const secured = await confirmPayment(booking.id, booking.customerId).then(
+      () => true,
+      // Not through yet: the page offers to finish adding the card.
+      () => false,
+    );
+    if (secured) redirect(`/bookings/${booking.id}`);
+  }
 
   const atPremises = booking.serviceLocation === "VENDOR_PREMISES";
   const steps = BOOKING_STATUSES.filter(
@@ -218,6 +232,7 @@ export default async function BookingPage({
               : ""}
             {settlement === "CLOSED_UNCONTESTABLE" ? " · closed, no longer contestable" : ""}
             {settlement === "DISPUTED" ? " · under dispute" : ""}
+            {settlement === "RESOLVED" ? " · dispute resolved" : ""}
           </p>
           {isTheProvider || viewer.role === "ADMIN" ? (
             <dl className="mt-3 space-y-1 border-t border-line pt-3 text-xs text-ink-muted">
@@ -236,6 +251,36 @@ export default async function BookingPage({
           ) : null}
         </Card>
       </div>
+
+      {isTheCustomer &&
+      (booking.paymentStatus === "AUTHORISATION_FAILED" ||
+        (booking.paymentStatus === "PENDING_AUTHORISATION" && ["REQUESTED", "ACCEPTED"].includes(booking.status))) &&
+      !["CANCELLED", "EXPIRED", "COMPLETED", "DISPUTED"].includes(booking.status) ? (
+        <UpdateCard
+          bookingId={booking.id}
+          amountMinor={booking.totalInvoicePriceMinor + booking.tipMinor - booking.discountMinor}
+          reason={booking.paymentFailureReason}
+          unfinished={booking.paymentStatus === "PENDING_AUTHORISATION"}
+        />
+      ) : null}
+
+      {booking.settlementStatus === "RESOLVED" && (isTheCustomer || isTheProvider) ? (
+        <Card className="p-4">
+          <SectionTitle>Dispute resolved</SectionTitle>
+          <p className="text-sm text-ink">
+            {isTheCustomer
+              ? booking.refundedMinor > 0
+                ? `${formatMoney(booking.refundedMinor)} ${booking.refundId ? "has been refunded to your card" : "was taken off what you were charged"}.`
+                : "The GLAMNET team reviewed this booking and no refund was due."
+              : booking.clawbackMinor > 0
+                ? `${formatMoney(booking.clawbackMinor)} was deducted from your payout for this booking.`
+                : "The GLAMNET team reviewed this booking and your payout stands."}
+          </p>
+          {booking.disputeResolution ? (
+            <p className="mt-2 text-sm text-ink-muted">&ldquo;{booking.disputeResolution}&rdquo;</p>
+          ) : null}
+        </Card>
+      ) : null}
 
       {isTheCustomer && booking.status === "COMPLETED" && booking.completionPin ? (
         <CheckoutPin pin={booking.completionPin} providerName={booking.provider?.name ?? "your vendor"} />
@@ -344,6 +389,10 @@ const PAYMENT_LABELS: Record<string, string> = {
   AUTHORISED: "Held on your card — released by your PIN after the appointment",
   ESCROW_RELEASED: "Paid to your vendor",
   VOIDED: "Card hold released — nothing was charged",
+  CARD_SAVED: "Card saved — we'll hold the amount five days before your appointment",
+  AUTHORISATION_FAILED: "We couldn't hold your card — please update it",
+  REFUNDED: "Refunded to your card",
+  PARTIALLY_REFUNDED: "Partly refunded to your card",
 };
 
 const SOURCE_LABELS: Record<string, string> = {
