@@ -317,7 +317,9 @@ card through one path, `src/lib/server/payment-flow.ts`:
   accepted release their holds (unanswered broadcasts also release as soon as
   the customer's searching screen notices).
 - **Webhooks:** `POST /api/webhooks/stripe`, verified against
-  `STRIPE_WEBHOOK_SECRET`. Handles `payment_intent.amount_capturable_updated`,
+  `STRIPE_WEBHOOK_SECRET`. Stripe needs two destinations (events from your
+  account, and `account.updated` from connected accounts), each with its own
+  signing secret: put both in the variable, comma-separated. Handles `payment_intent.amount_capturable_updated`,
   `setup_intent.succeeded`, `payment_intent.canceled`, `account.updated`,
   `charge.refunded`, `charge.dispute.created` and `charge.dispute.closed`.
   Each event is handled once.

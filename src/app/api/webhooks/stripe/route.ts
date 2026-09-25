@@ -8,18 +8,33 @@ export const dynamic = "force-dynamic";
  * POST /api/webhooks/stripe — events from Stripe.
  *
  * Nothing is trusted until the signature checks out against
- * STRIPE_WEBHOOK_SECRET (the endpoint's signing secret, whsec_…). A bad
- * signature is a 400 and nothing is read from the body. A handler error is a
- * 500, so Stripe retries later.
+ * STRIPE_WEBHOOK_SECRET. Stripe gives each event destination its own signing
+ * secret, and events from connected accounts (vendors' payout set-up) need a
+ * destination of their own, so the variable may hold several, separated by
+ * commas: `whsec_platform,whsec_connect`. A bad signature is a 400 and
+ * nothing is read from the body. A handler error is a 500, so Stripe retries.
  */
+function verifyWithAnySecret(rawBody: string, header: string | null) {
+  const secrets = (process.env.STRIPE_WEBHOOK_SECRET ?? "")
+    .split(",")
+    .map((secret) => secret.trim())
+    .filter(Boolean);
+  if (secrets.length === 0) throw new SignatureError("Webhook signing secret is not configured.");
+  let lastError: unknown = null;
+  for (const secret of secrets) {
+    try {
+      verifyStripeSignature(rawBody, header, secret);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
 export async function POST(request: Request) {
   const rawBody = await request.text();
   try {
-    verifyStripeSignature(
-      rawBody,
-      request.headers.get("stripe-signature"),
-      process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? "",
-    );
+    verifyWithAnySecret(rawBody, request.headers.get("stripe-signature"));
   } catch (error) {
     if (error instanceof SignatureError) {
       return NextResponse.json({ error: { code: "BAD_SIGNATURE", message: error.message } }, { status: 400 });
