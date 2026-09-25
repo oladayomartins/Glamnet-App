@@ -1,19 +1,23 @@
 /**
- * The UK cities the home page lists under "Browse by city" from day one,
- * whether or not any pro has joined there yet. Each one's provider count
- * grows as vendors in that city go live.
+ * The cities listed under "Browse by city", whether or not any pro has joined
+ * there yet. Each one's provider count grows as vendors in that city go live.
+ *
+ * Admins manage the list (the City table). This built-in copy is what that
+ * table was seeded with, and what the site falls back to if it is empty or
+ * unreachable.
  *
  * `name` must be exactly what `cityFor` derives from a postcode in that city
  * (the ONS district, or "London" for all of Greater London), because vendors
  * are counted by their Beauty Hub's city. A test checks the slugs stay unique.
  *
- * In rough order of population; cities with more pros are shown first.
+ * Photographed cities first, then by population; cities with more pros are
+ * always shown first.
  */
 export interface LaunchCity {
   name: string;
   /** Shown on the tile when it reads better than the district name. */
   label?: string;
-  /** Photograph in the brand media library, e.g. "/Leeds city.png". */
+  /** Photograph URL in the media library. */
   image?: string;
   /** A central outward code, used as the search area for the city. */
   outcode: string;
@@ -22,14 +26,15 @@ export interface LaunchCity {
 }
 
 export const LAUNCH_CITIES: readonly LaunchCity[] = [
-  { name: "London", image: "/London City.png", outcode: "WC2N", lat: 51.5072, lng: -0.1283 },
-  { name: "Birmingham", image: "/Birminigham City.png", outcode: "B2", lat: 52.4777, lng: -1.898 },
-  { name: "Manchester", image: "/Manchester City.png", outcode: "M2", lat: 53.4793, lng: -2.2446 },
-  { name: "Leeds", image: "/Leeds city.png", outcode: "LS1", lat: 53.7951, lng: -1.5467 },
+  { name: "London", image: "https://ik.imagekit.io/glamnetapp/London%20City.png", outcode: "WC2N", lat: 51.5072, lng: -0.1283 },
+  { name: "Birmingham", image: "https://ik.imagekit.io/glamnetapp/Birminigham%20City.png", outcode: "B2", lat: 52.4777, lng: -1.898 },
+  { name: "Manchester", image: "https://ik.imagekit.io/glamnetapp/Manchester%20City.png", outcode: "M2", lat: 53.4793, lng: -2.2446 },
+  { name: "Leeds", image: "https://ik.imagekit.io/glamnetapp/Leeds%20city.png", outcode: "LS1", lat: 53.7951, lng: -1.5467 },
+  { name: "Liverpool", image: "https://ik.imagekit.io/glamnetapp/Liverpool%20city.png", outcode: "L1", lat: 53.4064, lng: -2.9789 },
+  { name: "Sheffield", image: "https://ik.imagekit.io/glamnetapp/Sheffield%20city.png", outcode: "S1", lat: 53.3804, lng: -1.4699 },
+  { name: "Portsmouth", image: "https://ik.imagekit.io/glamnetapp/Portsmouth.png", outcode: "PO1", lat: 50.7973, lng: -1.0913 },
   { name: "Glasgow", outcode: "G1", lat: 55.8612, lng: -4.2447 },
-  { name: "Liverpool", image: "/Liverpool city.png", outcode: "L1", lat: 53.4064, lng: -2.9789 },
   { name: "Bristol", outcode: "BS1", lat: 51.4517, lng: -2.5969 },
-  { name: "Sheffield", image: "/Sheffield city.png", outcode: "S1", lat: 53.3804, lng: -1.4699 },
   { name: "Edinburgh", outcode: "EH1", lat: 55.9503, lng: -3.193 },
   { name: "Leicester", outcode: "LE1", lat: 52.635, lng: -1.1372 },
   { name: "Coventry", outcode: "CV1", lat: 52.4079, lng: -1.5118 },
@@ -47,7 +52,6 @@ export const LAUNCH_CITIES: readonly LaunchCity[] = [
   { name: "Derby", outcode: "DE1", lat: 52.9243, lng: -1.4888 },
   { name: "Stoke-on-Trent", outcode: "ST1", lat: 53.0244, lng: -2.1763 },
   { name: "Plymouth", outcode: "PL1", lat: 50.3725, lng: -4.1378 },
-  { name: "Portsmouth", image: "/Portsmouth.png", outcode: "PO1", lat: 50.7973, lng: -1.0913 },
   { name: "Aberdeen", outcode: "AB10", lat: 57.1496, lng: -2.0969 },
   { name: "Cambridge", outcode: "CB2", lat: 52.2048, lng: 0.1193 },
   { name: "Oxford", outcode: "OX1", lat: 51.7549, lng: -1.2541 },
@@ -72,11 +76,15 @@ export interface CityTile {
 
 /**
  * The "Browse by city" rail: every launch city, plus any other city where a
- * pro is already live, each with its live-pro count. Busiest first; ties put
- * photographed cities first, then launch order; cities off the list follow
- * alphabetically.
+ * pro is already live, each with its live-pro count. Busiest first; ties keep
+ * the admin's order, and cities off the list follow alphabetically.
  */
-export function cityTiles(live: { city: string; hubId: string; sector: string; providerCount: number }[]): CityTile[] {
+export function cityTiles(
+  configured: readonly LaunchCity[],
+  live: { city: string; hubId: string; sector: string; providerCount: number }[],
+  /** Cities an admin has hidden: never shown, even once pros are live there. */
+  hidden: ReadonlySet<string> = new Set(),
+): CityTile[] {
   const byCity = new Map<string, { hubId: string; sector: string; providerCount: number; best: number }>();
   for (const hub of live) {
     const key = hub.city.toLowerCase();
@@ -87,7 +95,7 @@ export function cityTiles(live: { city: string; hubId: string; sector: string; p
     byCity.set(key, entry);
   }
 
-  const tiles: (CityTile & { order: number })[] = LAUNCH_CITIES.map((city, order) => {
+  const tiles: (CityTile & { order: number })[] = configured.map((city, order) => {
     const found = byCity.get(city.name.toLowerCase());
     return {
       city: city.name,
@@ -99,24 +107,17 @@ export function cityTiles(live: { city: string; hubId: string; sector: string; p
       order,
     };
   });
-  const listed = new Set(LAUNCH_CITIES.map((city) => city.name.toLowerCase()));
+  const listed = new Set(configured.map((city) => city.name.toLowerCase()));
   for (const hub of live) {
     const key = hub.city.toLowerCase();
-    if (listed.has(key) || hub.providerCount === 0) continue;
+    if (listed.has(key) || hidden.has(key) || hub.providerCount === 0) continue;
     listed.add(key);
     const entry = byCity.get(key)!;
     tiles.push({ city: hub.city, label: hub.city, image: null, sector: entry.sector, hubId: entry.hubId, providerCount: entry.providerCount, order: Number.MAX_SAFE_INTEGER });
   }
 
   return tiles
-    // Among cities with the same count, photographed ones lead the rail.
-    .sort(
-      (a, b) =>
-        b.providerCount - a.providerCount ||
-        Number(Boolean(b.image)) - Number(Boolean(a.image)) ||
-        a.order - b.order ||
-        a.city.localeCompare(b.city),
-    )
+    .sort((a, b) => b.providerCount - a.providerCount || a.order - b.order || a.city.localeCompare(b.city))
     .map((tile) => ({
       city: tile.city,
       label: tile.label,

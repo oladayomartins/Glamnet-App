@@ -114,6 +114,7 @@ export const IMAGE_FOLDERS = {
   completion: "/glamnet/completion-evidence",
   lookbook: "/glamnet/lookbooks",
   category: "/glamnet/categories",
+  city: "/glamnet/cities",
   ad: "/glamnet/ads",
 } as const;
 

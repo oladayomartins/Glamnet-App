@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Buildings,
   ChartLineUp,
   CalendarCheck,
   ClockCounterClockwise,
@@ -23,6 +24,7 @@ const SECTIONS = [
   { href: "/admin/accounts", label: "Accounts", icon: UsersThree },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
   { href: "/admin/catalogue", label: "Categories & services", icon: Scissors },
+  { href: "/admin/cities", label: "Cities", icon: Buildings },
   { href: "/admin/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/admin/promos", label: "Promo codes", icon: Ticket },
   { href: "/admin/ads", label: "Ad placements", icon: Television },

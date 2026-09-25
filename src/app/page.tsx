@@ -33,6 +33,7 @@ import {
   HERO_IMAGE_PATH,
   categoryImagePath,
   HOW_IT_WORKS_IMAGE_PATHS,
+  brandMediaOrigin,
 } from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
 
@@ -487,14 +488,27 @@ export default async function MarketingPage() {
                   className="group relative w-[200px] shrink-0 snap-start overflow-hidden rounded-glam sm:w-[240px]"
                 >
                   {city.image ? (
-                    <BrandImage
-                      path={city.image}
+                    // Photos in our own library render even if the upload
+                    // endpoint variable is unset; anything else is checked.
+                    city.image.startsWith(`${brandMediaOrigin()}/`) ? (
+                      <BrandImage
+                        path={decodeURI(city.image.slice(brandMediaOrigin().length))}
+                        alt=""
+                        width={480}
+                        height={360}
+                        sizes="240px"
+                        className="block aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                    <GlamImage
+                      src={city.image}
                       alt=""
                       width={480}
                       height={360}
                       sizes="240px"
                       className="block aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
                     />
+                    )
                   ) : (
                     <>
                       {/* No photograph for this city yet: the brand metal,

@@ -8,6 +8,7 @@ import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import { isFreeTonight } from "./openings";
 import { listCategories } from "./categories";
 import { cityTiles } from "@/lib/domain/cities";
+import { hiddenCityNames, listCities } from "./cities";
 
 /**
  * Everything the marketing page shows, derived from real records.
@@ -178,12 +179,14 @@ export async function getMarketingData() {
   // Every launch city is listed from day one; the counts grow as pros there
   // go live, and a city off the list joins once it has a live pro.
   const cities = cityTiles(
+    await listCities(),
     hubs.map((hub) => ({
       city: hub.city,
       hubId: hub.id,
       sector: hub.sector,
       providerCount: hub._count.providers,
     })),
+    await hiddenCityNames(),
   );
 
   const ratings = providers.map((p) => p.rating);

@@ -1,7 +1,7 @@
-import { LAUNCH_CITIES } from "@/lib/domain/cities";
 import { citySlug } from "@/lib/domain/postcode";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/server/prisma";
+import { listCities } from "@/lib/server/cities";
 import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-    const cityRoutes = [...new Set([...LAUNCH_CITIES.map((city) => city.name), ...hubs.map((hub) => hub.city)])].map((city) => ({
+    const cityRoutes = [...new Set([...(await listCities()).map((city) => city.name), ...hubs.map((hub) => hub.city)])].map((city) => ({
       url: `${base}/${citySlug(city)}/salons`,
       lastModified: now,
       changeFrequency: "weekly" as const,

@@ -506,6 +506,30 @@ model Category {
   @@index([isActive, sortOrder])
 }
 
+/// A city listed under "Browse by city", managed by admins.
+///
+/// `name` is the district postcodes in the city resolve to ("Brighton and
+/// Hove", "Newcastle upon Tyne") — vendors are counted by their Beauty Hub's
+/// city, so it must match. `label` is what the tile shows, when different.
+model City {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String   @unique
+  label       String   @default("")
+  /// A central outward code: the search area when the tile is used.
+  outcode     String
+  latitude    Float
+  longitude   Float
+  imageUrl    String   @default("")
+  imageFileId String   @default("")
+  sortOrder   Int      @default(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
 /// A marketing campaign: an on-site announcement, an email, or both.
 model Campaign {
   id          String    @id @default(cuid())
