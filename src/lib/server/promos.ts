@@ -17,7 +17,7 @@ import {
 
 /** A redemption or booking only counts while the booking is still live. */
 const LIVE_BOOKING: Prisma.BookingWhereInput = {
-  status: { notIn: ["CANCELLED", "EXPIRED"] },
+  status: { notIn: ["CANCELLED", "EXPIRED", "NO_SHOW"] },
   paymentStatus: { not: "VOIDED" },
 };
 

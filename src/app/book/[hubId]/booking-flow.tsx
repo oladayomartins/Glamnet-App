@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle, Clock, Lightning, Plus } from "@phosphor-icons/react";
 import { CardHold } from "@/components/card-hold";
+import { CancellationTerms } from "@/components/cancellation-terms";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import {
   BookingTypeTag,
@@ -669,6 +670,8 @@ export function BookingFlow({
                 />
               </label>
             </Card>
+
+            <CancellationTerms appointmentStartAt={quote.appointmentStartAt} />
 
             {hold ? (
               <Card className="space-y-3 p-4">

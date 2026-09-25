@@ -7,6 +7,7 @@ import { Lightning, Plus, Sparkle } from "@phosphor-icons/react";
 import { Button, Card, SectionTitle } from "@/components/ui";
 import { AddressFields, EMPTY_ADDRESS, addressComplete, formatAddress, type AddressValue } from "@/components/address-fields";
 import { CardHold } from "@/components/card-hold";
+import { CancellationTerms } from "@/components/cancellation-terms";
 import { crossSellFor } from "@/lib/domain/specialty-hubs";
 import { formatDuration, formatMoney, formatTime, toDateInputValue } from "@/lib/format";
 
@@ -485,6 +486,8 @@ export function StorefrontBooking({
                 </div>
               </dl>
             ) : null}
+
+            {quote && startAt ? <CancellationTerms appointmentStartAt={startAt} /> : null}
 
             {hold && quote ? (
               <CardHold

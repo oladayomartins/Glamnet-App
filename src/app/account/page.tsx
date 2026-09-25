@@ -52,7 +52,7 @@ export default async function AccountPage({
   // Cancelled and disputed bookings leave the timeline entirely rather than
   // sitting in Past: a customer looking for what happened wants the ones that
   // happened.
-  const closed = ["CANCELLED", "EXPIRED", "DISPUTED"];
+  const closed = ["CANCELLED", "EXPIRED", "DISPUTED", "NO_SHOW"];
   const tabFilter =
     tab === "cancelled"
       ? { status: { in: closed } }

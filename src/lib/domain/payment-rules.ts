@@ -42,6 +42,24 @@ export function chargeMinorOf(booking: {
 }
 
 /**
+ * What a dispute is about: the whole booking, or — on a booking that was
+ * cancelled late or missed — just the fee that was taken for it.
+ */
+export function disputedAmountsOf(booking: {
+  totalInvoicePriceMinor: number;
+  tipMinor: number;
+  discountMinor: number;
+  providerPayoutMinor: number;
+  cancellationFeeMinor: number;
+  cancellationFeePayoutMinor: number;
+}): { chargeMinor: number; payoutMinor: number; feeOnly: boolean } {
+  if (booking.cancellationFeeMinor > 0) {
+    return { chargeMinor: booking.cancellationFeeMinor, payoutMinor: booking.cancellationFeePayoutMinor, feeOnly: true };
+  }
+  return { chargeMinor: chargeMinorOf(booking), payoutMinor: booking.providerPayoutMinor, feeOnly: false };
+}
+
+/**
  * Where the money is when a dispute is ruled on.
  *
  * HELD: the hold is still uncaptured (the customer disputed before giving

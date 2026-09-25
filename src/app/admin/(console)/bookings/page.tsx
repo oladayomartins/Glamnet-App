@@ -18,6 +18,7 @@ const FILTERS = [
   "CONFIRMED",
   "COMPLETED",
   "CANCELLED",
+  "NO_SHOW",
   "DISPUTED",
 ] as const;
 
@@ -147,7 +148,7 @@ export default async function AdminBookingsPage({
                   : "bg-surface text-ink-muted ring-1 ring-line hover:bg-sunken"
               }`}
             >
-              {option}
+              {option === "NO_SHOW" ? "No-show" : option}
             </Link>
           ))}
         </nav>

@@ -311,7 +311,8 @@ export async function releaseWithPin(
 
 /**
  * File a service dispute. Allowed while the customer is still holding the PIN
- * (COMPLETED), and for 24 hours after release — never after.
+ * (COMPLETED), and for 24 hours after release — never after. The same goes
+ * for a cancellation fee, from the moment it was taken.
  */
 export async function fileDispute(
   bookingId: string,
@@ -324,9 +325,14 @@ export async function fileDispute(
     throw new BookingError("Booking not found.", "NOT_FOUND", 404);
   }
 
+  // A late-cancellation or missed-appointment fee is disputable too, on
+  // the same 24-hour clock ("I was there, the vendor wasn't").
   const allowed =
     (booking.status === "COMPLETED" && booking.settlementStatus === "OPEN") ||
     ((booking.status === "PAYMENT_RELEASED" || booking.status === "REVIEWED") &&
+      canDispute(booking, now)) ||
+    ((booking.status === "CANCELLED" || booking.status === "NO_SHOW") &&
+      booking.cancellationFeeMinor > 0 &&
       canDispute(booking, now));
   if (!allowed) {
     throw new BookingError(
@@ -362,7 +368,7 @@ export async function fileDispute(
         audience: "ADMIN",
         channel: "IN_APP",
         bookingType: booking.bookingType,
-        title: "Service dispute filed",
+        title: booking.cancellationFeeMinor > 0 ? "Cancellation fee disputed" : "Service dispute filed",
         body: reason.trim().slice(0, 300),
       },
     });

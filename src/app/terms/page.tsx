@@ -6,6 +6,7 @@ import { TRUST_FEE_MINOR } from "@/lib/domain/constants";
 import { CARD_PROCESSING_FEE_BPS, DISCOVERY_COMMISSION_BPS } from "@/lib/domain/settlement";
 import { DISPUTE_WINDOW_HOURS } from "@/lib/domain/completion";
 import { HOLD_LEAD_DAYS } from "@/lib/domain/payment-rules";
+import { FREE_CANCELLATION_HOURS, LATE_CANCELLATION_FEE_BPS, NO_SHOW_WAIT_MINUTES } from "@/lib/domain/cancellation";
 
 export const metadata = { title: "Terms of use", description: "The terms for booking and offering beauty services on GLAMNET." };
 
@@ -119,8 +120,11 @@ export default function TermsPage() {
           body: (
             <p>
               See our <Link href="/cancellations" className="font-semibold text-accent-700 hover:underline">cancellation and refund policy</Link>.
-              In short: if a booking is cancelled before your pro is on their way, the hold on your card is released in
-              full.
+              In short: cancelling is free up to {FREE_CANCELLATION_HOURS} hours before your appointment. After that
+              it costs {pct(LATE_CANCELLATION_FEE_BPS)} of the service price, and a missed appointment is charged at the
+              full service price (plus travel for a home visit). Fees come out of the amount already held on your card,
+              are shown before you confirm, and can be disputed for {DISPUTE_WINDOW_HOURS} hours. If your pro cancels,
+              nothing is charged.
             </p>
           ),
         },
@@ -130,7 +134,13 @@ export default function TermsPage() {
             <Bullets
               items={[
                 "Every pro is checked before going live. You must hold the insurance, licences and qualifications your services need, and keep them current.",
-                "You set your own prices and availability, and must honour bookings you accept.",
+                "You set your own prices and availability, and must honour bookings you accept. If you have to cancel, the client pays nothing, and you must give them a reason. Cancelling repeatedly, or at short notice, can lead to removal.",
+                <>
+                  If a client cancels within {FREE_CANCELLATION_HOURS} hours or doesn&rsquo;t turn up, you receive your share of the
+                  cancellation fee, as set out in the cancellation policy. Only mark a client as a no-show if you were there
+                  (at their door, for a home visit) and waited at least {NO_SHOW_WAIT_MINUTES} minutes; a no-show you mark
+                  wrongly will be refunded to the client and may lead to removal.
+                </>,
                 <>
                   Commission: for a new client who finds you through GLAMNET, we keep {pct(DISCOVERY_COMMISSION_BPS)} of the
                   service value (and cover the card fees). Bookings through your own GLAMNET link, and repeat clients, carry

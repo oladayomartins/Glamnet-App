@@ -4,7 +4,7 @@ import { paymentGateway, PaymentError } from "../payments";
 import { holdSavedCard } from "../payment-flow";
 import { deliverBookingNotice } from "../notifications";
 import {
-  chargeMinorOf,
+  disputedAmountsOf,
   disputeStageOf,
   DisputeRulingError,
   planDisputeRuling,
@@ -41,11 +41,8 @@ export const rulingInput = z.object({
 export async function disputeFacts(bookingId: string) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) throw new AdminError("Booking not found.", 404, "NOT_FOUND");
-  return {
-    stage: disputeStageOf(booking.paymentStatus),
-    chargeMinor: chargeMinorOf(booking),
-    payoutMinor: booking.providerPayoutMinor,
-  };
+  const { chargeMinor, payoutMinor, feeOnly } = disputedAmountsOf(booking);
+  return { stage: disputeStageOf(booking.paymentStatus), chargeMinor, payoutMinor, feeOnly };
 }
 
 export async function resolveDispute(actorEmail: string, bookingId: string, raw: unknown) {
@@ -62,18 +59,22 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
     throw new AdminError("This booking isn't under dispute.");
   }
 
+  // On a cancelled or missed booking the dispute is about the fee alone, and
+  // the booking stays cancelled or missed whatever the ruling.
+  const amounts = disputedAmountsOf(booking);
   let plan: DisputePlan;
   try {
     plan = planDisputeRuling({
       stage: disputeStageOf(booking.paymentStatus),
-      chargeMinor: chargeMinorOf(booking),
-      payoutMinor: booking.providerPayoutMinor,
+      chargeMinor: amounts.chargeMinor,
+      payoutMinor: amounts.payoutMinor,
       ruling: { refundMinor: input.refundMinor, clawbackMinor: input.clawbackMinor },
     });
   } catch (error) {
     if (error instanceof DisputeRulingError) throw new AdminError(error.message, 422);
     throw error;
   }
+  const finalStatus = amounts.feeOnly ? (booking.noShowAt ? "NO_SHOW" : "CANCELLED") : plan.bookingStatus;
 
   const gateway = paymentGateway();
   const money = { transferId: booking.transferId, refundId: "", transferReversalId: "", captured: false };
@@ -140,7 +141,7 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
     const claimed = await tx.booking.updateMany({
       where: { id: booking.id, status: "DISPUTED", settlementStatus: "DISPUTED" },
       data: {
-        status: plan.bookingStatus,
+        status: finalStatus,
         settlementStatus: "RESOLVED",
         refundedMinor: plan.refundMinor,
         clawbackMinor: plan.clawbackMinor,
@@ -160,7 +161,7 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
       data: {
         bookingId: booking.id,
         fromStatus: "DISPUTED",
-        toStatus: plan.bookingStatus,
+        toStatus: finalStatus,
         actor: "ADMIN",
         note: `Dispute resolved: ${summary}. ${input.note}`.slice(0, 1_000),
       },

@@ -143,3 +143,9 @@ export const documentSchema = z.object({
 });
 
 export const acceptingSchema = z.object({ accepting: z.boolean() });
+
+export const cancelSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
+  /** The fee the customer saw and agreed to; refused if it has since gone up. */
+  acceptedFeeMinor: z.number().int().min(0).optional(),
+});

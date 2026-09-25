@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Promo codes" };
 
-const LIVE = { booking: { status: { notIn: ["CANCELLED", "EXPIRED"] }, paymentStatus: { not: "VOIDED" } } };
+const LIVE = { booking: { status: { notIn: ["CANCELLED", "EXPIRED", "NO_SHOW"] }, paymentStatus: { not: "VOIDED" } } };
 
 /** Discount codes customers enter at checkout, funded by GLAMNET. */
 export default async function AdminPromosPage() {

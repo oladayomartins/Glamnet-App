@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { transitionSchema } from "@/lib/api/schemas";
 import { transitionBooking } from "@/lib/server/lifecycle";
+import { cancelBooking } from "@/lib/server/cancellations";
 import { BookingError } from "@/lib/server/booking-service";
 import type { AnyBookingStatus } from "@/lib/domain/types";
 import { requireApiRole } from "@/lib/auth/api-guard";
@@ -12,9 +13,11 @@ import { withoutPin } from "@/lib/api/redact";
  * Steps that move money or carry evidence, and so have their own endpoints:
  * COMPLETED needs the three completion photos (/checkout-release),
  * PAYMENT_RELEASED needs the customer's PIN (/release), REVIEWED is the
- * customer's rating (/review), and DISPUTED is the customer's (/dispute).
+ * customer's rating (/review), DISPUTED is the customer's (/dispute), and
+ * NO_SHOW is the vendor's (/no-show). CANCELLED is accepted here but goes
+ * through the cancellation service, which records who cancelled.
  */
-const DEDICATED_STEPS = new Set(["COMPLETED", "PAYMENT_RELEASED", "REVIEWED", "DISPUTED"]);
+const DEDICATED_STEPS = new Set(["COMPLETED", "PAYMENT_RELEASED", "REVIEWED", "DISPUTED", "NO_SHOW"]);
 
 /** POST /api/bookings/:id/status — advance the operational lifecycle. */
 export async function POST(
@@ -47,6 +50,15 @@ export async function POST(
       if (!booking || booking.providerId !== auth.user.providerId) {
         throw new BookingError("Booking not found.", "NOT_FOUND", 404);
       }
+    }
+
+    if (status === "CANCELLED") {
+      const cancelled = await cancelBooking(
+        id,
+        auth.user.role === "PROVIDER" ? { role: "PROVIDER", providerId: auth.user.providerId! } : { role: "ADMIN" },
+        { reason: note ?? "" },
+      );
+      return NextResponse.json({ booking: withoutPin(cancelled) });
     }
 
     const booking = await transitionBooking(
