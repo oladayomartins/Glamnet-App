@@ -19,6 +19,7 @@ import { JobActions } from "./job-actions";
 import { ReviewForm } from "./review-form";
 import { CheckoutPin, DisputeForm } from "./customer-escrow";
 import { UpdateCard } from "./update-card";
+import { PushPrompt } from "@/components/push-prompt";
 
 /**
  * Customer-facing booking record. Shows the classification and the surcharge
@@ -262,6 +263,10 @@ export default async function BookingPage({
           reason={booking.paymentFailureReason}
           unfinished={booking.paymentStatus === "PENDING_AUTHORISATION"}
         />
+      ) : null}
+
+      {isTheCustomer && !["CANCELLED", "EXPIRED", "REVIEWED"].includes(booking.status) ? (
+        <PushPrompt audience="CUSTOMER" />
       ) : null}
 
       {booking.settlementStatus === "RESOLVED" && (isTheCustomer || isTheProvider) ? (

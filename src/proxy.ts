@@ -48,6 +48,6 @@ export const config = {
   // font or an icon is wasted work on every page load. Stripe's webhooks
   // carry no session either.
   matcher: [
-    "/((?!_next/static|_next/image|api/webhooks|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|api/webhooks|sw.js|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

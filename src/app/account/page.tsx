@@ -13,6 +13,7 @@ import { formatMiles, milesToKm } from "@/lib/domain/postcode";
 import { NearYou } from "./near-you";
 import { DetailsForm } from "./details-form";
 import { PhotoPicker } from "./photo-picker";
+import { PushPrompt } from "@/components/push-prompt";
 
 export const dynamic = "force-dynamic";
 
@@ -284,6 +285,8 @@ export default async function AccountPage({
       </section>
 
       {/* --- Details ---------------------------------------------------------- */}
+      <PushPrompt audience="CUSTOMER" />
+
       <section id="details" className="scroll-mt-24 grid gap-6 md:grid-cols-[minmax(0,1fr)_16rem]">
         <Card className="p-5">
           <SectionTitle>Your details</SectionTitle>

@@ -77,25 +77,45 @@ model AppUser {
   customer Customer?
   provider Provider?
 
+  pushSubscriptions PushSubscription[]
+
   @@index([role])
 }
 
+/// A browser or installed app that asked for push notifications. One person
+/// can have several (phone, laptop). Removed when the push service says the
+/// subscription is gone.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  appUserId  String
+  appUser    AppUser   @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+  /// The push service URL. Unique: re-subscribing the same browser updates it.
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String    @default("")
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([appUserId])
+}
+
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  phone     String   @default("")
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  name             String
+  email            String   @unique
+  phone            String   @default("")
+  createdAt        DateTime @default(now())
   /// The customer's home postcode, remembered for "pros near you". Private.
-  postcode  String   @default("")
-  latitude  Float?
-  longitude Float?
+  postcode         String   @default("")
+  latitude         Float?
+  longitude        Float?
   /// Stripe Customer, created the first time a card is saved for later.
-  stripeCustomerId String @default("")
+  stripeCustomerId String   @default("")
   /// Profile photo shown in the header menu. fileId lets a replaced photo be
   /// deleted from ImageKit rather than orphaned.
-  avatarUrl    String @default("")
-  avatarFileId String @default("")
+  avatarUrl        String   @default("")
+  avatarFileId     String   @default("")
 
   /// Null for seeded demo records that have no login yet.
   appUserId String?  @unique

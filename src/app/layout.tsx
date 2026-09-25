@@ -65,6 +65,8 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   appleWebApp: { capable: true, statusBarStyle: "default", title: SITE_NAME },
+  // iOS reads the home-screen icon from here, not the manifest.
+  icons: { apple: "/apple-touch-icon.png" },
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",

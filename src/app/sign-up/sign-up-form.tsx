@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Check, EnvelopeSimple, Eye, EyeSlash, Scissors, ShoppingBag } from "@phosphor-icons/react";
 import { createSupabaseBrowserClient } from "@/lib/auth/supabase-browser";
 import { Button } from "@/components/ui";
@@ -195,6 +196,19 @@ export function SignUpForm({
           {isVendor
             ? "Next: your link, menu and documents. Your storefront goes live once we have checked your insurance or licence."
             : "Free to join. You only pay when you book, and your card is held until you're happy."}
+        </p>
+
+        {/* Applies to the Google button above too: either way, an account is made. */}
+        <p className="text-center text-xs text-ink-muted">
+          By creating an account you agree to our{" "}
+          <Link href="/terms" className="font-semibold text-ink underline-offset-4 hover:underline">
+            terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="font-semibold text-ink underline-offset-4 hover:underline">
+            privacy policy
+          </Link>
+          .
         </p>
       </form>
     </div>

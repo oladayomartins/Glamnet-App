@@ -8,6 +8,7 @@ import { TodayStrip } from "./today-strip";
 import { VacationToggle } from "./vacation-toggle";
 import { BioLink } from "@/components/bio-link";
 import { siteUrl } from "@/lib/site";
+import { PushPrompt } from "@/components/push-prompt";
 
 /** The dashboard reads live figures, so it must not be prerendered. */
 export const dynamic = "force-dynamic";
@@ -75,6 +76,8 @@ export default async function ProviderPage({
           </Link>
         </div>
       </div>
+
+      {viewer.providerId === id ? <PushPrompt audience="PROVIDER" /> : null}
 
       <div className="grid gap-3 md:grid-cols-2">
         {provider.slug ? (
