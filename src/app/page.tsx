@@ -128,12 +128,15 @@ export default async function MarketingPage() {
     await Promise.all([getMarketingData(), getPricingContext(), getSessionUser()]);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
-  const areas = cities.map((city) => ({
-    hubId: city.hubId,
-    name: city.city,
-    city: city.city,
-    sector: city.sector,
-  }));
+  // Quick picks in the search bar: only areas where someone can be booked.
+  const areas = cities
+    .filter((city) => city.providerCount > 0 && city.hubId)
+    .map((city) => ({
+      hubId: city.hubId!,
+      name: city.label,
+      city: city.label,
+      sector: city.sector,
+    }));
 
   const cards: ProviderCardData[] = providers.map((provider) => ({
     id: provider.id,
@@ -489,6 +492,14 @@ export default async function MarketingPage() {
                     aria-hidden
                     className="block aspect-[4/3] w-full bg-metal transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
                   />
+                  {/* The city's initial, faint, so a rail of gold tiles still
+                      reads as different places at a glance. */}
+                  <span
+                    aria-hidden
+                    className="absolute -top-2 right-3 font-display text-[96px] font-extrabold leading-none text-black/10"
+                  >
+                    {city.label.slice(0, 1)}
+                  </span>
                   {/* Name over the image, so the scrim is load-bearing and
                       stays fixed in both themes. */}
                   <span
@@ -497,12 +508,12 @@ export default async function MarketingPage() {
                   />
                   <span className="absolute inset-x-0 bottom-0 p-3.5">
                     <span className="block text-sm font-bold text-white">
-                      {city.city}
+                      {city.label}
                     </span>
                     <span className="mt-0.5 block text-xs text-white/80">
-                      {city.providerCount}{" "}
-                      {city.providerCount === 1 ? "provider" : "providers"} ·{" "}
-                      {city.sector}
+                      {city.providerCount > 0
+                        ? `${city.providerCount} ${city.providerCount === 1 ? "provider" : "providers"}`
+                        : "Pros joining soon"}
                     </span>
                   </span>
                 </Link>

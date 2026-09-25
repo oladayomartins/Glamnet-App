@@ -2,16 +2,23 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { citySlug } from "@/lib/domain/postcode";
+import { LAUNCH_CITIES } from "@/lib/domain/cities";
 import { DirectoryView, type DirectoryQuery } from "../../salons/directory-view";
 
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ city: string }>;
 
-/** The city as it is stored on the Hub, or null if nobody is there yet. */
+/**
+ * The city as it is stored on the Hub, or a launch city — listed on the home
+ * page before anyone has joined there — or null for anywhere else.
+ */
 async function resolveCity(slug: string): Promise<string | null> {
+  const wanted = slug.toLowerCase();
+  const launch = LAUNCH_CITIES.find((city) => citySlug(city.name) === wanted);
+  if (launch) return launch.name;
   const cities = await prisma.hub.findMany({ distinct: ["city"], select: { city: true } });
-  return cities.find((hub) => citySlug(hub.city) === slug.toLowerCase())?.city ?? null;
+  return cities.find((hub) => citySlug(hub.city) === wanted)?.city ?? null;
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {

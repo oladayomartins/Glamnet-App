@@ -7,6 +7,7 @@ import {
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import { isFreeTonight } from "./openings";
 import { listCategories } from "./categories";
+import { cityTiles } from "@/lib/domain/cities";
 
 /**
  * Everything the marketing page shows, derived from real records.
@@ -92,7 +93,13 @@ export async function getMarketingData() {
         city: true,
         sector: true,
         _count: {
-          select: { providers: { where: { approvalStatus: "APPROVED" } } },
+          // Counted exactly as the city directory lists them, so the number on
+          // a tile is the number of pros you see after tapping it.
+          select: {
+            providers: {
+              where: { approvalStatus: "APPROVED", isVerified: true, isAcceptingWork: true, slug: { not: null } },
+            },
+          },
         },
       },
     }),
@@ -168,15 +175,16 @@ export async function getMarketingData() {
     }
   }
 
-  const cities = [...new Map(hubs.map((hub) => [hub.city, hub])).values()]
-    .map((hub) => ({
+  // Every launch city is listed from day one; the counts grow as pros there
+  // go live, and a city off the list joins once it has a live pro.
+  const cities = cityTiles(
+    hubs.map((hub) => ({
       city: hub.city,
       hubId: hub.id,
       sector: hub.sector,
       providerCount: hub._count.providers,
-    }))
-    .filter((city) => city.providerCount > 0)
-    .sort((a, b) => b.providerCount - a.providerCount);
+    })),
+  );
 
   const ratings = providers.map((p) => p.rating);
   const averageRating =
@@ -239,7 +247,7 @@ export async function getMarketingData() {
       providerCount: providers.length,
       averageRating,
       serviceCount: services.filter((s) => s.kind !== "ADDON").length,
-      cityCount: cities.length,
+      cityCount: cities.filter((city) => city.providerCount > 0).length,
     },
   };
 }
