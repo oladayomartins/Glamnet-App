@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
-import { requireUser } from "@/lib/auth/session";
 import { getProviderToday } from "@/lib/server/provider-today";
-import { ProviderDashboard } from "./dashboard";
+import { RequestsInbox } from "./requests-inbox";
+import { CalendarPanel } from "./calendar-panel";
 import { TodayStrip } from "./today-strip";
 import { AcceptingSwitch } from "./accepting-switch";
+import { requireVendorPage } from "./access";
 import { BioLink } from "@/components/bio-link";
 import { siteUrl } from "@/lib/site";
-import { PushPrompt } from "@/components/push-prompt";
 
 /** The dashboard reads live figures, so it must not be prerendered. */
 export const dynamic = "force-dynamic";
@@ -33,7 +33,8 @@ function greeting(now = new Date()): string {
  * Laid out in order of urgency, because on a phone every section costs a
  * scroll: the booking switch, then requests (which expire in minutes), then
  * today's numbers, the calendar, the bio link, and a way to settings. Push
- * and email preferences live on the settings page, not here.
+ * and email preferences live on the settings page, not here. Requests and
+ * the calendar also have tabs of their own.
  */
 export default async function ProviderPage({
   params,
@@ -42,13 +43,7 @@ export default async function ProviderPage({
 }) {
   const { id } = await params;
 
-  // A vendor dashboard shows earnings, customer names and addresses, so it
-  // is limited to that vendor and to admins.
-  const viewer = await requireUser(`/provider/${id}`);
-  if (viewer.role !== "ADMIN" && viewer.providerId !== id) redirect("/forbidden");
-  if (viewer.role === "PROVIDER" && !viewer.providerApproved) {
-    redirect("/provider/pending");
-  }
+  const viewer = await requireVendorPage(id, `/provider/${id}`);
 
   const [provider, today] = await Promise.all([
     prisma.provider.findUnique({
@@ -108,46 +103,41 @@ export default async function ProviderPage({
         </div>
       </header>
 
-      <AcceptingSwitch
-        providerId={provider.id}
-        initial={provider.isAcceptingWork}
-        disabled={!isOwner}
-      />
+      <AcceptingSwitch providerId={provider.id} initial={provider.isAcceptingWork} />
 
-      {/* Only while off: requests reach a vendor by notification, so this is
-          the one setting worth space on the dashboard. Turning it off again
-          lives on the settings page. */}
-      {isOwner ? <PushPrompt audience="PROVIDER" onlyWhenOff /> : null}
+      <RequestsInbox providerId={provider.id} />
 
-      <ProviderDashboard providerId={provider.id} today={<TodayStrip today={today} />}>
-        <section id="bio-link" className="scroll-mt-20">
-          {provider.slug ? (
-            <BioLink origin={siteUrl().replace(/^https?:\/\//, "")} slug={provider.slug} />
-          ) : (
-            <Link
-              href="/provider/onboarding?step=storefront"
-              className="flex min-h-11 items-center rounded-glam border border-dashed border-line p-4 text-sm text-ink-muted hover:border-accent-500"
-            >
-              Claim your storefront link to share in your Instagram and TikTok bio →
-            </Link>
-          )}
-        </section>
+      <TodayStrip today={today} />
 
-        <Link
-          href={`/provider/${provider.id}/settings`}
-          className="flex min-h-14 items-center justify-between gap-3 rounded-glam border border-line bg-surface px-4 py-3 transition duration-[180ms] hover:bg-sunken"
-        >
-          <span>
-            <span className="block font-semibold text-ink">Settings</span>
-            <span className="block text-sm text-ink-muted">
-              Notifications, emails, storefront and working hours
-            </span>
+      <CalendarPanel providerId={provider.id} />
+
+      <section id="bio-link" className="scroll-mt-20">
+        {provider.slug ? (
+          <BioLink origin={siteUrl().replace(/^https?:\/\//, "")} slug={provider.slug} />
+        ) : (
+          <Link
+            href="/provider/onboarding?step=storefront"
+            className="flex min-h-11 items-center rounded-glam border border-dashed border-line p-4 text-sm text-ink-muted hover:border-accent-500"
+          >
+            Claim your storefront link to share in your Instagram and TikTok bio →
+          </Link>
+        )}
+      </section>
+
+      <Link
+        href={`/provider/${provider.id}/settings`}
+        className="flex min-h-14 items-center justify-between gap-3 rounded-glam border border-line bg-surface px-4 py-3 transition duration-[180ms] hover:bg-sunken"
+      >
+        <span>
+          <span className="block font-semibold text-ink">Settings</span>
+          <span className="block text-sm text-ink-muted">
+            Notifications, emails, storefront and working hours
           </span>
-          <span aria-hidden className="text-ink-muted">
-            →
-          </span>
-        </Link>
-      </ProviderDashboard>
+        </span>
+        <span aria-hidden className="text-ink-muted">
+          →
+        </span>
+      </Link>
     </div>
   );
 }

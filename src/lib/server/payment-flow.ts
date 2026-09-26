@@ -606,9 +606,10 @@ export async function runPaymentSweep(now = new Date()) {
 }
 
 /**
- * Broadcasts that every invited vendor let lapse. The customer's hold is
- * released straight away rather than left on their card for a week.
- * Run on each poll of the searching screen and by the daily sweep.
+ * Broadcasts that no invited vendor can still accept: each one lapsed or
+ * was declined. The customer's hold is released straight away rather than
+ * left on their card for a week. Run on each poll of the searching screen,
+ * by the daily sweep, and when a vendor declines.
  */
 export async function expireUnansweredBroadcasts(now = new Date(), bookingId?: string) {
   const stale = await prisma.booking.findMany({
@@ -616,7 +617,10 @@ export async function expireUnansweredBroadcasts(now = new Date(), bookingId?: s
       ...(bookingId ? { id: bookingId } : {}),
       status: "BROADCAST",
       providerId: null,
-      broadcasts: { every: { expiresAt: { lt: now } }, some: {} },
+      broadcasts: {
+        every: { OR: [{ expiresAt: { lt: now } }, { status: { not: "PENDING" } }] },
+        some: {},
+      },
     },
     take: 200,
   });
@@ -629,4 +633,34 @@ export async function expireUnansweredBroadcasts(now = new Date(), bookingId?: s
     if (ended) count += 1;
   }
   return count;
+}
+
+/**
+ * A vendor turns a broadcast down. The request leaves their inbox, and it
+ * counts against their acceptance rate just as letting it lapse would. If
+ * they were the last invited vendor who could still say yes, the search ends
+ * now instead of making the customer wait out the timer.
+ *
+ * Declining twice is harmless; declining a request that has already been
+ * taken, lapsed or ended is refused.
+ */
+export async function declineBroadcast(bookingId: string, providerId: string, now = new Date()) {
+  const declined = await prisma.bookingBroadcast.updateMany({
+    where: { bookingId, providerId, status: "PENDING", expiresAt: { gt: now } },
+    data: { status: "DECLINED", respondedAt: now },
+  });
+
+  if (declined.count === 0) {
+    const invite = await prisma.bookingBroadcast.findUnique({
+      where: { bookingId_providerId: { bookingId, providerId } },
+      select: { status: true },
+    });
+    if (!invite) {
+      throw new BookingError("This request was not offered to you.", "NOT_INVITED", 403);
+    }
+    if (invite.status === "DECLINED") return;
+    throw new BookingError("This request is no longer open.", "INVALID_TRANSITION", 409);
+  }
+
+  await expireUnansweredBroadcasts(now, bookingId);
 }

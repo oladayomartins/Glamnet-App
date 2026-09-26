@@ -1,11 +1,12 @@
-import { VendorNav } from "./vendor-nav";
+import { VendorShell } from "./vendor-shell";
 
 /**
- * The vendor app shell around every /provider/:id page.
+ * The vendor app shell around every /provider/:id page: tabs, the request
+ * badge and pull-to-refresh.
  *
- * `data-vendor-app` hides the customer site footer (see globals.css): links
- * like "Book a service" are clutter to someone running their business here.
- * The bottom padding keeps the last card clear of the phone tab bar.
+ * Its `data-vendor-app` marker hides the customer site footer (see
+ * globals.css): links like "Book a service" are clutter to someone running
+ * their business here.
  */
 export default async function VendorLayout({
   children,
@@ -13,11 +14,5 @@ export default async function VendorLayout({
 }: LayoutProps<"/provider/[id]">) {
   const { id } = await params;
 
-  return (
-    <div data-vendor-app className="pb-24 md:pb-0">
-      <VendorNav providerId={id} placement="top" />
-      {children}
-      <VendorNav providerId={id} placement="bottom" />
-    </div>
-  );
+  return <VendorShell providerId={id}>{children}</VendorShell>;
 }

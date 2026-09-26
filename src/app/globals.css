@@ -425,6 +425,12 @@ body:has([data-vendor-app]) [data-site-footer] {
   display: none;
 }
 
+/* The vendor app has its own pull-to-refresh; stop the browser's from
+   reloading the whole page over it. */
+html:has([data-vendor-app]) {
+  overscroll-behavior-y: contain;
+}
+
 /* Respect the PWA safe area on notched devices. */
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));

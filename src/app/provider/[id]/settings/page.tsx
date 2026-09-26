@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
-import { requireUser } from "@/lib/auth/session";
+import { requireVendorPage } from "../access";
 import { gaMeasurementId } from "@/lib/site";
 import { Card, SectionTitle } from "@/components/ui";
 import { PushPrompt } from "@/components/push-prompt";
@@ -25,8 +25,7 @@ export default async function VendorSettingsPage({
 }) {
   const { id } = await params;
 
-  const viewer = await requireUser(`/provider/${id}/settings`);
-  if (viewer.role !== "ADMIN" && viewer.providerId !== id) redirect("/forbidden");
+  const viewer = await requireVendorPage(id, `/provider/${id}/settings`);
 
   const provider = await prisma.provider.findUnique({
     where: { id },
