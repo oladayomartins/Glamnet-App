@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button, Card, SectionTitle } from "@/components/ui";
 import { formatMoney } from "@/lib/format";
 import { LEGAL } from "@/lib/legal";
+import { CURRENCY, toMajor, track } from "@/lib/analytics";
 
 /**
  * The customer's [ Cancel booking ].
@@ -44,6 +45,7 @@ export function CancelBooking({
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error?.message ?? "Could not cancel this booking.");
+      track("booking_cancelled", { transaction_id: bookingId, cancellation_fee: toMajor(feeMinor), currency: CURRENCY });
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not cancel this booking.");

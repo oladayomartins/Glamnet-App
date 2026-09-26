@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GlamNetPin } from "@/components/brand";
 import { SITE_NAME } from "@/lib/site";
+import { CookieSettingsButton } from "@/components/analytics";
 
 /**
  * Site footer.
@@ -12,7 +13,12 @@ import { SITE_NAME } from "@/lib/site";
  * marketing page, where it is request-rendered and can be, rather than being
  * squeezed into furniture that has to work everywhere.
  */
-export function SiteFooter() {
+export function SiteFooter({
+  cookieSettings = false,
+}: {
+  /** Show "Cookie settings" — only when analytics is on for this deployment. */
+  cookieSettings?: boolean;
+}) {
   const columns = [
     {
       heading: "Customers",
@@ -103,6 +109,9 @@ export function SiteFooter() {
                 {link.label}
               </Link>
             ))}
+            {cookieSettings ? (
+              <CookieSettingsButton className="text-on-obsidian transition hover:text-accent-500" />
+            ) : null}
           </nav>
         </div>
       </div>

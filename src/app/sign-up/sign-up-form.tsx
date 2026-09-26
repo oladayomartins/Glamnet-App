@@ -8,6 +8,7 @@ import { createSupabaseBrowserClient } from "@/lib/auth/supabase-browser";
 import { Button } from "@/components/ui";
 import { callbackUrl, FormError, GoogleButton, inputClass } from "@/components/auth-controls";
 import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
+import { track } from "@/lib/analytics";
 
 type Intent = "CUSTOMER" | "PROVIDER";
 
@@ -65,6 +66,10 @@ export function SignUpForm({
       setBusy(false);
       return;
     }
+
+    // Counted when the account is created, confirmed email or not: the two
+    // sides of the marketplace are told apart by user_type.
+    track("sign_up", { method: "email", user_type: isVendor ? "vendor" : "customer" });
 
     // No session means the project requires email confirmation first.
     if (!data.session) {

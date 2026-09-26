@@ -6,6 +6,7 @@ import { Button, Card, EmptyState, SectionTitle } from "@/components/ui";
 import { BroadcastTicket, type BroadcastRequest } from "./broadcast-ticket";
 import { ProviderCalendar, type CalendarPayload } from "./calendar";
 import { toDateInputValue } from "@/lib/format";
+import { track } from "@/lib/analytics";
 
 /**
  * Ties the calendar and the request inbox together: accepting a request
@@ -88,6 +89,7 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
         body: JSON.stringify({ providerId }),
       });
       const payload = await response.json();
+      track("vendor_accept_booking", { outcome: response.ok ? "accepted" : "failed" });
       if (!response.ok) {
         throw new Error(payload.error?.message ?? "Could not accept this booking.");
       }

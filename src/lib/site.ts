@@ -1,3 +1,5 @@
+import { resolveMeasurementId } from "@/lib/analytics";
+
 /**
  * The canonical origin for this deployment.
  *
@@ -35,3 +37,11 @@ export const SITE_NAME = "GLAMNET";
 export const SITE_TAGLINE = "The UK's beauty marketplace";
 export const SITE_DESCRIPTION =
   "Find and book verified independent beauty pros near you, anywhere in the UK — braids, bridal glam, nails and massage. Real availability, one honest price, and paid only when you're happy.";
+
+/**
+ * The GA4 measurement ID for this deployment, or null when analytics is off.
+ * Production only unless NEXT_PUBLIC_GA_MEASUREMENT_ID says otherwise.
+ */
+export function gaMeasurementId(): string | null {
+  return resolveMeasurementId(process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID, isProductionSite());
+}

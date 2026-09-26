@@ -13,6 +13,7 @@ import {
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_TAGLINE,
+  gaMeasurementId,
   isProductionSite,
   siteUrl,
 } from "@/lib/site";
@@ -21,6 +22,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { MobileMenu } from "@/components/mobile-menu";
 import { UserMenu } from "@/components/user-menu";
 import { OfflineNotice } from "@/components/offline-notice";
+import { Analytics, GoogleTag } from "@/components/analytics";
 
 /**
  * The brand families, paired with the token layer in globals.css.
@@ -118,6 +120,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // request-scoped and cannot be prerendered — so it does not reintroduce the
   // build-time database dependency that the 404 page was tripping over.
   const user = await getSessionUser();
+  const gaId = gaMeasurementId();
 
   const roleLinks = [
     ...(user?.role === "PROVIDER"
@@ -136,6 +139,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col bg-canvas font-sans text-ink">
         <ThemeProvider>
+          {/* First in the tree so gtag is configured before any page's own
+              tracking effects run. Admins are staff: their clicks around the
+              console would only skew the numbers, so they are never tracked. */}
+          <GoogleTag measurementId={user?.role === "ADMIN" ? null : gaId} />
+          <Analytics
+            measurementId={user?.role === "ADMIN" ? null : gaId}
+            user={user ? { id: user.appUserId, role: user.role } : null}
+          />
           <OfflineNotice />
 
           <header className="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur">
@@ -200,7 +211,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </main>
 
-          <SiteFooter />
+          <SiteFooter cookieSettings={gaId !== null} />
         </ThemeProvider>
       </body>
     </html>

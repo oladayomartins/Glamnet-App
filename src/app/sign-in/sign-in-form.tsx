@@ -6,6 +6,7 @@ import { EnvelopeSimple, Eye, EyeSlash } from "@phosphor-icons/react";
 import { createSupabaseBrowserClient } from "@/lib/auth/supabase-browser";
 import { Button } from "@/components/ui";
 import { callbackUrl, FormError, GoogleButton, inputClass } from "@/components/auth-controls";
+import { track } from "@/lib/analytics";
 
 /**
  * Email-first sign-in.
@@ -62,6 +63,7 @@ export function SignInForm({
       setError("Those details did not match an account.");
       return;
     }
+    track("login", { method: "password" });
     router.replace(next);
     router.refresh();
   };

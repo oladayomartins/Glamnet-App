@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Lightning, Plus, Sparkle } from "@phosphor-icons/react";
@@ -10,6 +10,15 @@ import { CardHold } from "@/components/card-hold";
 import { CancellationTerms } from "@/components/cancellation-terms";
 import { crossSellFor } from "@/lib/domain/specialty-hubs";
 import { formatDuration, formatMoney, formatTime, toDateInputValue } from "@/lib/format";
+import {
+  CURRENCY,
+  daysAhead,
+  serviceItem,
+  toMajor,
+  track,
+  trackBookingPlaced,
+  type BookingSource,
+} from "@/lib/analytics";
 
 interface MenuItem {
   id: string;
@@ -108,7 +117,20 @@ export function StorefrontBooking({
     chosen.some((item) => item.category === "MUA Glam & Asian Bridal") &&
     !chosen.some((item) => item.category === "Manicures & Pedicures");
 
+  const bookingSource: BookingSource = source === "MARKETPLACE" ? "marketplace" : "direct_link";
+  const analyticsItem = (item: MenuItem) => serviceItem({ ...item, vendor: providerName });
+  // A promo result is reported once per code, not on every re-quote.
+  const trackedPromo = useRef("");
+
   const toggle = (id: string) => {
+    const item = menu.find((entry) => entry.id === id);
+    if (item) {
+      track(basket.includes(id) ? "remove_from_cart" : "add_to_cart", {
+        currency: CURRENCY,
+        value: toMajor(item.priceMinor),
+        items: [analyticsItem(item)],
+      });
+    }
     setBasket((current) =>
       current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
     );
@@ -174,6 +196,10 @@ export function StorefrontBooking({
         setQuote(payload);
         setError(null);
         if (payload.promo) {
+          if (trackedPromo.current !== payload.promo.code) {
+            trackedPromo.current = payload.promo.code;
+            track("apply_promo_code", { coupon: payload.promo.code, success: payload.promo.applied });
+          }
           setPromoNote({
             ok: payload.promo.applied,
             text: payload.promo.applied
@@ -197,6 +223,17 @@ export function StorefrontBooking({
     if (!request) return;
     setBusy(true);
     setError(null);
+    const items = chosen.map(analyticsItem);
+    const coupon = quote?.promo?.applied ? quote.promo.code : undefined;
+    track("begin_checkout", {
+      currency: CURRENCY,
+      value: toMajor(quote?.chargeMinor ?? 0),
+      items,
+      booking_channel: "storefront",
+      booking_source: bookingSource,
+      ...(quote ? { booking_type: quote.bookingType.toLowerCase() } : {}),
+      ...(coupon ? { coupon } : {}),
+    });
     try {
       const response = await fetch(`/api/pro/${slug}/checkout`, {
         method: "POST",
@@ -206,6 +243,17 @@ export function StorefrontBooking({
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error?.message ?? "Could not place the booking.");
       if (payload.authorised || !payload.clientSecret) {
+        trackBookingPlaced({
+          bookingId: payload.bookingId,
+          channel: "storefront",
+          source: bookingSource,
+          items,
+          totalMinor: quote?.chargeMinor ?? 0,
+          bookingType: quote?.bookingType,
+          cardAuthorised: false,
+          coupon,
+          tipMinor: quote?.tipMinor,
+        });
         router.push(`/bookings/${payload.bookingId}`);
       } else {
         setHold({ bookingId: payload.bookingId, clientSecret: payload.clientSecret, mode: payload.cardMode ?? "payment" });
@@ -304,7 +352,14 @@ export function StorefrontBooking({
                       type="button"
                       disabled={!slot.available}
                       aria-pressed={startAt === slot.startAt}
-                      onClick={() => setStartAt(slot.startAt)}
+                      onClick={() => {
+                        track("select_time_slot", {
+                          booking_channel: "storefront",
+                          booking_type: slot.bookingType.toLowerCase(),
+                          days_ahead: daysAhead(slot.startAt),
+                        });
+                        setStartAt(slot.startAt);
+                      }}
                       className={`min-h-11 rounded-glam-sm border text-sm transition disabled:cursor-not-allowed disabled:text-ink-muted/50 disabled:line-through ${
                         startAt === slot.startAt
                           ? "border-accent-500 bg-accent-500 font-bold text-metal-ink"
@@ -495,7 +550,20 @@ export function StorefrontBooking({
                 clientSecret={hold.clientSecret}
                 amountMinor={quote.chargeMinor}
                 mode={hold.mode}
-                onAuthorised={() => router.push(`/bookings/${hold.bookingId}`)}
+                onAuthorised={() => {
+                  trackBookingPlaced({
+                    bookingId: hold.bookingId,
+                    channel: "storefront",
+                    source: bookingSource,
+                    items: chosen.map(analyticsItem),
+                    totalMinor: quote.chargeMinor,
+                    bookingType: quote.bookingType,
+                    cardAuthorised: true,
+                    coupon: quote.promo?.applied ? quote.promo.code : undefined,
+                    tipMinor: quote.tipMinor,
+                  });
+                  router.push(`/bookings/${hold.bookingId}`);
+                }}
               />
             ) : signedInAsCustomer ? (
               <Button

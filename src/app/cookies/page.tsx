@@ -1,13 +1,19 @@
 import { LegalPage } from "@/components/legal-page";
+import { ConsentControls } from "@/components/analytics";
 
 export const metadata = { title: "Cookie policy", description: "The cookies and browser storage GLAMNET uses." };
 
 /**
- * Cookie policy. GLAMNET sets only strictly necessary cookies and storage, so
- * under PECR no consent banner is needed. If analytics or advertising are ever
- * added, that changes: a consent banner has to come first.
+ * Cookie policy. Strictly necessary cookies need no consent under PECR;
+ * Google Analytics does, so it only loads after "Accept" on the banner (see
+ * components/analytics.tsx), and this page is where that choice is changed.
  */
 export default function CookiesPage() {
+  const analyticsRows: Array<[string, string, string]> = [
+    ["_ga (Google Analytics)", "Tells visits apart, so we can count how many people use GLAMNET.", "2 years"],
+    ["_ga_<id> (Google Analytics)", "Keeps track of your current visit.", "2 years"],
+    ["glamnet:analytics-consent (browser storage)", "Remembers your cookie choice, so we don't ask every time.", "Until you clear it"],
+  ];
   const rows: Array<[string, string, string]> = [
     ["sb-… (Supabase)", "Keeps you signed in securely.", "Until you sign out, or the session expires"],
     ["__stripe_mid, __stripe_sid (Stripe)", "Set by Stripe on checkout pages to prevent card fraud.", "Up to a year / 30 minutes"],
@@ -19,9 +25,9 @@ export default function CookiesPage() {
       title="Cookie policy"
       intro={
         <p>
-          Cookies are small files a website stores in your browser. GLAMNET only uses the ones it needs to work. We
-          don&rsquo;t use advertising or tracking cookies, and we don&rsquo;t use analytics that follow you around the
-          web — so there&rsquo;s nothing to accept or reject.
+          Cookies are small files a website stores in your browser. GLAMNET uses the ones it needs to work and, only if
+          you say yes, Google Analytics cookies that help us understand how the site is used. We don&rsquo;t use
+          advertising cookies, and our analytics are never used for advertising.
         </p>
       }
       sections={[
@@ -51,12 +57,41 @@ export default function CookiesPage() {
           ),
         },
         {
-          heading: "Why there's no cookie banner",
+          heading: "Analytics cookies (only with your consent)",
+          body: (
+            <div className="space-y-3">
+              <p>
+                If you accept, we use Google Analytics to see which pages are visited, how people find pros and where
+                bookings get stuck. Google processes this for us. Google signals and ad personalisation are switched
+                off, and one-time links (like sign-in and unsubscribe links) are stripped before anything is sent. If
+                you&rsquo;re signed in we attach an internal account number — never your name or email — so we can
+                understand journeys across devices.
+              </p>
+              <ConsentControls />
+              <div className="overflow-x-auto rounded-glam-sm border border-line">
+                <table className="w-full min-w-[520px] text-sm">
+                  <tbody>
+                    {analyticsRows.map(([name, purpose, duration]) => (
+                      <tr key={name} className="border-b border-line/70 last:border-0">
+                        <td className="px-3 py-2 font-mono text-xs text-ink">{name}</td>
+                        <td className="px-3 py-2 text-ink">{purpose}</td>
+                        <td className="px-3 py-2 text-ink-muted">{duration}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ),
+        },
+        {
+          heading: "Why we ask",
           body: (
             <p>
               UK law (the Privacy and Electronic Communications Regulations) lets websites use cookies that are strictly
-              necessary for a service you&rsquo;ve asked for without asking first. Everything above falls into that
-              group. If we ever add anything else, we&rsquo;ll ask for your consent before setting it.
+              necessary for a service you&rsquo;ve asked for without asking first. Analytics cookies aren&rsquo;t in
+              that group, so nothing from Google Analytics loads until you choose &ldquo;Accept&rdquo;. You can change
+              your mind at any time here, or with &ldquo;Cookie settings&rdquo; at the bottom of every page.
             </p>
           ),
         },
@@ -64,8 +99,8 @@ export default function CookiesPage() {
           heading: "Controlling cookies",
           body: (
             <p>
-              You can clear or block cookies in your browser settings. If you block the ones above, you won&rsquo;t be
-              able to stay signed in or pay for bookings.
+              You can clear or block cookies in your browser settings. If you block the necessary ones, you won&rsquo;t
+              be able to stay signed in or pay for bookings.
             </p>
           ),
         },

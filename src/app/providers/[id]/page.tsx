@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { TrackEvent } from "@/components/analytics";
+import { CURRENCY, serviceItem } from "@/lib/analytics";
 import {
   Broadcast,
   Lightning,
@@ -46,6 +48,19 @@ export default async function ProviderProfilePage({
 
   return (
     <div data-page-width="wide" className="space-y-8 pb-6">
+      <TrackEvent
+        name="view_item"
+        dedupeKey={provider.id}
+        params={{
+          currency: CURRENCY,
+          vendor_id: provider.id,
+          booking_source: "marketplace",
+          items: baseServices.slice(0, 25).map((service, index) => ({
+            ...serviceItem({ ...service, vendor: provider.name, city: provider.city }),
+            index,
+          })),
+        }}
+      />
       <Link
         href="/search"
         className="tap-44 text-sm text-ink-muted hover:text-brand-700"
