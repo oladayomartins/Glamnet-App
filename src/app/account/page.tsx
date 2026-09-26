@@ -14,6 +14,7 @@ import { NearYou } from "./near-you";
 import { DetailsForm } from "./details-form";
 import { PhotoPicker } from "./photo-picker";
 import { PushPrompt } from "@/components/push-prompt";
+import { MarketingEmails } from "@/components/marketing-emails";
 
 export const dynamic = "force-dynamic";
 
@@ -286,6 +287,12 @@ export default async function AccountPage({
 
       {/* --- Details ---------------------------------------------------------- */}
       <PushPrompt audience="CUSTOMER" />
+      <MarketingEmails
+        initiallySubscribed={
+          !(await prisma.appUser.findUnique({ where: { id: user.appUserId }, select: { marketingOptOutAt: true } }))
+            ?.marketingOptOutAt
+        }
+      />
 
       <section id="details" className="scroll-mt-24 grid gap-6 md:grid-cols-[minmax(0,1fr)_16rem]">
         <Card className="p-5">

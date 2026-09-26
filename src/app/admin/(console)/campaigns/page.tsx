@@ -12,18 +12,19 @@ export const metadata = { title: "Campaigns" };
 /** Announcements shown on the site, and emails to customers or vendors. */
 export default async function AdminCampaignsPage() {
   await requireRole("ADMIN", "/admin/campaigns");
-  const [campaigns, all, customers, vendors] = await Promise.all([
+  const [campaigns, all, customers, vendors, optedOut] = await Promise.all([
     prisma.campaign.findMany({ orderBy: { createdAt: "desc" } }),
     campaignRecipients("ALL"),
     campaignRecipients("CUSTOMERS"),
     campaignRecipients("VENDORS"),
+    prisma.appUser.count({ where: { marketingOptOutAt: { not: null } } }),
   ]);
 
   return (
     <div>
       <AdminHeader
         title="Campaigns"
-        lede="Put an announcement banner on the site for a set period, email it to your customers or vendors, or both. Each campaign can be emailed once."
+        lede={`Put an announcement banner on the site for a set period, email it to your customers or vendors, or both. Each campaign can be emailed once. Every email carries an unsubscribe link; ${optedOut} ${optedOut === 1 ? "person has" : "people have"} opted out and won't be emailed.`}
       />
       <CampaignManager
         audienceSizes={{ ALL: all.length, CUSTOMERS: customers.length, VENDORS: vendors.length }}
