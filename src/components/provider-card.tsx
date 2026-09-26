@@ -8,6 +8,7 @@ import {
 import { GlamImage } from "@/components/glam-image";
 import { Skeleton } from "@/components/ui";
 import { formatMoney } from "@/lib/format";
+import { summariseReputation } from "@/lib/domain/reputation";
 
 export interface ProviderCardData {
   id: string;
@@ -46,6 +47,8 @@ export interface ProviderCardData {
  * element permitted anywhere on a card.
  */
 export function ProviderCard({ provider }: { provider: ProviderCardData }) {
+  const reputation = summariseReputation(provider.rating, provider.reviewCount);
+
   return (
     <Link
       href={provider.href}
@@ -81,13 +84,22 @@ export function ProviderCard({ provider }: { provider: ProviderCardData }) {
       <div className="flex flex-1 flex-col p-3.5">
         <div className="flex items-start justify-between gap-2">
           <h3 className="truncate text-sm font-bold text-ink">{provider.name}</h3>
-          <span className="flex shrink-0 items-center gap-1 text-xs" data-numeric>
-            <Star size={12} weight="fill" className="text-accent-500" aria-hidden />
-            <span className="font-semibold text-ink">
-              {provider.rating.toFixed(1)}
+          {/* Same rule as the storefront: no rating until someone has given
+              one. "5.0 (0)" reads as a default dressed up as an achievement,
+              and a customer who notices stops believing the 4.8s too. */}
+          {reputation.rating === null ? (
+            <span className="shrink-0 rounded-full bg-accent-100 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-accent-700">
+              New
             </span>
-            <span className="text-ink-muted">({provider.reviewCount})</span>
-          </span>
+          ) : (
+            <span className="flex shrink-0 items-center gap-1 text-xs" data-numeric>
+              <Star size={12} weight="fill" className="text-accent-500" aria-hidden />
+              <span className="font-semibold text-ink">
+                {reputation.rating.toFixed(1)}
+              </span>
+              <span className="text-ink-muted">({reputation.reviewCount})</span>
+            </span>
+          )}
         </div>
 
         <p className="mt-1.5 flex items-center gap-1 truncate text-xs text-ink-muted">

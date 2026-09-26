@@ -59,3 +59,52 @@ export function hasOpeningToday(
 ): boolean {
   return hasOpening(schedule, now, 0, 24 * 60);
 }
+
+/** How far ahead a storefront will look before it stops claiming anything. */
+export const NEXT_OPENING_HORIZON_DAYS = 14;
+
+export interface NextOpening {
+  at: Date;
+  /** True when `at` falls on `now`'s own day — the storefront says "today". */
+  isToday: boolean;
+}
+
+/**
+ * The first moment this provider could take an hour's work, searching forward
+ * from `now`.
+ *
+ * This backs the storefront's "Available today from 14:00" line, and it is the
+ * reason that line can be trusted: it walks the same `isProviderAvailable`
+ * gate as the slot picker and the broadcast matcher, so a storefront cannot
+ * advertise an opening the booking flow would then refuse. A provider whose
+ * dashboard says they are working and whose storefront says they are closed is
+ * a contradiction this shares-one-gate arrangement rules out by construction.
+ *
+ * Returns null when nothing opens up inside the horizon — the storefront then
+ * says nothing rather than guessing.
+ */
+export function nextOpening(
+  schedule: ProviderSchedule,
+  now: Date,
+  horizonDays = NEXT_OPENING_HORIZON_DAYS,
+): NextOpening | null {
+  const today = startOfLocalDay(now);
+
+  for (let day = 0; day < horizonDays; day += 1) {
+    const dayStart = addMinutes(today, day * 24 * 60);
+    const dayEnd = addMinutes(dayStart, 24 * 60);
+
+    for (
+      let cursor = dayStart;
+      cursor.getTime() <= dayEnd.getTime() - PROBE_MINUTES * 60_000;
+      cursor = addMinutes(cursor, PROBE_STEP_MINUTES)
+    ) {
+      if (cursor.getTime() < now.getTime()) continue;
+      if (isProviderAvailable(schedule, cursor, PROBE_MINUTES)) {
+        return { at: cursor, isToday: day === 0 };
+      }
+    }
+  }
+
+  return null;
+}

@@ -2,15 +2,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   Broadcast,
+  CalendarCheck,
   Lightning,
   MapPin,
+  Sparkle,
   ShieldCheck,
   Star,
 } from "@phosphor-icons/react/dist/ssr";
 import { getProviderProfile } from "@/lib/server/provider-profile";
 import { GlamImage } from "@/components/glam-image";
+import { SectionNav, type SectionLink } from "@/components/section-nav";
 import { Card, EmptyState, SectionTitle } from "@/components/ui";
-import { formatDay, formatDuration, formatMoney } from "@/lib/format";
+import { describeDayHours } from "@/lib/domain/opening-hours";
+import { formatDay, formatDuration, formatMoney, formatTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +26,10 @@ export const dynamic = "force-dynamic";
  * in the sector who is free for the whole appointment, and the first to accept
  * takes the job. A profile that implied otherwise would be selling a promise
  * the matching engine does not make.
+ *
+ * The page is long, so it is navigable: a sticky Services · Reviews · About
+ * bar sits under the hero and jumps between sections, which is the difference
+ * between a usable and an unusable page on a phone.
  */
 export default async function ProviderProfilePage({
   params,
@@ -44,6 +52,18 @@ export default async function ProviderProfilePage({
       ? Math.min(...baseServices.map((service) => service.priceMinor))
       : null;
 
+  // Only advertise a section the page actually has. A "Reviews" link that
+  // jumps to an empty box is worse than no link.
+  const sections: SectionLink[] = [
+    ...(baseServices.length > 0
+      ? [{ id: "services", label: "Services" }]
+      : []),
+    ...(provider.reviews.length > 0
+      ? [{ id: "reviews", label: "Reviews" }]
+      : []),
+    { id: "about", label: "About" },
+  ];
+
   return (
     <div className="space-y-8 pb-6">
       <Link
@@ -53,44 +73,39 @@ export default async function ProviderProfilePage({
         ← All providers
       </Link>
 
-      {/* --- Gallery + identity ------------------------------------------ */}
+      {/* --- Hero: photo + identity --------------------------------------- */}
       <section className="grid gap-6 lg:grid-cols-[1.1fr_1fr] lg:items-start">
-        <div>
-          {/* 4:3 lead image with a thumbnail strip beneath. Real portfolio
-              photography drops into these slots; the ratios are fixed now so
-              nothing reflows when it arrives. */}
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-glam-lg shadow-card">
-            <GlamImage
-              src={provider.avatarUrl}
-              alt={`Work by ${provider.name}`}
-              width={880}
-              height={660}
-              sizes="(max-width: 1024px) 100vw, 560px"
-              priority
-              className="h-full w-full object-cover"
-            />
-            <span className="absolute left-4 top-4">
-              {provider.freeTonight ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emergency px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-on-emergency">
-                  <Lightning size={11} weight="fill" />
-                  Free tonight
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-surface/95 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-normal-ink">
-                  <ShieldCheck size={11} weight="fill" className="text-normal" />
-                  Vetted
-                </span>
-              )}
-            </span>
-          </div>
-          <div aria-hidden className="mt-2 grid grid-cols-4 gap-2">
-            {[0, 1, 2, 3].map((index) => (
-              <div
-                key={index}
-                className="aspect-[4/3] rounded-glam-sm bg-sunken"
-              />
-            ))}
-          </div>
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-glam-lg shadow-card">
+          <GlamImage
+            src={provider.avatarUrl}
+            alt={`Work by ${provider.name}`}
+            width={880}
+            height={660}
+            sizes="(max-width: 1024px) 100vw, 560px"
+            priority
+            className="h-full w-full object-cover"
+          />
+          <span className="absolute left-4 top-4 flex flex-wrap gap-1.5">
+            {provider.reputation.badge === "NEW" ? (
+              <Badge icon={<Sparkle size={11} weight="fill" />} tone="accent">
+                New on GLAMNET
+              </Badge>
+            ) : null}
+            {provider.reputation.badge === "TOP_RATED" ? (
+              <Badge icon={<Star size={11} weight="fill" />} tone="accent">
+                Top rated
+              </Badge>
+            ) : null}
+            {provider.freeTonight ? (
+              <Badge icon={<Lightning size={11} weight="fill" />} tone="emergency">
+                Free tonight
+              </Badge>
+            ) : (
+              <Badge icon={<ShieldCheck size={11} weight="fill" />} tone="vetted">
+                Vetted
+              </Badge>
+            )}
+          </span>
         </div>
 
         <div>
@@ -99,44 +114,58 @@ export default async function ProviderProfilePage({
           </h1>
 
           <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span className="flex items-center gap-1" data-numeric>
-              <Star size={14} weight="fill" className="text-accent-500" aria-hidden />
-              <span className="font-semibold text-ink">
-                {provider.rating.toFixed(1)}
+            {/* A rating is shown only once it is based on something. A brand
+                new provider gets an honest "New on GLAMNET" instead of a 5.0
+                nobody gave them — see lib/domain/reputation.ts. */}
+            {provider.reputation.rating === null ? (
+              <span className="flex items-center gap-1 font-semibold text-accent-700">
+                <Sparkle size={14} weight="fill" aria-hidden />
+                New on GLAMNET
               </span>
-              <span className="text-ink-muted">
-                ({provider.reviewCount}{" "}
-                {provider.reviewCount === 1 ? "review" : "reviews"})
+            ) : (
+              <span className="flex items-center gap-1" data-numeric>
+                <Star
+                  size={14}
+                  weight="fill"
+                  className="text-accent-500"
+                  aria-hidden
+                />
+                <span className="font-semibold text-ink">
+                  {provider.reputation.rating.toFixed(1)}
+                </span>
+                <span className="text-ink-muted">
+                  ({provider.reputation.reviewCount}{" "}
+                  {provider.reputation.reviewCount === 1 ? "review" : "reviews"})
+                </span>
               </span>
-            </span>
+            )}
             <span className="flex items-center gap-1 text-ink-muted">
               <MapPin size={14} weight="light" aria-hidden />
               {provider.city} · {provider.sector}
             </span>
           </p>
 
+          <AvailabilityLine
+            nextOpeningAt={provider.nextOpeningAt}
+            nextOpeningIsToday={provider.nextOpeningIsToday}
+            openUntilLabel={provider.openUntilLabel}
+          />
+
           <dl className="mt-5 grid grid-cols-2 gap-4">
-            <Fact label="Completed jobs" value={String(provider.completedBookings)} />
-            <Fact label="Travel fee" value={formatMoney(provider.travelFeeMinor)} />
             <Fact
-              label="Works"
-              value={
-                provider.workingDays.length === 0
-                  ? "No hours set"
-                  : provider.workingDays
-                      .map((day) => day.slice(0, 3))
-                      .join(" · ")
-              }
+              label="Completed jobs"
+              value={String(provider.completedBookings)}
             />
+            <Fact label="Travel fee" value={formatMoney(provider.travelFeeMinor)} />
             <Fact
               label="From"
               value={fromMinor === null ? "—" : formatMoney(fromMinor)}
             />
+            <Fact
+              label="Services"
+              value={String(baseServices.length + addons.length)}
+            />
           </dl>
-
-          {provider.bio ? (
-            <p className="mt-5 text-[15px] text-ink-muted">{provider.bio}</p>
-          ) : null}
 
           <div className="mt-6 flex items-start gap-3 rounded-glam border border-line bg-sunken p-4">
             <Broadcast
@@ -154,13 +183,41 @@ export default async function ProviderProfilePage({
         </div>
       </section>
 
-      {/* --- Services ----------------------------------------------------- */}
-      <section>
-        <SectionTitle hint={`${baseServices.length} services`}>
-          What {provider.name} offers
-        </SectionTitle>
+      <SectionNav sections={sections} />
 
-        {baseServices.length === 0 ? (
+      {/* --- Services ----------------------------------------------------- */}
+      {baseServices.length > 0 ? (
+        <section id="services" data-section-target>
+          <SectionTitle hint={`${baseServices.length} services`}>
+            What {provider.name} offers
+          </SectionTitle>
+
+          <ul className="space-y-2">
+            {baseServices.map((service) => (
+              <li key={service.id}>
+                <ServiceRow hubId={provider.hubId} service={service} />
+              </li>
+            ))}
+          </ul>
+
+          {addons.length > 0 ? (
+            <>
+              <p className="mb-2 mt-6 text-sm font-medium text-ink">
+                Premium add-ons
+              </p>
+              <ul className="space-y-2">
+                {addons.map((service) => (
+                  <li key={service.id}>
+                    <ServiceRow hubId={provider.hubId} service={service} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </section>
+      ) : (
+        <section>
+          <SectionTitle>What {provider.name} offers</SectionTitle>
           <EmptyState
             icon={<Broadcast size={24} weight="light" />}
             title="No services listed"
@@ -175,66 +232,36 @@ export default async function ProviderProfilePage({
           >
             This provider has not listed anything bookable yet.
           </EmptyState>
-        ) : (
-          <ul className="space-y-2">
-            {baseServices.map((service) => (
-              <li key={service.id}>
-                <ServiceRow hubId={provider.hubId} service={service} />
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {addons.length > 0 ? (
-          <>
-            <p className="mb-2 mt-6 text-sm font-medium text-ink">
-              Premium add-ons
-            </p>
-            <ul className="space-y-2">
-              {addons.map((service) => (
-                <li key={service.id}>
-                  <ServiceRow hubId={provider.hubId} service={service} />
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-      </section>
+        </section>
+      )}
 
       {/* --- Reviews ------------------------------------------------------ */}
-      <section>
-        <SectionTitle hint="Most recent first">Reviews</SectionTitle>
+      {provider.reviews.length > 0 ? (
+        <section id="reviews" data-section-target>
+          <SectionTitle
+            hint={`${provider.reputation.reviewCount} in total · most recent first`}
+          >
+            Reviews
+          </SectionTitle>
 
-        {provider.reviews.length === 0 ? (
-          <EmptyState icon={<Star size={24} weight="light" />}>
-            No reviews yet. Ratings appear here once a customer has had the
-            appointment and rated the work.
-          </EmptyState>
-        ) : (
           <ul className="space-y-2">
             {provider.reviews.map((review) => (
               <li key={review.id}>
                 <Card className="p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="flex items-center gap-0.5" aria-label={`${review.rating} out of 5`}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          size={13}
-                          weight={star <= review.rating ? "fill" : "light"}
-                          className={
-                            star <= review.rating
-                              ? "text-accent-500"
-                              : "text-ink-muted/50"
-                          }
-                          aria-hidden
-                        />
-                      ))}
-                    </span>
+                    <Stars rating={review.rating} />
                     <span className="text-xs text-ink-muted">
-                      {review.services.join(" + ")} · {formatDay(review.at)}
+                      {formatDay(review.at)}
                     </span>
                   </div>
+                  {/* Naming the service is what makes a review believable:
+                      "5 stars" says nothing, "5 stars for a silk press" says
+                      what was actually delivered. */}
+                  {review.services.length > 0 ? (
+                    <p className="mt-1 text-xs font-semibold text-brand-700">
+                      {review.services.join(" + ")}
+                    </p>
+                  ) : null}
                   {review.note ? (
                     <p className="mt-2 text-[15px] text-ink">{review.note}</p>
                   ) : null}
@@ -242,7 +269,72 @@ export default async function ProviderProfilePage({
               </li>
             ))}
           </ul>
-        )}
+
+          {provider.reputation.reviewCount > provider.reviews.length ? (
+            <p className="mt-3 text-sm text-ink-muted">
+              Showing the {provider.reviews.length} most recent of{" "}
+              {provider.reputation.reviewCount}.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* --- About: bio, hours, trust points ------------------------------ */}
+      <section id="about" data-section-target>
+        <SectionTitle>About {provider.name}</SectionTitle>
+
+        {provider.bio ? (
+          <p className="text-[15px] text-ink-muted">{provider.bio}</p>
+        ) : null}
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Card className="p-4">
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+              Opening hours
+            </h3>
+            {/* Straight from the same ProviderAvailability rows the provider
+                edits in their dashboard, so the two can never disagree. */}
+            <dl className="mt-2 space-y-1">
+              {provider.weekHours.map((day) => (
+                <div key={day.dayOfWeek} className="flex justify-between gap-3">
+                  <dt className="text-sm text-ink-muted">{day.name}</dt>
+                  <dd
+                    data-numeric
+                    className={`text-sm ${
+                      day.windows.length === 0
+                        ? "text-ink-muted/70"
+                        : "font-medium text-ink"
+                    }`}
+                  >
+                    {describeDayHours(day)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+              Good to know
+            </h3>
+            <ul className="mt-2 space-y-2">
+              {/* Every line here is a fact about how GLAMNET works, not a
+                  claim about this provider — nothing that would need a field
+                  they have not filled in. */}
+              <TrustPoint>Identity and work checked before approval</TrustPoint>
+              <TrustPoint>
+                Price confirmed before you pay — no surprises on the day
+              </TrustPoint>
+              <TrustPoint>
+                Travels to you in {provider.city} · {provider.sector}
+              </TrustPoint>
+              <TrustPoint>
+                {formatMoney(provider.travelFeeMinor)} travel fee, included in
+                the quote
+              </TrustPoint>
+            </ul>
+          </Card>
+        </div>
       </section>
 
       {/* --- Sticky bottom bar: the one metal element on the screen ------- */}
@@ -269,6 +361,103 @@ export default async function ProviderProfilePage({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * "Available today from 14:00" — the line that answers "can I book this soon?"
+ * without the customer having to open the calendar.
+ *
+ * Green because it is good news and the brand guide keeps red for EMERGENCY;
+ * absent entirely when there is no opening inside the horizon, because a
+ * vague reassurance here would be worse than silence.
+ */
+function AvailabilityLine({
+  nextOpeningAt,
+  nextOpeningIsToday,
+  openUntilLabel,
+}: {
+  nextOpeningAt: Date | null;
+  nextOpeningIsToday: boolean;
+  openUntilLabel: string | null;
+}) {
+  if (!nextOpeningAt) {
+    return openUntilLabel ? (
+      <p className="mt-3 text-sm font-semibold text-normal-ink">
+        {openUntilLabel} · fully booked
+      </p>
+    ) : null;
+  }
+
+  return (
+    <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-normal-ink">
+      <CalendarCheck size={15} weight="fill" className="text-normal" aria-hidden />
+      {nextOpeningIsToday
+        ? `Available today from ${formatTime(nextOpeningAt)}`
+        : `Next available ${formatDay(nextOpeningAt)}, ${formatTime(nextOpeningAt)}`}
+      {openUntilLabel ? (
+        <span className="font-normal text-ink-muted">· {openUntilLabel}</span>
+      ) : null}
+    </p>
+  );
+}
+
+function Badge({
+  children,
+  icon,
+  tone,
+}: {
+  children: React.ReactNode;
+  icon: React.ReactNode;
+  tone: "emergency" | "accent" | "vetted";
+}) {
+  const tones = {
+    // Red is EMERGENCY's alone — "Free tonight" is the urgency signal.
+    emergency: "bg-emergency text-on-emergency",
+    accent: "bg-surface/95 text-accent-700",
+    vetted: "bg-surface/95 text-normal-ink",
+  } as const;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider ${tones[tone]}`}
+    >
+      {icon}
+      {children}
+    </span>
+  );
+}
+
+function Stars({ rating }: { rating: number }) {
+  return (
+    <span
+      className="flex items-center gap-0.5"
+      aria-label={`${rating} out of 5`}
+    >
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          size={13}
+          weight={star <= rating ? "fill" : "light"}
+          className={star <= rating ? "text-accent-500" : "text-ink-muted/50"}
+          aria-hidden
+        />
+      ))}
+    </span>
+  );
+}
+
+function TrustPoint({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2 text-sm text-ink-muted">
+      <ShieldCheck
+        size={15}
+        weight="light"
+        aria-hidden
+        className="mt-0.5 shrink-0 text-normal"
+      />
+      <span>{children}</span>
+    </li>
   );
 }
 
@@ -321,8 +510,8 @@ function ServiceRow({
         <span data-numeric className="block text-[15px] font-bold text-ink">
           {formatMoney(service.priceMinor)}
         </span>
-        <span className="mt-0.5 block text-xs font-semibold text-brand-700">
-          Add
+        <span className="mt-0.5 inline-flex min-h-8 items-center rounded-full bg-brand-50 px-3 text-xs font-bold text-brand-700">
+          Book
         </span>
       </span>
     </Link>

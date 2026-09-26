@@ -221,6 +221,25 @@ body {
     color 320ms var(--glam-ease);
 }
 
+/* In-page jump targets (see components/section-nav.tsx).
+   Without this a `#services` jump parks the heading underneath the sticky
+   section bar, so the customer lands on a section whose title they cannot see.
+   html:has() scopes the smooth scroll to pages that actually have a nav, and
+   prefers-reduced-motion opts out of the animation entirely. */
+[data-section-target] {
+  scroll-margin-top: 4.5rem;
+}
+
+html:has([data-section-target]) {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has([data-section-target]) {
+    scroll-behavior: auto;
+  }
+}
+
 /* Focus ring — 2px champagne, offset 2px. [§06] */
 :focus-visible {
   outline: 2px solid var(--glam-champagne-500);
