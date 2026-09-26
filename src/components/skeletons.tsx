@@ -52,9 +52,13 @@ export function LoadingScreen({
 /** The hero band: copy column, booking bar, figures — and the picture. */
 export function HeroSkeleton() {
   return (
-    <section className="on-light relative bg-[var(--glam-hero-ground)] lg:flex lg:min-h-[37rem] lg:items-center">
-      {/* The photograph's own column, matching the live band exactly so the
-          band is the height it will be when the page arrives. */}
+    /*
+     * The band's floor comes from the same token the real hero reads, so the
+     * two cannot drift — a skeleton that reserves a different height makes the
+     * page jump exactly when the content lands.
+     */
+    <section className="on-light relative min-h-[var(--glam-hero-band-min)] bg-[var(--glam-hero-ground)] lg:flex lg:items-center">
+      {/* The photograph's own column, in the arrangement the live band uses. */}
       <div className="hero-picture pointer-events-none hidden lg:block">
         <Skeleton className="h-full w-full rounded-none" />
         <div
@@ -63,28 +67,20 @@ export function HeroSkeleton() {
         />
       </div>
 
-      <div className="relative mx-auto w-full max-w-[var(--glam-page-max)] px-4 pb-7 pt-8 lg:py-8 xl:py-10">
-        {/*
-          Sized from the live band rather than by eye. On a 390px phone the
-          real parts measure: eyebrow 16, headline 85, lede 96, pill 44,
-          bar 174, figures 24 — and the bar is the one that changes shape,
-          stacking its three controls below `sm` and sitting on one row above.
-          A skeleton that kept the desktop bar's height left the phone 175px
-          short and the page jumped as the content landed.
-        */}
+      <div className="relative mx-auto w-full max-w-[var(--glam-page-max)] px-4 pb-7 pt-8 lg:py-10">
+        {/* Eyebrow, headline, lede. */}
         <div className="max-w-[var(--glam-hero-col)]">
           <Skeleton className="h-4 w-40" />
-          <Skeleton className="mt-4 h-[85px] w-full max-w-[30rem] sm:h-[96px]" />
-          <Skeleton className="mt-5 h-24 w-full max-w-[28rem] sm:h-[72px]" />
+          <Skeleton className="mt-4 h-[127px] w-full max-w-[30rem] lg:h-[160px]" />
+          <Skeleton className="mt-5 h-24 w-full max-w-[28rem] lg:h-[72px]" />
         </div>
 
-        <Skeleton className="mt-6 h-11 w-64 rounded-full" />
-        <Skeleton className="mt-3 h-[174px] w-full max-w-[var(--glam-hero-col)] rounded-glam sm:h-[4.5rem]" />
-        {/* The emergency-threshold line under the bar. Leaving it out is what
-            kept the phone 24px short of the real band. */}
-        <Skeleton className="mt-2 h-4 w-full max-w-[22rem]" />
+        {/* The booking control, which stacks below `sm` and sits on one row
+            above it — 214px against 90, measured on the live band. */}
+        <Skeleton className="mt-6 h-[214px] w-full max-w-[var(--glam-hero-col)] rounded-glam lg:h-[90px]" />
 
-        <div className="mt-5 flex h-6 max-w-[var(--glam-hero-col)] flex-wrap items-center gap-x-7 gap-y-3">
+        {/* Trust figures, and the review button beside them. */}
+        <div className="mt-5 flex max-w-[var(--glam-hero-col)] flex-wrap items-center gap-x-7 gap-y-3">
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-4 w-36" />
         </div>
