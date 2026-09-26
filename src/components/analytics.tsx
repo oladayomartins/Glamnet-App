@@ -7,6 +7,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Cookie } from "@phosphor-icons/react";
 import { Button } from "@/components/ui";
 import {
+  GTAG_BOOTSTRAP,
   bootAnalytics,
   currentConsent,
   identify,
@@ -82,13 +83,25 @@ function AnalyticsRuntime({
     return () => window.clearTimeout(timer);
   }, [granted, pathname, search]);
 
-  if (!granted) return null;
+  return null;
+}
+
+/**
+ * The Google tag itself, in every page's HTML. Server-rendered from the root
+ * layout so it is in the page source, where Google's installation checks look.
+ * It sends nothing until consent: see GTAG_BOOTSTRAP, which runs inline first.
+ */
+export function GoogleTag({ measurementId }: { measurementId: string | null }) {
+  if (!measurementId) return null;
   return (
-    <Script
-      id="gtag-js"
-      src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`}
-      strategy="afterInteractive"
-    />
+    <>
+      <script id="gtag-bootstrap" dangerouslySetInnerHTML={{ __html: GTAG_BOOTSTRAP }} />
+      <Script
+        id="gtag-js"
+        src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`}
+        strategy="afterInteractive"
+      />
+    </>
   );
 }
 

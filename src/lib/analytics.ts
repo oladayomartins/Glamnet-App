@@ -114,8 +114,25 @@ declare global {
 let bootedId: string | null = null;
 
 /**
- * Define gtag and configure the property. Idempotent. The gtag.js file itself
- * is loaded by <Analytics>, after this has queued the config.
+ * The inline bootstrap rendered into every page's HTML (see <GoogleTag>).
+ *
+ * It defines gtag with every consent type denied, and deliberately does NOT
+ * call `config`: without a config command gtag.js sends nothing and sets no
+ * cookie. The tag is still present in the page source, which is what Google's
+ * "Test installation" and Tag Assistant look for; data only starts flowing
+ * once `bootAnalytics` runs after the visitor accepts.
+ */
+export const GTAG_BOOTSTRAP = [
+  "window.dataLayer=window.dataLayer||[];",
+  "function gtag(){dataLayer.push(arguments);}",
+  "window.gtag=gtag;",
+  "gtag('consent','default',{analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'});",
+  "gtag('set',{allow_google_signals:false,allow_ad_personalization_signals:false});",
+  "gtag('js',new Date());",
+].join("");
+
+/**
+ * Grant analytics consent and configure the property. Idempotent.
  *
  * Automatic page views are off: the App Router navigates client-side, and the
  * page view is sent by <Analytics> on every route change with a scrubbed URL
@@ -124,31 +141,19 @@ let bootedId: string | null = null;
  */
 export function bootAnalytics(measurementId: string): void {
   if (bootedId === measurementId) return;
-  const reGranted = typeof window.gtag === "function";
-  window.dataLayer = window.dataLayer ?? [];
-  // gtag.js reads `arguments` objects, not arrays — this must stay a
-  // function expression using `arguments`.
-  window.gtag =
-    window.gtag ??
-    function gtag() {
+  if (typeof window.gtag !== "function") {
+    // The inline bootstrap normally defines this; fall back if it was blocked.
+    window.dataLayer = window.dataLayer ?? [];
+    // gtag.js reads `arguments` objects, not arrays — this must stay a
+    // function expression using `arguments`.
+    window.gtag = function gtag() {
       // eslint-disable-next-line prefer-rest-params
       window.dataLayer!.push(arguments);
     };
-
-  if (reGranted) {
-    // Accepted again after withdrawing earlier in this visit.
-    window.gtag("consent", "update", { analytics_storage: "granted" });
-  } else {
-    window.gtag("consent", "default", {
-      analytics_storage: "granted",
-      // No advertising use of any kind.
-      ad_storage: "denied",
-      ad_user_data: "denied",
-      ad_personalization: "denied",
-    });
-    window.gtag("set", { allow_google_signals: false, allow_ad_personalization_signals: false });
     window.gtag("js", new Date());
   }
+  // Analytics only; every advertising consent type stays denied.
+  window.gtag("consent", "update", { analytics_storage: "granted" });
   window.gtag("config", measurementId, {
     send_page_view: false,
     page_location: sanitizeLocation(window.location.href),

@@ -22,7 +22,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { MobileMenu } from "@/components/mobile-menu";
 import { UserMenu } from "@/components/user-menu";
 import { OfflineNotice } from "@/components/offline-notice";
-import { Analytics } from "@/components/analytics";
+import { Analytics, GoogleTag } from "@/components/analytics";
 
 /**
  * The brand families, paired with the token layer in globals.css.
@@ -142,6 +142,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           {/* First in the tree so gtag is configured before any page's own
               tracking effects run. Admins are staff: their clicks around the
               console would only skew the numbers, so they are never tracked. */}
+          <GoogleTag measurementId={user?.role === "ADMIN" ? null : gaId} />
           <Analytics
             measurementId={user?.role === "ADMIN" ? null : gaId}
             user={user ? { id: user.appUserId, role: user.role } : null}
