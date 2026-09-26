@@ -51,6 +51,29 @@ The migration does not back-fill. Who is approved is a vetting decision, not
 something a migration should invent. Check the table after deploying to such a
 database.
 
+## Deploying
+
+`build` is `prisma migrate deploy && next build`, so every Vercel deployment
+applies the history before it serves anything from it.
+
+It was `next build` alone, and that is how production broke on 2026-09-26.
+Four migrations sat in this folder unapplied while code that needed them went
+live: `ProviderService.isFeatured` is read by `SERVICE_SELECT`, which the
+directory, the storefront and the city pages all use, so the whole browsing
+surface returned a server error. Nothing in CI could have caught it — the
+build passes against a database that has the columns, and the tests never
+touch Postgres. Only the live site knew.
+
+Two consequences worth keeping in mind:
+
+- **A failed migration now fails the deploy.** That is the intent: a half-
+  deployed schema is worse than a deployment that did not happen, and the
+  previous build stays live while it is fixed.
+- **Migrations must be safe to apply before the new code is serving.** A
+  migration runs against the *old* code for as long as the build takes, so
+  destructive changes need the usual two-step: add and back-fill in one
+  release, drop in the next.
+
 ## From here on
 
 Use `prisma migrate dev` to make a change, so the history and the schema move
