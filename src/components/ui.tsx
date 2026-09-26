@@ -328,10 +328,17 @@ export const EmergencyNotice = EmergencyBanner;
  * reflows the grid twice for one fetch.
  */
 export function Skeleton({ className = "" }: { className?: string }) {
+  // The default radius is only emitted when the caller has not asked for one.
+  // Two `rounded-*` classes on the same element are resolved by their order in
+  // the compiled stylesheet, not the order they are written here, so a caller
+  // passing `rounded-full` was getting a rounded square — an avatar-shaped gap
+  // that turned into a circle when the content arrived.
+  const hasRadius = /(?:^|\s)rounded(?:-|$|\s)/.test(className);
+
   return (
     <div
       aria-hidden
-      className={`shimmer rounded-glam-sm ${className}`}
+      className={`shimmer ${hasRadius ? "" : "rounded-glam-sm"} ${className}`}
     />
   );
 }
