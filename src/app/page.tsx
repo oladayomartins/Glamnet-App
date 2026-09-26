@@ -190,7 +190,7 @@ export default async function MarketingPage() {
           composition, mirror and dressing table included, which is the
           framing in the reference.
         */
-        className="on-light relative min-h-[var(--glam-hero-band-min)] bg-[var(--glam-hero-ground)] text-ink lg:flex lg:items-center"
+        className="on-light relative bg-[var(--glam-hero-ground)] text-ink lg:flex lg:min-h-[37rem] lg:items-center"
       >
         {/*
           The photograph runs the full width of the band from `lg`, with the
