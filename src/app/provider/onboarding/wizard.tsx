@@ -3,6 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/analytics";
 import {
   Armchair,
   ArrowLeft,
@@ -184,6 +185,9 @@ export function OnboardingWizard(props: {
     setError(null);
     try {
       await work();
+      // Supply-side funnel: where vendors drop out of onboarding.
+      track("vendor_onboarding_step", { step_name: step.key, step_number: index + 1 });
+      if (step.key === "review") track("vendor_application_submitted", {});
       router.refresh();
       if (advance) go(index + 1);
     } catch (cause) {

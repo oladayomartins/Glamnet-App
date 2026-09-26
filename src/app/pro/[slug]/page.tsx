@@ -13,6 +13,8 @@ import { StorefrontBooking } from "./storefront-booking";
 import { AdSlot } from "@/components/ad-slot";
 import { MapView } from "@/components/map-view";
 import { lookupOutcode } from "@/lib/server/geo";
+import { TrackEvent } from "@/components/analytics";
+import { CURRENCY, serviceItem } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -149,6 +151,23 @@ export default async function StorefrontPage({
       </section>
 
       {/* --- Menu, calendar and checkout ---------------------------------- */}
+      <TrackEvent
+        name="view_item"
+        dedupeKey={store.id}
+        params={{
+          currency: CURRENCY,
+          vendor_id: store.id,
+          booking_source: via === "directory" ? "marketplace" : "direct_link",
+          items: store.menu
+            .filter((item) => item.kind === "SERVICE")
+            .slice(0, 25)
+            .map((item, index) => ({
+              ...serviceItem({ ...item, vendor: store.name, city: store.hub.city }),
+              index,
+            })),
+        }}
+      />
+
       <StorefrontBooking
         slug={slug}
         providerName={store.name}

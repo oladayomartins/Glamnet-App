@@ -32,6 +32,7 @@ export default function PrivacyPage() {
                 <><strong>Payments:</strong> handled by Stripe. We keep Stripe&rsquo;s references and the amounts, never your full card number.</>,
                 <><strong>For pros:</strong> business details, services and prices, portfolio photos, working area, insurance and licence documents for our checks, and the payout details you give Stripe.</>,
                 <><strong>Notifications:</strong> if you turn on notifications, a technical address for your device from your browser&rsquo;s push service.</>,
+                <><strong>Usage analytics (only if you accept analytics cookies):</strong> the pages you visit, searches, the steps of a booking you reach, your device and browser type and approximate location (town or region), collected through Google Analytics and linked to an internal account number if you&rsquo;re signed in.</>,
                 <><strong>Technical data:</strong> basic logs (like IP address and browser type) that our hosting keeps for security and troubleshooting.</>,
               ]}
             />
@@ -45,6 +46,7 @@ export default function PrivacyPage() {
                 <><strong>To provide bookings</strong> — matching you with pros, taking payment, releasing it on your PIN, and handling problems. Basis: our contract with you.</>,
                 <><strong>To keep GLAMNET safe</strong> — checking pros, preventing fraud, and resolving disputes. Basis: our legitimate interests in a trustworthy marketplace, and our contract with you.</>,
                 <><strong>To keep records</strong> the law requires, such as financial records. Basis: legal obligation.</>,
+                <><strong>To understand and improve GLAMNET</strong> — measuring which pages, searches and booking steps work. Basis: your consent, given on the cookie banner and withdrawable any time from &ldquo;Cookie settings&rdquo;.</>,
                 <><strong>To send notifications</strong> to your device. Basis: your consent, which you can withdraw at any time by turning them off.</>,
                 <><strong>To tell you about GLAMNET</strong> — occasional updates and offers. Basis: legitimate interests for people who have used GLAMNET, or your consent. You can opt out any time with the unsubscribe link in any of these emails, from your account page, or by emailing {LEGAL.contactEmail}. Opting out doesn&rsquo;t affect emails about your bookings.</>,
               ]}
@@ -70,6 +72,7 @@ export default function PrivacyPage() {
                   "ImageKit — storing and resizing photos",
                   "postcodes.io — looking up UK postcodes",
                   "OpenStreetMap — map tiles on the directory",
+                  "Google Analytics — usage analytics, only if you accept analytics cookies",
                   "Your browser's push service (for example Google or Apple) — delivering notifications, if you turn them on",
                 ]}
               />
@@ -99,6 +102,7 @@ export default function PrivacyPage() {
                 "Completion photos and dispute records, with the booking they belong to.",
                 "Pros' verification documents, while they're on GLAMNET and for a year after, in case of a complaint.",
                 "Device notification addresses, until you turn notifications off or the address stops working.",
+                "Analytics data, for 14 months, after which Google deletes it.",
               ]}
             />
           ),
@@ -125,7 +129,8 @@ export default function PrivacyPage() {
           heading: "Cookies",
           body: (
             <p>
-              We only use the cookies GLAMNET needs to work, such as keeping you signed in. See our{" "}
+              We use the cookies GLAMNET needs to work, such as keeping you signed in, and — only if you accept them —
+              Google Analytics cookies. You can change your choice at any time. See our{" "}
               <Link href="/cookies" className="font-semibold text-accent-700 hover:underline">cookie policy</Link>.
             </p>
           ),

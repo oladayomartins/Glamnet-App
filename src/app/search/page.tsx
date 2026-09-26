@@ -5,6 +5,8 @@ import { searchOffers } from "@/lib/server/offers";
 import { EmptyState } from "@/components/ui";
 import { OfferList, type OfferRow } from "@/components/offer-list";
 import { SearchFilters } from "@/components/search-filters";
+import { TrackEvent } from "@/components/analytics";
+import { serviceItem } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -79,8 +81,40 @@ export default async function SearchPage({
   const nearest = rows.length === 0 ? await nearestCoveredArea(location) : null;
   const cities = [...new Set(areas.map((area) => area.city))].sort();
 
+  // One key per distinct result set, so refreshing the same search is not a
+  // second search.
+  const searchKey = JSON.stringify([q, location, maxPrice, minRating, availableToday, date, at]);
+
   return (
     <div data-page-width="wide">
+      {q || location ? (
+        // results_count of 0 is the one to watch: demand with no supply.
+        <TrackEvent
+          name="search"
+          dedupeKey={searchKey}
+          params={{ search_term: q, search_location: location || undefined, results_count: rows.length }}
+        />
+      ) : null}
+      {rows.length > 0 ? (
+        <TrackEvent
+          name="view_item_list"
+          dedupeKey={searchKey}
+          params={{
+            item_list_id: "search_results",
+            item_list_name: "Search results",
+            items: rows.slice(0, 20).map((row, index) => ({
+              ...serviceItem({
+                id: row.serviceId,
+                name: row.serviceName,
+                priceMinor: row.totalMinor,
+                vendor: row.providerName,
+                city: row.city,
+              }),
+              index,
+            })),
+          }}
+        />
+      ) : null}
       <div className="mb-4">
         <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-ink">
           {q ? `“${q}”` : "All vendors"}

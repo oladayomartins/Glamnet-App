@@ -8,6 +8,7 @@ import { CancellationTerms } from "@/components/cancellation-terms";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import { BookingTypeTag, Button, Card, DurationStrip } from "@/components/ui";
 import { SearchingForProvider } from "../searching";
+import { CURRENCY, serviceItem, toMajor, track, trackBookingPlaced } from "@/lib/analytics";
 import { AddressFields, EMPTY_ADDRESS, formatAddress, type AddressValue } from "@/components/address-fields";
 import {
   formatCustomerDayTime,
@@ -93,10 +94,21 @@ export function ConfirmBooking({
     bookingType: string;
   } | null>(null);
 
+  const items = [
+    serviceItem({ id: serviceId, name: serviceName, priceMinor: quote.totalMinor, city: sector, vendor: providerName }),
+  ];
+
   const submit = async () => {
     if (!customerId) return;
     setSubmitting(true);
     setError(null);
+    track("begin_checkout", {
+      currency: CURRENCY,
+      value: toMajor(quote.totalMinor),
+      items,
+      booking_channel: "search_offer",
+      booking_type: quote.bookingType.toLowerCase(),
+    });
     try {
       const response = await fetch("/api/bookings", {
         method: "POST",
@@ -126,6 +138,14 @@ export function ConfirmBooking({
           mode: payload.payment.mode,
         });
       } else {
+        trackBookingPlaced({
+          bookingId: payload.booking.id,
+          channel: "search_offer",
+          items,
+          totalMinor: quote.totalMinor,
+          bookingType: payload.booking.bookingType,
+          cardAuthorised: false,
+        });
         setConfirmation({
           id: payload.booking.id,
           bookingType: payload.booking.bookingType,
@@ -280,7 +300,17 @@ export function ConfirmBooking({
             clientSecret={hold.clientSecret}
             amountMinor={quote.totalMinor}
             mode={hold.mode}
-            onAuthorised={() => setConfirmation({ id: hold.id, bookingType: hold.bookingType })}
+            onAuthorised={() => {
+              trackBookingPlaced({
+                bookingId: hold.id,
+                channel: "search_offer",
+                items,
+                totalMinor: quote.totalMinor,
+                bookingType: hold.bookingType,
+                cardAuthorised: true,
+              });
+              setConfirmation({ id: hold.id, bookingType: hold.bookingType });
+            }}
           />
           <p className="text-xs text-ink-muted">
             Your request goes out to vendors as soon as your card is in place.

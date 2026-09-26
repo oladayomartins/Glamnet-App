@@ -17,6 +17,14 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { SearchingForProvider } from "./searching";
+import {
+  CURRENCY,
+  daysAhead,
+  serviceItem,
+  toMajor,
+  track,
+  trackBookingPlaced,
+} from "@/lib/analytics";
 import { AddressFields, EMPTY_ADDRESS, formatAddress, type AddressValue } from "@/components/address-fields";
 import {
   describeSurcharge,
@@ -176,6 +184,14 @@ export function BookingFlow({
   );
 
   const toggleService = (id: string) => {
+    const service = services.find((entry) => entry.id === id);
+    if (service) {
+      track(selectedIds.includes(id) ? "remove_from_cart" : "add_to_cart", {
+        currency: CURRENCY,
+        value: toMajor(service.priceMinor),
+        items: [analyticsItem(service)],
+      });
+    }
     setSelectedIds((current) =>
       current.includes(id)
         ? current.filter((entry) => entry !== id)
@@ -185,6 +201,19 @@ export function BookingFlow({
   };
 
   const basketKey = [...selectedIds].sort().join(",");
+
+  const analyticsItem = (service: Service) =>
+    serviceItem({ ...service, city: hub.city });
+
+  const selectSlot = (startAt: string) => {
+    const slot = slots.find((entry) => entry.startAt === startAt);
+    track("select_time_slot", {
+      booking_channel: "broadcast",
+      booking_type: slot?.bookingType.toLowerCase(),
+      days_ahead: daysAhead(startAt),
+    });
+    setSelectedSlot(startAt);
+  };
 
   const slotsKey =
     selectedIds.length > 0 ? `${hub.id}|${basketKey}|${date}` : null;
@@ -281,6 +310,16 @@ export function BookingFlow({
     if (!selectedSlot || !customerId) return;
     setSubmitting(true);
     setError(null);
+    const items = selected.map(analyticsItem);
+    if (quote) {
+      track("begin_checkout", {
+        currency: CURRENCY,
+        value: toMajor(quote.price.totalMinor),
+        items,
+        booking_channel: "broadcast",
+        booking_type: quote.bookingType.toLowerCase(),
+      });
+    }
     try {
       const response = await fetch("/api/bookings", {
         method: "POST",
@@ -306,6 +345,14 @@ export function BookingFlow({
           mode: payload.payment.mode,
         });
       } else {
+        trackBookingPlaced({
+          bookingId: payload.booking.id,
+          channel: "broadcast",
+          items,
+          totalMinor: quote?.price.totalMinor ?? 0,
+          bookingType: payload.booking.bookingType,
+          cardAuthorised: false,
+        });
         setConfirmation({
           id: payload.booking.id,
           bookingType: payload.booking.bookingType,
@@ -525,7 +572,7 @@ export function BookingFlow({
               <SlotGrid
                 slots={slots}
                 selected={selectedSlot}
-                onSelect={setSelectedSlot}
+                onSelect={selectSlot}
               />
               <SlotLegend />
               {!hasFreeSlot ? (
@@ -681,7 +728,17 @@ export function BookingFlow({
                   clientSecret={hold.clientSecret}
                   amountMinor={quote.price.totalMinor}
                   mode={hold.mode}
-                  onAuthorised={() => setConfirmation({ id: hold.id, bookingType: hold.bookingType })}
+                  onAuthorised={() => {
+                    trackBookingPlaced({
+                      bookingId: hold.id,
+                      channel: "broadcast",
+                      items: selected.map(analyticsItem),
+                      totalMinor: quote.price.totalMinor,
+                      bookingType: hold.bookingType,
+                      cardAuthorised: true,
+                    });
+                    setConfirmation({ id: hold.id, bookingType: hold.bookingType });
+                  }}
                 />
                 <p className="text-xs text-ink-muted">
                   Your request goes out to vendors as soon as your card is in place.
