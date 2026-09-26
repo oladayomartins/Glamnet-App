@@ -108,6 +108,13 @@ async function main() {
         rating: spec.rating,
         completedBookings: spec.completed,
         hubId: spec.hub.id,
+        // Approved on purpose. approvalStatus defaults to PENDING, and every
+        // customer-facing query filters on APPROVED — so a seed that left it
+        // at the default produced a database with a full catalogue and
+        // nothing bookable in it: empty search, empty storefronts, and a
+        // broadcast that could never find a provider.
+        approvalStatus: "APPROVED",
+        approvedAt: new Date(),
         availability: { create: spec.windows },
         services: { create: spec.skills.map((serviceId) => ({ serviceId })) },
       },

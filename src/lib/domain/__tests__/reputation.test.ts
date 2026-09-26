@@ -11,6 +11,13 @@ describe("summariseReputation", () => {
     expect(fresh.label).not.toContain("5.0");
   });
 
+  it("does not call an experienced provider new just because nobody wrote a review", () => {
+    const unreviewed = summariseReputation(4.9, 0, 301);
+    expect(unreviewed.badge).toBe("UNREVIEWED");
+    expect(unreviewed.label).toBe("No reviews yet");
+    expect(unreviewed.rating).toBeNull();
+  });
+
   it("always says how many reviews a rating is based on", () => {
     expect(summariseReputation(5, 1).label).toBe("5.0 (1 review)");
     expect(summariseReputation(5, 3).label).toBe("5.0 (3 reviews)");

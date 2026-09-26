@@ -62,6 +62,7 @@ export default async function SearchPage({
     href: `/providers/${provider.id}`,
     rating: provider.rating,
     reviewCount: provider.reviewCount,
+    completedBookings: provider.completedBookings,
     city: provider.city,
     sector: provider.sector,
     fromMinor: provider.fromMinor,

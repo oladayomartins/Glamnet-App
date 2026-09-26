@@ -17,6 +17,8 @@ export interface ProviderCardData {
   href: string;
   rating: number;
   reviewCount: number;
+  /** Feeds the reputation rule: separates genuinely new from merely unreviewed. */
+  completedBookings: number;
   city: string;
   sector: string;
   /** Cheapest bookable service, in pence. Null when the provider has none. */
@@ -47,7 +49,11 @@ export interface ProviderCardData {
  * element permitted anywhere on a card.
  */
 export function ProviderCard({ provider }: { provider: ProviderCardData }) {
-  const reputation = summariseReputation(provider.rating, provider.reviewCount);
+  const reputation = summariseReputation(
+    provider.rating,
+    provider.reviewCount,
+    provider.completedBookings,
+  );
 
   return (
     <Link

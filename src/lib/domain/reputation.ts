@@ -13,7 +13,11 @@
  * Pure: no database, no formatting of dates, nothing framework-specific.
  */
 
-export type ReputationBadge = "NEW" | "TOP_RATED" | "ESTABLISHED";
+export type ReputationBadge =
+  | "NEW"
+  | "UNREVIEWED"
+  | "TOP_RATED"
+  | "ESTABLISHED";
 
 export interface Reputation {
   badge: ReputationBadge;
@@ -37,13 +41,19 @@ export const TOP_RATED_MIN_RATING = 4.8;
 export function summariseReputation(
   rating: number,
   reviewCount: number,
+  completedBookings = 0,
 ): Reputation {
   if (reviewCount <= 0) {
+    // "New" is a claim about experience, not just about the review column.
+    // Someone who has finished three hundred jobs without anyone writing one
+    // is not new, and labelling them so would be its own small lie — so they
+    // get the plainer "No reviews yet". Neither case shows a rating.
+    const isActuallyNew = completedBookings <= 0;
     return {
-      badge: "NEW",
+      badge: isActuallyNew ? "NEW" : "UNREVIEWED",
       rating: null,
       reviewCount: 0,
-      label: "New on GLAMNET",
+      label: isActuallyNew ? "New on GLAMNET" : "No reviews yet",
     };
   }
 

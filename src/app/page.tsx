@@ -78,6 +78,7 @@ export default async function MarketingPage() {
     href: `/providers/${provider.id}`,
     rating: provider.rating,
     reviewCount: provider.reviewCount,
+    completedBookings: provider.completedBookings,
     city: provider.city,
     sector: provider.sector,
     fromMinor: provider.fromMinor,

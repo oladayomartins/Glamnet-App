@@ -161,7 +161,11 @@ export async function getProviderProfile(
     id: provider.id,
     name: provider.name,
     bio: provider.bio,
-    reputation: summariseReputation(provider.rating, reviewCount),
+    reputation: summariseReputation(
+      provider.rating,
+      reviewCount,
+      provider.completedBookings,
+    ),
     completedBookings: provider.completedBookings,
     hubId: provider.hub.id,
     hubName: provider.hub.name,

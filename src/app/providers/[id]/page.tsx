@@ -120,7 +120,7 @@ export default async function ProviderProfilePage({
             {provider.reputation.rating === null ? (
               <span className="flex items-center gap-1 font-semibold text-accent-700">
                 <Sparkle size={14} weight="fill" aria-hidden />
-                New on GLAMNET
+                {provider.reputation.label}
               </span>
             ) : (
               <span className="flex items-center gap-1" data-numeric>
