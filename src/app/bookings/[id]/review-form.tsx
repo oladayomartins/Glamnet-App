@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Star } from "@phosphor-icons/react";
 import { Button, Card, SectionTitle } from "@/components/ui";
+import { track } from "@/lib/analytics";
 
 const STARS = [1, 2, 3, 4, 5];
 
@@ -45,6 +46,7 @@ export function ReviewForm({
         const payload = await response.json();
         throw new Error(payload.error?.message ?? "Could not save your rating.");
       }
+      track("review_submitted", { rating, has_note: note.trim().length > 0 });
       router.refresh();
     } catch (cause) {
       setError(

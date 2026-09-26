@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Lightning } from "@phosphor-icons/react/dist/ssr";
+import { CalendarBlank, Lightning } from "@phosphor-icons/react/dist/ssr";
 import { BookingTypeTag, EmptyState, LifecycleChip } from "@/components/ui";
 import { formatDay, formatDuration, formatMoney, formatTime } from "@/lib/format";
+import { addDays, ukWeekday } from "@/lib/domain/availability";
+import { ukParts } from "@/lib/domain/uk-time";
 
 export interface CalendarEntry {
   id: string;
@@ -39,25 +41,42 @@ export interface CalendarPayload {
 
 const MINUTES_PER_DAY = 24 * 60;
 
-export function ProviderCalendar({ calendar }: { calendar: CalendarPayload }) {
+export function ProviderCalendar({
+  calendar,
+  availabilityHref,
+}: {
+  calendar: CalendarPayload;
+  /** Where "Set your hours" goes from an empty day or week. */
+  availabilityHref: string;
+}) {
   return calendar.view === "day" ? (
-    <DayView calendar={calendar} />
+    <DayView calendar={calendar} availabilityHref={availabilityHref} />
   ) : (
-    <WeekView calendar={calendar} />
+    <WeekView calendar={calendar} availabilityHref={availabilityHref} />
   );
 }
 
 /**
- * Day view: a proportional timeline.
+ * Day view. On a phone it is a plain agenda list: a proportional timeline
+ * squeezed into a phone's height gives each hour about 22px, too thin to read
+ * or tap. From tablet width up it is a proportional timeline.
  *
  * Each booking is drawn twice over — the solid block is the billable service,
  * the hatched tail is the 15-minute transition period. Both are part of the
- * calendar lock, so the provider can see exactly why a following slot is not
+ * calendar lock, so the vendor can see exactly why a following slot is not
  * offered to them.
  */
-function DayView({ calendar }: { calendar: CalendarPayload }) {
+function DayView({
+  calendar,
+  availabilityHref,
+}: {
+  calendar: CalendarPayload;
+  availabilityHref: string;
+}) {
+  // Working hours are UK wall-clock times, so the weekday is the UK one too,
+  // whatever zone this browser is set to.
   const dayStart = new Date(calendar.from);
-  const dayOfWeek = dayStart.getDay();
+  const dayOfWeek = ukWeekday(dayStart);
 
   const shifts = calendar.workingWindows.filter(
     (window) => window.dayOfWeek === dayOfWeek,
@@ -98,7 +117,13 @@ function DayView({ calendar }: { calendar: CalendarPayload }) {
         {formatDay(dayStart)}
         {shifts.length === 0 ? (
           <span className="ml-2 text-xs font-normal text-ink-muted">
-            Not a working day
+            Not a working day ·{" "}
+            <Link
+              href={availabilityHref}
+              className="font-semibold text-brand-700 hover:underline"
+            >
+              Set your hours
+            </Link>
           </span>
         ) : (
           <span className="ml-2 text-xs font-normal text-ink-muted">
@@ -108,6 +133,15 @@ function DayView({ calendar }: { calendar: CalendarPayload }) {
         )}
       </p>
 
+      <div className="md:hidden">
+        <DayAgenda
+          calendar={calendar}
+          availabilityHref={availabilityHref}
+          working={shifts.length > 0}
+        />
+      </div>
+
+      <div className="hidden md:block">
       <div className="relative h-72 overflow-hidden rounded-glam-sm border border-line bg-sunken">
         {/* Hour gridlines */}
         {hours.map((minute) => (
@@ -218,25 +252,140 @@ function DayView({ calendar }: { calendar: CalendarPayload }) {
       </div>
 
       <Legend bufferMinutes={calendar.transitionBufferMinutes} />
-      <EntryList entries={calendar.entries} />
+      <EntryList entries={calendar.entries} availabilityHref={availabilityHref} />
+      </div>
     </div>
   );
 }
 
+/**
+ * The phone day view: bookings and blocked periods in time order, one tall
+ * row each ("10:00 · Braids, Sarah"), every booking a full-width tap target.
+ */
+function DayAgenda({
+  calendar,
+  availabilityHref,
+  working,
+}: {
+  calendar: CalendarPayload;
+  availabilityHref: string;
+  working: boolean;
+}) {
+  const rows = [
+    ...calendar.entries.map((entry) => ({
+      kind: "entry" as const,
+      startAt: entry.appointmentStartAt,
+      entry,
+    })),
+    ...calendar.blocks.map((block) => ({
+      kind: "block" as const,
+      startAt: block.startAt,
+      block,
+    })),
+  ].sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt));
+
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={<CalendarBlank size={24} weight="light" />}
+        action={
+          <Link
+            href={availabilityHref}
+            className="inline-flex min-h-11 items-center rounded-full px-5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-sunken"
+          >
+            {working ? "Edit your hours" : "Set your hours"}
+          </Link>
+        }
+      >
+        {working
+          ? "Nothing booked yet. Requests can land anywhere in your working hours."
+          : "No bookings, and you're not working this day."}
+      </EmptyState>
+    );
+  }
+
+  return (
+    <ol className="space-y-2">
+      {rows.map((row) =>
+        row.kind === "entry" ? (
+          <li key={row.entry.id} className="flex gap-3">
+            <span
+              data-numeric
+              className="w-12 shrink-0 pt-3 text-[13px] font-semibold text-ink-muted"
+            >
+              {formatTime(row.entry.appointmentStartAt)}
+            </span>
+            <Link
+              href={`/bookings/${row.entry.id}`}
+              className={`min-h-11 min-w-0 flex-1 rounded-glam-sm border-l-[3px] px-3 py-2.5 transition hover:brightness-[0.98] ${
+                row.entry.bookingType === "EMERGENCY"
+                  ? "border-l-emergency bg-emergency-soft"
+                  : "border-l-brand-700 bg-brand-50"
+              }`}
+            >
+              <span className="flex items-center justify-between gap-2">
+                <span className="truncate text-[15px] font-bold text-ink">
+                  {row.entry.services.join(" + ") || "Booking"}, {row.entry.customerName}
+                </span>
+                {row.entry.bookingType === "EMERGENCY" ? (
+                  <span className="flex shrink-0 items-center gap-0.5 text-xs font-bold text-emergency-ink">
+                    <Lightning size={11} weight="fill" aria-hidden />
+                    Emergency
+                  </span>
+                ) : null}
+              </span>
+              <span data-numeric className="mt-0.5 block text-[13px] text-ink-muted">
+                {formatTime(row.entry.appointmentStartAt)}–
+                {formatTime(row.entry.appointmentEndAt)} · {row.entry.sector} ·{" "}
+                {formatMoney(row.entry.earningsMinor)}
+              </span>
+              <span data-numeric className="block text-xs text-ink-muted">
+                +{calendar.transitionBufferMinutes} min transition, held until{" "}
+                {formatTime(row.entry.reservedUntilAt)}
+              </span>
+            </Link>
+          </li>
+        ) : (
+          <li key={row.block.id} className="flex gap-3">
+            <span
+              data-numeric
+              className="w-12 shrink-0 pt-3 text-[13px] font-semibold text-ink-muted"
+            >
+              {formatTime(row.block.startAt)}
+            </span>
+            <div className="hatch-blocked min-w-0 flex-1 rounded-glam-sm border border-line px-3 py-2.5">
+              <span className="block bg-surface/85 text-[15px] font-semibold text-ink-muted">
+                Blocked · {row.block.reason}
+              </span>
+              <span data-numeric className="block bg-surface/85 text-[13px] text-ink-muted">
+                {formatTime(row.block.startAt)}–{formatTime(row.block.endAt)}
+              </span>
+            </div>
+          </li>
+        ),
+      )}
+    </ol>
+  );
+}
+
 /** Week view: seven day columns, each listing that day's commitments. */
-function WeekView({ calendar }: { calendar: CalendarPayload }) {
+function WeekView({
+  calendar,
+  availabilityHref,
+}: {
+  calendar: CalendarPayload;
+  availabilityHref: string;
+}) {
   const weekStart = new Date(calendar.from);
 
   const days = Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(weekStart);
-    day.setDate(day.getDate() + index);
-    const nextDay = new Date(day);
-    nextDay.setDate(nextDay.getDate() + 1);
+    const day = addDays(weekStart, index);
+    const nextDay = addDays(day, 1);
 
     return {
       date: day,
       isWorking: calendar.workingWindows.some(
-        (window) => window.dayOfWeek === day.getDay(),
+        (window) => window.dayOfWeek === ukWeekday(day),
       ),
       entries: calendar.entries.filter((entry) => {
         const startAt = new Date(entry.appointmentStartAt);
@@ -263,6 +412,7 @@ function WeekView({ calendar }: { calendar: CalendarPayload }) {
               {day.date.toLocaleDateString("en-GB", {
                 weekday: "short",
                 day: "numeric",
+                timeZone: "Europe/London",
               })}
             </p>
             {!day.isWorking ? (
@@ -314,7 +464,7 @@ function WeekView({ calendar }: { calendar: CalendarPayload }) {
       </div>
 
       <Legend bufferMinutes={calendar.transitionBufferMinutes} />
-      <EntryList entries={calendar.entries} />
+      <EntryList entries={calendar.entries} availabilityHref={availabilityHref} />
     </div>
   );
 }
@@ -354,11 +504,30 @@ function Legend({ bufferMinutes }: { bufferMinutes: number }) {
   );
 }
 
-function EntryList({ entries }: { entries: CalendarEntry[] }) {
+function EntryList({
+  entries,
+  availabilityHref,
+}: {
+  entries: CalendarEntry[];
+  availabilityHref: string;
+}) {
   if (entries.length === 0) {
     return (
       <div className="mt-4">
-        <EmptyState>No bookings in this period.</EmptyState>
+        <EmptyState
+          icon={<CalendarBlank size={24} weight="light" />}
+          action={
+            <Link
+              href={availabilityHref}
+              className="inline-flex min-h-11 items-center rounded-full px-5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-sunken"
+            >
+              Check your hours
+            </Link>
+          }
+        >
+          No bookings in this period. Requests are only sent for times inside
+          your working hours.
+        </EmptyState>
       </div>
     );
   }
@@ -402,7 +571,18 @@ function EntryList({ entries }: { entries: CalendarEntry[] }) {
 
 /** Minutes from local midnight of `dayStart` to `iso`. */
 function minutesInto(dayStart: Date, iso: string): number {
-  return (new Date(iso).getTime() - dayStart.getTime()) / 60_000;
+  // UK clock minutes, not elapsed minutes: on a clocks-change day 09:00 is
+  // 480 or 600 real minutes after midnight, but working hours say 540.
+  const at = new Date(iso);
+  const clock = ukParts(at);
+  const days = Math.round((Date.UTC(clock.year, clock.month - 1, clock.day) - ukDayUtc(dayStart)) / 86_400_000);
+  return days * 24 * 60 + clock.hour * 60 + clock.minute;
+}
+
+/** The UK calendar day of `at`, as a UTC midnight, for whole-day arithmetic. */
+function ukDayUtc(at: Date): number {
+  const day = ukParts(at);
+  return Date.UTC(day.year, day.month - 1, day.day);
 }
 
 /** Height of `[fromIso, toIso)` as a percentage of a `span`-minute timeline. */

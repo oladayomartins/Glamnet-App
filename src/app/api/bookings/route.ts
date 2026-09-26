@@ -3,18 +3,32 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { createBookingSchema } from "@/lib/api/schemas";
 import { createBooking } from "@/lib/server/booking-service";
+import { startPayment } from "@/lib/server/payment-flow";
 import { requireApiRole } from "@/lib/auth/api-guard";
+import { withoutPin } from "@/lib/api/redact";
 
-/** GET /api/bookings?customerId=…&type=…&status=… */
+/**
+ * GET /api/bookings?customerId=…&type=…&status=…
+ *
+ * Scoped to the caller: a customer sees their own bookings, a vendor their
+ * own jobs, an admin everything. It used to answer anyone, which exposed
+ * every customer's bookings to the open internet.
+ */
 export async function GET(request: Request) {
   try {
+    const auth = await requireApiRole(["CUSTOMER", "PROVIDER", "ADMIN"]);
+    if ("response" in auth) return auth.response;
+    const { user } = auth;
+
     const params = new URL(request.url).searchParams;
-    const customerId = params.get("customerId");
+    const customerId =
+      user.role === "CUSTOMER" ? (user.customerId ?? "none") : params.get("customerId");
     const bookingType = params.get("type");
     const status = params.get("status");
 
     const bookings = await prisma.booking.findMany({
       where: {
+        ...(user.role === "PROVIDER" ? { providerId: user.providerId ?? "none" } : {}),
         ...(customerId ? { customerId } : {}),
         ...(bookingType ? { bookingType } : {}),
         ...(status ? { status } : {}),
@@ -24,7 +38,9 @@ export async function GET(request: Request) {
       take: 100,
     });
 
-    return NextResponse.json({ bookings });
+    return NextResponse.json({
+      bookings: user.role === "CUSTOMER" ? bookings : bookings.map(withoutPin),
+    });
   } catch (error) {
     return errorResponse(error);
   }
@@ -33,10 +49,11 @@ export async function GET(request: Request) {
 /**
  * POST /api/bookings — place a booking.
  *
- * Corresponds to the point in the journey (spec §13) just after Stripe
- * pre-authorisation: the booking is created and immediately broadcast to the
- * top five eligible providers. Classification and price are recomputed here
- * from the request's intent, never read from the client.
+ * The booking is created, then its card taken: the response carries the
+ * Stripe client secret when the customer still has to enter a card, and the
+ * request is broadcast to the top five eligible vendors only once the card is
+ * secured. Classification and price are recomputed here from the request's
+ * intent, never read from the client.
  */
 export async function POST(request: Request) {
   try {
@@ -45,8 +62,19 @@ export async function POST(request: Request) {
     if ("response" in auth) return auth.response;
 
     const input = createBookingSchema.parse(await request.json());
-    const booking = await createBooking(input);
-    return NextResponse.json({ booking }, { status: 201 });
+    // A customer books as themselves — never as whichever id the body names.
+    if (auth.user.role === "CUSTOMER" && input.customerId !== auth.user.customerId) {
+      return NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "You can only book for yourself." } },
+        { status: 403 },
+      );
+    }
+    const created = await createBooking(input);
+    // The request goes out to vendors once the card is secured — straight
+    // away on the simulated gateway, after Stripe Elements otherwise.
+    const payment = await startPayment(created.id);
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id: created.id } });
+    return NextResponse.json({ booking, payment }, { status: 201 });
   } catch (error) {
     return errorResponse(error);
   }

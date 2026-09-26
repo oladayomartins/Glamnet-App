@@ -54,13 +54,13 @@ export async function POST(request: Request) {
 
     const dayStart = startOfLocalDay(date);
     const dayEnd = addDays(dayStart, 1);
-    const candidates = await loadCandidates(hub.sector, dayStart, dayEnd);
+    const candidates = await loadCandidates(hub, dayStart, dayEnd);
 
     const requiredServiceIds = services
       .filter((service) => service.kind !== "ADDON")
       .map((service) => service.id);
 
-    // Only providers who can actually deliver the basket may supply slots.
+    // Only vendors who can actually deliver the basket may supply slots.
     const qualified = candidates.filter((candidate) =>
       requiredServiceIds.every((serviceId) =>
         candidate.serviceIds.includes(serviceId),

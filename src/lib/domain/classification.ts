@@ -60,14 +60,14 @@ export function basketDurationMinutes(basket: readonly BasketLine[]): number {
 }
 
 /**
- * The period the provider's calendar must reserve (spec §2):
+ * The period the vendor's calendar must reserve (spec §2):
  * total service duration + 15-minute transition period.
  */
 export function reservedDurationMinutes(basket: readonly BasketLine[]): number {
   return basketDurationMinutes(basket) + TRANSITION_BUFFER_MINUTES;
 }
 
-/** Human-readable notice, e.g. "4h 35m" — used on the provider broadcast. */
+/** Human-readable notice, e.g. "4h 35m" — used on the vendor broadcast. */
 export function formatNotice(minutes: number): string {
   if (minutes < 0) return "overdue";
   const hours = Math.floor(minutes / 60);

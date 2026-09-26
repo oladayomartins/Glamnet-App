@@ -28,7 +28,15 @@
  * flash and no second stylesheet.
  */
 
-:root {
+:root,
+/*
+ * A region that is light in BOTH themes — the hero band sits on cream
+ * photography, so its controls and copy must render their light-mode selves
+ * whatever the theme is. Declared alongside `:root` rather than restating the
+ * palette, so the two cannot drift; a descendant's own declaration wins over
+ * the inherited dark one regardless of specificity.
+ */
+.on-light {
   /* --- Brand: metallic rose gold ------------------------------------- */
   --glam-rose-50: oklch(0.955 0.025 40);
   --glam-rose-100: oklch(0.92 0.04 38);
@@ -43,18 +51,21 @@
   /* --- Accent: champagne --------------------------------------------- */
   --glam-champagne-100: oklch(0.965 0.03 88);
   --glam-champagne-300: oklch(0.9 0.055 88);
-  --glam-champagne-500: oklch(0.86 0.065 88);
+  --glam-champagne-500: #d9b061;
   --glam-champagne-700: oklch(0.48 0.07 70);
 
   /* --- The metal -------------------------------------------------------
      Identical in both modes. It is the brand. */
+  /* Champagne Gold #D9B061 is the call-to-action colour (Open Marketplace
+     Directory §1); the metal is a light sheen across it, never a new hue. */
+  --glam-gold: #d9b061;
   --glam-metal: linear-gradient(
     135deg,
-    oklch(0.92 0.05 95) 0%,
-    oklch(0.86 0.065 88) 34%,
-    oklch(0.76 0.085 32) 100%
+    #ecd29a 0%,
+    var(--glam-gold) 45%,
+    #bf9642 100%
   );
-  --glam-metal-ink: oklch(0.18 0.015 40);
+  --glam-metal-ink: #121212;
 
   /* --- Surfaces --------------------------------------------------------
      In light mode elevation is carried by shadow first, surface second. */
@@ -93,6 +104,23 @@
   --glam-shadow-card: 0 6px 20px oklch(0.2 0.01 285 / 0.08);
   --glam-shadow-raised: 0 18px 46px oklch(0.2 0.01 285 / 0.1);
 
+  /* --- Fixed dark ------------------------------------------------------
+     Obsidian and its foreground, deliberately NOT redefined for dark mode.
+     Some surfaces are dark in both themes — the footer band and the hero
+     scrim sit over photographs and have to stay legible either way — and a
+     token that flipped underneath them would invert light text onto a light
+     ground. Everything else keeps using the pairs that do flip. */
+  /* Obsidian Black #121212 — the platform canvas (Directory §1). */
+  --glam-obsidian: #121212;
+  /*
+   * Sampled from the hero artwork's own negative space, so the band can run
+   * past the edges of the photograph without a seam. A palette entry would be
+   * close but not equal, and the join is exactly where that shows.
+   */
+  --glam-hero-ground: #f4e3d4;
+  --glam-on-obsidian: oklch(0.96 0.008 80);
+  --glam-on-obsidian-muted: oklch(0.74 0.01 80);
+
   /* --- Motion [§11] -----------------------------------------------------
      One easing curve for everything. No bounce, no spin, no confetti.
      The durations are tokens rather than literals because the same beat has
@@ -110,6 +138,121 @@
   --glam-pulse: 3200ms;
 }
 
+/* --- Page width ---------------------------------------------------------
+   Header, content and footer all read this, so they can never drift out of
+   alignment with each other. The default is the app width; the marketplace
+   pages widen it below.
+
+   Declared on `:root` ALONE, unlike the palette above. `.on-light` exists to
+   give a region its light-mode colours whatever the theme is, and it wins by
+   redeclaring what it inherits — which silently applied to this too, so the
+   hero band (an `.on-light` region) reset itself to the app width and its
+   copy sat 128px inside the header and every block beneath it. Layout tokens
+   do not belong in a colour scope. */
+:root {
+  --glam-page-max: 64rem;
+}
+
+/* --- Hero copy column ----------------------------------------------------
+   The width of the copy and the booking bar in the hero band.
+
+   A token rather than three Tailwind variants on one element. `lg:` and an
+   arbitrary `min-[1400px]:` have equal specificity, and Tailwind emits the
+   arbitrary one FIRST — checked by byte offset in the compiled stylesheet —
+   so `lg:max-w-[31rem]` won at 1440px and the bar's button spilled out of a
+   bar narrower than it was meant to be. Declaring the two media queries here,
+   in this order, settles it: the widths are read in the order written.
+
+   32rem between 1024 and 1400 keeps the copy clear of the photograph's own
+   column; 38rem from 1400 is the full-bleed arrangement, where the bar has
+   the cream half of the band to sit in. */
+:root {
+  --glam-hero-col: 34rem;
+}
+
+/* --- Hero band height ----------------------------------------------------
+   A floor on the hero band, read by the band itself AND by its loading
+   skeleton, so the two cannot drift.
+
+   The skeleton exists to reserve this band; if it reserves a different height
+   the page jumps at the moment the content lands, which is worse than the
+   wait it was covering. Sharing one declaration is what stops a change to the
+   hero's copy from silently breaking the skeleton — which is exactly what
+   happened when the headline gained a line and the phone band grew 111px.
+
+   The phone figure is the band's own natural height, rounded up: a floor
+   below the content does nothing, and one far above it leaves dead cream. It
+   wants re-measuring if the hero copy changes length again. */
+:root {
+  --glam-hero-band-min: 45.5rem;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --glam-hero-band-min: 37rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --glam-hero-col: 32rem;
+  }
+}
+
+@media (min-width: 1400px) {
+  :root {
+    --glam-hero-col: 38rem;
+  }
+}
+
+/* --- Hero photograph -----------------------------------------------------
+   Two arrangements, switched at the same 1400px the copy column uses.
+
+   In Tailwind because the breakpoints sort themselves; in plain CSS because
+   they do not. `lg:` and a 1400px variant have equal specificity and Tailwind
+   emitted the 1400px one FIRST — so at 1440 the `lg:` rules won and the band
+   quietly stayed in its column arrangement while every class on the element
+   said otherwise. Registering a named breakpoint did not change the order.
+   Here the order is the order written, and it is checked by reading the
+   image's computed box rather than trusting the classes.
+
+   Below 1400 the picture takes a column on the right, which is the only way
+   to keep the copy on cream when the crop zooms. From 1400 it runs the whole
+   band, with a wash of the band's own ground colour holding the left. */
+.hero-picture {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: 46%;
+}
+
+.hero-picture img {
+  object-position: 60% center;
+}
+
+.hero-fade-wash {
+  display: none;
+}
+
+@media (min-width: 1400px) {
+  .hero-picture {
+    inset-inline: 0;
+    width: auto;
+  }
+
+  .hero-picture img {
+    object-position: 72% center;
+  }
+
+  .hero-fade-edge {
+    display: none;
+  }
+
+  .hero-fade-wash {
+    display: block;
+  }
+}
+
 [data-theme="dark"] {
   /* Rose inverts to light-on-dark. Anything sitting *on* a brand fill must
      therefore flip too — that is what --glam-on-brand is for. */
@@ -122,17 +265,19 @@
   --glam-rose-900: oklch(0.88 0.065 36);
   --glam-on-brand: oklch(0.18 0.015 40);
 
-  --glam-champagne-100: oklch(0.33 0.04 88);
-  --glam-champagne-300: oklch(0.55 0.06 88);
-  --glam-champagne-500: oklch(0.88 0.06 88);
-  --glam-champagne-700: oklch(0.9 0.055 88);
+  --glam-champagne-100: #3a3120;
+  --glam-champagne-300: #8a7340;
+  --glam-champagne-500: #d9b061;
+  /* Gold as text on obsidian: headlines, prices, accents. */
+  --glam-champagne-700: #d9b061;
 
-  /* In dark mode elevation is carried by surface lightness first, shadow
-     second — the reverse of light mode. */
-  --glam-canvas: oklch(0.165 0.008 285);
-  --glam-surface: oklch(0.215 0.008 285);
-  --glam-surface-sunken: oklch(0.195 0.008 285);
-  --glam-border: oklch(0.3 0.01 285);
+  /* Obsidian Black #121212 canvas (Directory §1). In dark mode elevation is
+     carried by surface lightness first, shadow second — the reverse of light
+     mode — so cards step up from the canvas in small neutral increments. */
+  --glam-canvas: #121212;
+  --glam-surface: #1c1c1c;
+  --glam-surface-sunken: #171717;
+  --glam-border: #2f2b24;
 
   --glam-ink: oklch(0.96 0.008 80);
   --glam-ink-muted: oklch(0.74 0.01 80);
@@ -153,6 +298,7 @@
 }
 
 @theme inline {
+
   --color-brand-50: var(--glam-rose-50);
   --color-brand-100: var(--glam-rose-100);
   --color-brand-200: var(--glam-rose-200);
@@ -186,6 +332,10 @@
   --color-normal-soft: var(--glam-normal-soft);
   --color-warning: var(--glam-warning);
 
+  --color-obsidian: var(--glam-obsidian);
+  --color-on-obsidian: var(--glam-on-obsidian);
+  --color-on-obsidian-muted: var(--glam-on-obsidian-muted);
+
   --radius-glam: var(--glam-radius);
   --radius-glam-sm: var(--glam-radius-sm);
   --radius-glam-lg: var(--glam-radius-lg);
@@ -196,11 +346,18 @@
 
   --ease-glam: var(--glam-ease);
 
-  /* Two families only. No third font, ever. [§03]
-     `display` is the same family as `sans` — the display voice comes from
-     weight and tight tracking, not from a second typeface. */
+  /* Three families, and no more: sans for everything human, display for
+     headings only, mono for everything exact. [§03]
+
+     Display was the same family as sans, on the reasoning that the display
+     voice comes from weight and tracking rather than a second face. That
+     reasoning runs out at 700, which is where Instrument Sans stops — so a
+     heading could never be heavier than bold body copy. Bricolage Grotesque
+     is still a grotesque, so this adds a weight the page was missing without
+     adding a second personality. */
   --font-sans: var(--font-brand-sans), Helvetica, ui-sans-serif, sans-serif;
-  --font-display: var(--font-brand-sans), Helvetica, ui-sans-serif, sans-serif;
+  --font-display: var(--font-brand-display), var(--font-brand-sans), Helvetica,
+    ui-sans-serif, sans-serif;
   --font-mono: var(--font-brand-mono), ui-monospace, monospace;
 }
 
@@ -211,6 +368,37 @@ html {
 
 [data-theme="dark"] {
   color-scheme: dark;
+}
+
+/*
+ * The marketplace pages — home, search results, provider profiles — are the
+ * only ones with anything to gain from width: a 4:3 hero and card grids that
+ * reflow on `auto-fill`. Booking, auth, the customer's own bookings and the
+ * provider and admin screens stay at the app width, because a form or a
+ * paragraph set across 1280px is harder to read, not easier.
+ *
+ * Driven by a marker the page renders rather than by a list of routes here, so
+ * the two cannot fall out of step, and a page added tomorrow gets the app
+ * width unless it asks for more. A browser without `:has()` support gets that
+ * same default, which is why this widens rather than narrows.
+ */
+body:has([data-page-width="wide"]),
+body:has([data-page-width="full"]) {
+  --glam-page-max: 80rem;
+}
+
+/*
+ * A page with an edge-to-edge band — the marketplace hero — asks the shell to
+ * get out of the way and takes responsibility for containing its own sections.
+ *
+ * Done by widening the shell rather than by letting a child break out with
+ * `100vw` margins: a viewport unit includes the scrollbar, so that trick
+ * overhangs by the scrollbar width and shifts the band off-centre on every
+ * desktop that shows one.
+ */
+body:has([data-page-width="full"]) [data-page-shell] {
+  max-width: none;
+  padding-inline: 0;
 }
 
 body {
@@ -246,10 +434,49 @@ html:has([data-section-target]) {
   outline-offset: 2px;
 }
 
+/*
+ * A composite control — the search bar is a pill holding a text field, a
+ * select and a button — draws ONE ring around the whole shell rather than
+ * letting the bare field inside draw its own. The field has no border of its
+ * own, so the default ring landed as a rectangle floating inside the pill.
+ *
+ * The ring is not removed, only moved: `:has()` means it appears exactly when
+ * a field inside is keyboard-focused, and the submit button still draws its
+ * own, so every stop in the tab order is still visibly focused.
+ */
+.focus-shell:has(input:focus-visible, select:focus-visible) {
+  outline: 2px solid var(--glam-champagne-500);
+  outline-offset: 2px;
+}
+
+.focus-shell input:focus-visible,
+.focus-shell select:focus-visible {
+  outline: none;
+}
+
 /* Anything that ticks gets tabular figures. [§03] */
 time,
 [data-numeric] {
   font-variant-numeric: tabular-nums;
+}
+
+/* The vendor dashboard is a work tool: the customer footer ("Find a pro near
+   you", "Book a service") is clutter there. The footer stays data-free and in
+   the root layout; the vendor layout marks its pages instead. */
+body:has([data-vendor-app]) [data-site-footer] {
+  display: none;
+}
+
+/* The vendor app has its own pull-to-refresh; stop the browser's from
+   reloading the whole page over it. */
+html:has([data-vendor-app]) {
+  overscroll-behavior-y: contain;
+}
+
+/* A storefront's booking bar is fixed to the bottom of the screen; keep the
+   end of the page (reviews, footer) clear of it. */
+body:has([data-booking-bar]) {
+  padding-bottom: 5.5rem;
 }
 
 /* Respect the PWA safe area on notched devices. */
@@ -309,6 +536,19 @@ time,
   /* The emergency bolt. Deliberately the slowest thing on the screen. */
   .breathe-emergency {
     animation: glam-breathe var(--glam-breathe-emergency) var(--glam-ease) infinite;
+  }
+
+  /*
+   * A horizontally scrolling row. The scrollbar is hidden because the arrows
+   * and the partially visible next card already say it scrolls, and a native
+   * bar under a row of photographs reads as a rendering fault.
+   */
+  .rail {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .rail::-webkit-scrollbar {
+    display: none;
   }
 
   /* Map provider pins: 6px of travel, staggered so they never move in unison. */
@@ -404,6 +644,70 @@ time,
   }
 }
 
+/* --- Onboarding wizard ------------------------------------------------
+   A step slides in from the direction of travel; a selection pops. Both are
+   short and use the one brand curve, and the reduced-motion rule below turns
+   them off entirely. */
+@keyframes glam-step-forward {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes glam-step-back {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes glam-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes glam-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.step-forward {
+  animation: glam-step-forward var(--glam-screen) var(--glam-ease) both;
+}
+.step-back {
+  animation: glam-step-back var(--glam-screen) var(--glam-ease) both;
+}
+.pop-in {
+  animation: glam-pop var(--glam-sheet) var(--glam-ease) both;
+}
+.rise-in {
+  animation: glam-rise var(--glam-screen) var(--glam-ease) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -411,4 +715,45 @@ time,
     animation: none !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* --- Map pins (components/map-view.tsx) ---------------------------------- */
+.glam-map-pin {
+  position: relative;
+  display: block;
+  border-radius: 999px 999px 999px 4px;
+  transform: rotate(-45deg);
+  background: linear-gradient(135deg, #f0d898, #d9b061 55%, #b8923f);
+  border: 2px solid #121212;
+  box-shadow: 0 6px 14px rgba(18, 18, 18, 0.35);
+}
+.glam-map-pin::after {
+  content: "";
+  position: absolute;
+  inset: 30%;
+  border-radius: 999px;
+  background: #121212;
+}
+.glam-map-pin--hi {
+  border-color: #fff;
+}
+.leaflet-container {
+  font-family: var(--font-brand-sans), system-ui, sans-serif;
+}
+.glam-map-link {
+  font-weight: 700;
+  color: #121212;
+}
+.glam-map-sub {
+  margin-top: 2px;
+  color: #555;
+  font-size: 12px;
+}
+
+/* No sideways scrolling on any screen. Slide-in animations and full-bleed
+   sections can poke past the edge for a frame; `clip` stops the page
+   scrolling sideways without breaking sticky headers the way `hidden` does. */
+html,
+body {
+  overflow-x: clip;
 }

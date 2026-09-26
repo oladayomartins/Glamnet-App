@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { confirmPayment } from "@/lib/server/payment-flow";
 import { prisma } from "@/lib/server/prisma";
 import { requireUser } from "@/lib/auth/session";
 import { BookingTypeTag, Card, SectionTitle, LifecycleChip } from "@/components/ui";
@@ -9,9 +10,19 @@ import {
   formatDuration,
   formatMoney,
 } from "@/lib/format";
-import { BOOKING_STATUSES } from "@/lib/domain/types";
+import { BOOKING_STATUSES, PREMISES_SKIPPED_STATUSES } from "@/lib/domain/types";
+import { canDispute, effectiveSettlementStatus } from "@/lib/domain/completion";
+import { isImageKitConfigured } from "@/lib/imagekit";
+import { paymentGateway } from "@/lib/server/payments";
+import { GlamImage } from "@/components/glam-image";
 import { JobActions } from "./job-actions";
 import { ReviewForm } from "./review-form";
+import { CheckoutPin, DisputeForm } from "./customer-escrow";
+import { UpdateCard } from "./update-card";
+import { PushPrompt } from "@/components/push-prompt";
+import { CancelBooking, CancelTooLate } from "./cancel-booking";
+import { quoteCustomerCancellation, noShowAllowedFrom, PROVIDER_CANCELLABLE } from "@/lib/domain/cancellation";
+import { formatAppointment } from "@/lib/server/notifications";
 
 /**
  * Customer-facing booking record. Shows the classification and the surcharge
@@ -31,6 +42,8 @@ export default async function BookingPage({
       hub: true,
       provider: { select: { name: true, rating: true } },
       events: { orderBy: { createdAt: "asc" } },
+      completionPhotos: { orderBy: { position: "asc" } },
+      promoCode: { select: { code: true } },
     },
   });
 
@@ -46,17 +59,45 @@ export default async function BookingPage({
     (booking.providerId !== null && viewer.providerId === booking.providerId);
   if (!mayView) notFound();
 
-  const reachedIndex = BOOKING_STATUSES.indexOf(
-    booking.status as (typeof BOOKING_STATUSES)[number],
+  // Back from a bank's approval page (3-D Secure), or a checkout left
+  // half-way: ask Stripe whether the card went through, and if it did, move
+  // the booking on before showing it.
+  if (viewer.customerId === booking.customerId && booking.paymentStatus === "PENDING_AUTHORISATION") {
+    const secured = await confirmPayment(booking.id, booking.customerId).then(
+      () => true,
+      // Not through yet: the page offers to finish adding the card.
+      () => false,
+    );
+    if (secured) redirect(`/bookings/${booking.id}`);
+  }
+
+  const atPremises = booking.serviceLocation === "VENDOR_PREMISES";
+  const steps = BOOKING_STATUSES.filter(
+    (status) => !atPremises || !PREMISES_SKIPPED_STATUSES.includes(status),
   );
+  const reachedIndex = steps.indexOf(booking.status as (typeof steps)[number]);
+  const now = new Date();
+  const settlement = effectiveSettlementStatus(booking, now);
 
   // The same record is two screens: the customer's booking (§C-09) and the
-  // provider's job (§P-05). Which one you get is decided here, from the
+  // vendor's job (§P-05). Which one you get is decided here, from the
   // viewer's relationship to the booking, not from a query parameter.
   const isTheProvider =
     booking.providerId !== null && viewer.providerId === booking.providerId;
   const isTheCustomer = viewer.customerId === booking.customerId;
-  const awaitingReview = booking.status === "COMPLETED";
+  // Reviews follow the PIN release now, rather than gating it.
+  const awaitingReview = booking.status === "PAYMENT_RELEASED";
+  const mayDispute =
+    isTheCustomer &&
+    ((booking.status === "COMPLETED" && booking.settlementStatus === "OPEN") ||
+      canDispute(booking, now));
+  const ended = ["CANCELLED", "EXPIRED", "NO_SHOW"].includes(booking.status);
+  // What cancelling costs right now; the endpoint charges exactly this.
+  const cancelQuote = isTheCustomer && !ended ? quoteCustomerCancellation(booking, now) : null;
+  const arrivedAt = booking.events.findLast((event) => event.toStatus === "ARRIVED")?.createdAt ?? null;
+  const noShowFrom = isTheProvider
+    ? noShowAllowedFrom(booking, booking.serviceLocation === "VENDOR_PREMISES" ? null : arrivedAt)
+    : null;
 
   const priceRows = [
     ...booking.items.map((item) => ({
@@ -84,6 +125,18 @@ export default async function BookingPage({
         ]
       : []),
     { label: "Trust fee", amount: booking.trustFeeMinor, emphasis: false },
+    ...(booking.tipMinor > 0
+      ? [{ label: "Tip", amount: booking.tipMinor, emphasis: false }]
+      : []),
+    ...(booking.discountMinor > 0
+      ? [
+          {
+            label: `Promo${booking.promoCode ? ` ${booking.promoCode.code}` : ""}`,
+            amount: -booking.discountMinor,
+            emphasis: false,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -149,7 +202,7 @@ export default async function BookingPage({
             <Row label="Emergency threshold">
               {formatDuration(booking.thresholdMinutesUsed)}
             </Row>
-            <Row label="Provider time reserved">
+            <Row label="Vendor time reserved">
               {formatCustomerTime(booking.appointmentStartAt)}–
               {formatCustomerTime(booking.reservedUntilAt)} (
               {formatDuration(booking.reservedDurationMinutes)}, incl. transition)
@@ -179,24 +232,169 @@ export default async function BookingPage({
             <div className="flex justify-between gap-4 border-t border-line pt-2 text-base font-bold">
               <dt>Total</dt>
               <dd className="tabular-nums">
-                {formatMoney(booking.totalInvoicePriceMinor)}
+                {formatMoney(booking.totalInvoicePriceMinor + booking.tipMinor - booking.discountMinor)}
               </dd>
             </div>
           </dl>
+          <p className="mt-3 text-xs text-ink-muted">
+            {PAYMENT_LABELS[booking.paymentStatus] ?? booking.paymentStatus}
+            {paymentGateway().mode === "simulated" && booking.paymentStatus !== "NOT_STARTED"
+              ? " · test mode, no card was charged"
+              : ""}
+            {settlement === "CLOSED_UNCONTESTABLE" ? " · closed, no longer contestable" : ""}
+            {settlement === "DISPUTED" ? " · under dispute" : ""}
+            {settlement === "RESOLVED" ? " · dispute resolved" : ""}
+          </p>
+          {isTheProvider || viewer.role === "ADMIN" ? (
+            <dl className="mt-3 space-y-1 border-t border-line pt-3 text-xs text-ink-muted">
+              <Row label="Booked via">
+                {SOURCE_LABELS[booking.source] ?? booking.source}
+                {booking.firstDiscoveryBooking ? " · first discovery booking" : ""}
+              </Row>
+              <Row label="Marketplace commission">
+                {booking.commissionBps / 100}% ({formatMoney(booking.platformCommissionMinor)})
+              </Row>
+              {booking.processingFeeMinor > 0 ? (
+                <Row label="Card processing">{formatMoney(booking.processingFeeMinor)}</Row>
+              ) : null}
+              <Row label="Vendor payout">{formatMoney(booking.providerPayoutMinor)}</Row>
+            </dl>
+          ) : null}
         </Card>
       </div>
+
+      {isTheCustomer &&
+      (booking.paymentStatus === "AUTHORISATION_FAILED" ||
+        (booking.paymentStatus === "PENDING_AUTHORISATION" && ["REQUESTED", "ACCEPTED"].includes(booking.status))) &&
+      !["CANCELLED", "EXPIRED", "NO_SHOW", "COMPLETED", "DISPUTED"].includes(booking.status) ? (
+        <UpdateCard
+          bookingId={booking.id}
+          amountMinor={booking.totalInvoicePriceMinor + booking.tipMinor - booking.discountMinor}
+          reason={booking.paymentFailureReason}
+          unfinished={booking.paymentStatus === "PENDING_AUTHORISATION"}
+        />
+      ) : null}
+
+      {isTheCustomer && !["CANCELLED", "EXPIRED", "NO_SHOW", "REVIEWED"].includes(booking.status) ? (
+        <PushPrompt audience="CUSTOMER" />
+      ) : null}
+
+      {ended && booking.status !== "EXPIRED" ? (
+        <Card className="p-4">
+          <SectionTitle hint={booking.cancelledAt ? formatAppointment(booking.cancelledAt) : undefined}>
+            {booking.status === "NO_SHOW" ? "Missed appointment" : "Booking cancelled"}
+          </SectionTitle>
+          <p className="text-sm text-ink">
+            {booking.status === "NO_SHOW"
+              ? isTheCustomer
+                ? "Your vendor waited and marked this appointment as missed."
+                : "You marked the client as a no-show."
+              : booking.cancelledBy === "CUSTOMER"
+                ? isTheCustomer
+                  ? "You cancelled this booking."
+                  : "The client cancelled this booking."
+                : booking.cancelledBy === "PROVIDER"
+                  ? isTheCustomer
+                    ? "Your vendor had to cancel this booking."
+                    : "You cancelled this booking."
+                  : "This booking was cancelled."}{" "}
+            {booking.cancellationFeeMinor > 0
+              ? isTheProvider
+                ? `Under the cancellation policy you receive ${formatMoney(booking.cancellationFeePayoutMinor)}.`
+                : `A ${booking.status === "NO_SHOW" ? "missed-appointment" : "late-cancellation"} fee of ${formatMoney(booking.cancellationFeeMinor)} was charged; the rest of the hold was released.`
+              : isTheProvider
+                ? ""
+                : "Nothing was charged."}
+          </p>
+          {booking.cancelledBy === "PROVIDER" && isTheCustomer && booking.cancelledReason ? (
+            <p className="mt-2 text-sm text-ink-muted">{booking.cancelledReason.replace(/^Cancelled by the vendor: /, "")}</p>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {cancelQuote?.allowed ? (
+        <CancelBooking
+          bookingId={booking.id}
+          feeMinor={cancelQuote.feeMinor}
+          explanation={cancelQuote.explanation}
+          freeUntilLabel={cancelQuote.freeUntil ? formatAppointment(cancelQuote.freeUntil) : null}
+        />
+      ) : cancelQuote && booking.status === "ARRIVED" ? (
+        <CancelTooLate explanation={cancelQuote.explanation} />
+      ) : null}
+
+      {booking.settlementStatus === "RESOLVED" && (isTheCustomer || isTheProvider) ? (
+        <Card className="p-4">
+          <SectionTitle>Dispute resolved</SectionTitle>
+          <p className="text-sm text-ink">
+            {isTheCustomer
+              ? booking.refundedMinor > 0
+                ? `${formatMoney(booking.refundedMinor)} ${booking.refundId ? "has been refunded to your card" : "was taken off what you were charged"}.`
+                : "The GLAMNET team reviewed this booking and no refund was due."
+              : booking.clawbackMinor > 0
+                ? `${formatMoney(booking.clawbackMinor)} was deducted from your payout for this booking.`
+                : "The GLAMNET team reviewed this booking and your payout stands."}
+          </p>
+          {booking.disputeResolution ? (
+            <p className="mt-2 text-sm text-ink-muted">&ldquo;{booking.disputeResolution}&rdquo;</p>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {isTheCustomer && booking.status === "COMPLETED" && booking.completionPin ? (
+        <CheckoutPin pin={booking.completionPin} providerName={booking.provider?.name ?? "your vendor"} />
+      ) : null}
+
+      {booking.completionPhotos.length > 0 ? (
+        <Card className="p-4">
+          <SectionTitle hint="Taken by the vendor at checkout">Finished work</SectionTitle>
+          <div className="grid grid-cols-3 gap-2">
+            {booking.completionPhotos.map((photo, index) => (
+              <GlamImage
+                key={photo.id}
+                src={photo.url}
+                alt={`Finished work, photo ${index + 1}`}
+                width={400}
+                height={500}
+                className="aspect-[4/5] w-full rounded-glam-sm object-cover"
+              />
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       {isTheProvider ? (
         <JobActions
           bookingId={booking.id}
           status={booking.status}
+          serviceLocation={booking.serviceLocation}
           addressLine={booking.addressLine}
           addressUnlocked={booking.addressUnlocked}
+          paymentStatus={booking.paymentStatus}
+          imageUploadsEnabled={isImageKitConfigured()}
+          mayCancel={PROVIDER_CANCELLABLE.includes(booking.status)}
+          noShowFrom={noShowFrom?.toISOString() ?? null}
+          noShowFromLabel={noShowFrom ? formatAppointment(noShowFrom) : null}
         />
       ) : null}
 
       {isTheCustomer && awaitingReview && booking.provider ? (
         <ReviewForm bookingId={booking.id} providerName={booking.provider.name} />
+      ) : null}
+
+      {mayDispute ? (
+        <DisputeForm
+          bookingId={booking.id}
+          closesAt={booking.disputeWindowClosesAt?.toISOString() ?? null}
+          feeOnly={booking.cancellationFeeMinor > 0}
+        />
+      ) : null}
+
+      {booking.status === "DISPUTED" && booking.disputeReason ? (
+        <Card className="border-l-4 border-l-warning p-4">
+          <SectionTitle>Dispute filed</SectionTitle>
+          <p className="text-[15px] text-ink">{booking.disputeReason}</p>
+        </Card>
       ) : null}
 
       {booking.rating ? (
@@ -215,7 +413,7 @@ export default async function BookingPage({
       <Card className="p-4">
         <SectionTitle hint={`${booking.events.length} events`}>Progress</SectionTitle>
         <ol className="grid gap-1 sm:grid-cols-2">
-          {BOOKING_STATUSES.map((status, index) => {
+          {steps.map((status, index) => {
             const reached = reachedIndex >= index;
             const current = reachedIndex === index;
             return (
@@ -247,6 +445,24 @@ export default async function BookingPage({
     </div>
   );
 }
+
+const PAYMENT_LABELS: Record<string, string> = {
+  NOT_STARTED: "No card hold on this booking",
+  PENDING_AUTHORISATION: "Waiting for your card to be authorised",
+  AUTHORISED: "Held on your card — released by your PIN after the appointment",
+  ESCROW_RELEASED: "Paid to your vendor",
+  VOIDED: "Card hold released — nothing was charged",
+  CARD_SAVED: "Card saved — we'll hold the amount five days before your appointment",
+  AUTHORISATION_FAILED: "We couldn't hold your card — please update it",
+  REFUNDED: "Refunded to your card",
+  PARTIALLY_REFUNDED: "Partly refunded to your card",
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  BROADCAST: "Request broadcast",
+  MARKETPLACE: "Marketplace directory",
+  DIRECT_LINK: "Your direct link",
+};
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (

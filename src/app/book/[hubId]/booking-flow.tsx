@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle, Clock, Lightning, Plus } from "@phosphor-icons/react";
+import { CardHold } from "@/components/card-hold";
+import { CancellationTerms } from "@/components/cancellation-terms";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import {
   BookingTypeTag,
@@ -16,6 +18,15 @@ import {
 } from "@/components/ui";
 import { SearchingForProvider } from "./searching";
 import {
+  CURRENCY,
+  daysAhead,
+  serviceItem,
+  toMajor,
+  track,
+  trackBookingPlaced,
+} from "@/lib/analytics";
+import { AddressFields, EMPTY_ADDRESS, formatAddress, type AddressValue } from "@/components/address-fields";
+import {
   describeSurcharge,
   formatCustomerTime,
   formatDay,
@@ -23,7 +34,6 @@ import {
   formatMoney,
   toDateInputValue,
 } from "@/lib/format";
-import { BOOKING_STEPS, resolveStep } from "@/lib/domain/booking-steps";
 
 /** The transition period appended to every booking. Mirrors the server. */
 const TRANSITION_MINUTES = 15;
@@ -131,18 +141,23 @@ export function BookingFlow({
     key: string;
     quote: Quote;
   } | null>(null);
-  const [addressLine, setAddressLine] = useState("");
+  const [address, setAddress] = useState<AddressValue>(EMPTY_ADDRESS);
+  const addressLine = formatAddress(address);
   const [notes, setNotes] = useState("");
   const [referenceImage, setReferenceImage] = useState<UploadedImage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // The card step: shown once the booking exists, until Stripe has the card.
+  const [hold, setHold] = useState<{
+    id: string;
+    bookingType: string;
+    clientSecret: string;
+    mode: "payment" | "setup";
+  } | null>(null);
   const [confirmation, setConfirmation] = useState<{
     id: string;
     bookingType: string;
   } | null>(null);
-  // Which step the customer has navigated to. Never trusted on its own — see
-  // `activeStep` below, which clamps it against what the data actually allows.
-  const [step, setStep] = useState(1);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
   const surchargeLabel =
@@ -169,6 +184,14 @@ export function BookingFlow({
   );
 
   const toggleService = (id: string) => {
+    const service = services.find((entry) => entry.id === id);
+    if (service) {
+      track(selectedIds.includes(id) ? "remove_from_cart" : "add_to_cart", {
+        currency: CURRENCY,
+        value: toMajor(service.priceMinor),
+        items: [analyticsItem(service)],
+      });
+    }
     setSelectedIds((current) =>
       current.includes(id)
         ? current.filter((entry) => entry !== id)
@@ -178,6 +201,19 @@ export function BookingFlow({
   };
 
   const basketKey = [...selectedIds].sort().join(",");
+
+  const analyticsItem = (service: Service) =>
+    serviceItem({ ...service, city: hub.city });
+
+  const selectSlot = (startAt: string) => {
+    const slot = slots.find((entry) => entry.startAt === startAt);
+    track("select_time_slot", {
+      booking_channel: "broadcast",
+      booking_type: slot?.bookingType.toLowerCase(),
+      days_ahead: daysAhead(startAt),
+    });
+    setSelectedSlot(startAt);
+  };
 
   const slotsKey =
     selectedIds.length > 0 ? `${hub.id}|${basketKey}|${date}` : null;
@@ -196,14 +232,6 @@ export function BookingFlow({
 
   const quote =
     quoteKey && quoteResult?.key === quoteKey ? quoteResult.quote : null;
-
-  // Where the customer may stand, derived from the data rather than tracked
-  // alongside it — see lib/domain/booking-steps.ts for why that matters.
-  const { activeStep, furthestStep, blockedReason } = resolveStep({
-    requestedStep: step,
-    serviceCount: selectedIds.length,
-    hasSlot: selectedSlot !== null,
-  });
 
   /**
    * The selected slot's own classification, straight off the availability
@@ -282,6 +310,16 @@ export function BookingFlow({
     if (!selectedSlot || !customerId) return;
     setSubmitting(true);
     setError(null);
+    const items = selected.map(analyticsItem);
+    if (quote) {
+      track("begin_checkout", {
+        currency: CURRENCY,
+        value: toMajor(quote.price.totalMinor),
+        items,
+        booking_channel: "broadcast",
+        booking_type: quote.bookingType.toLowerCase(),
+      });
+    }
     try {
       const response = await fetch("/api/bookings", {
         method: "POST",
@@ -299,10 +337,27 @@ export function BookingFlow({
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error?.message ?? "Could not place the booking.");
-      setConfirmation({
-        id: payload.booking.id,
-        bookingType: payload.booking.bookingType,
-      });
+      if (payload.payment?.kind === "card") {
+        setHold({
+          id: payload.booking.id,
+          bookingType: payload.booking.bookingType,
+          clientSecret: payload.payment.clientSecret,
+          mode: payload.payment.mode,
+        });
+      } else {
+        trackBookingPlaced({
+          bookingId: payload.booking.id,
+          channel: "broadcast",
+          items,
+          totalMinor: quote?.price.totalMinor ?? 0,
+          bookingType: payload.booking.bookingType,
+          cardAuthorised: false,
+        });
+        setConfirmation({
+          id: payload.booking.id,
+          bookingType: payload.booking.bookingType,
+        });
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not place the booking.");
     } finally {
@@ -348,10 +403,10 @@ export function BookingFlow({
     ) : null;
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-8">
       <div>
         <Link href="/search" className="tap-44 text-sm text-ink-muted hover:text-brand-700">
-          ← All providers
+          ← All vendors
         </Link>
         <h1 className="mt-1 font-display text-2xl font-bold tracking-[-0.02em] text-ink">
           {hub.name}
@@ -362,198 +417,181 @@ export function BookingFlow({
         </p>
       </div>
 
-      <StepRail
-        current={activeStep}
-        furthest={furthestStep}
-        onGoTo={setStep}
-      />
-
-      {activeStep === 1 ? (
-        <>
-        {/* ============ C-04 — service builder =========================== */}
-        <section>
-          <SectionTitle hint={`${selected.length} selected`}>
-            Build your appointment
-          </SectionTitle>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {baseServices.map((service) => (
-              <ServiceRow
-                key={service.id}
-                service={service}
-                checked={selectedIds.includes(service.id)}
-                onToggle={() => toggleService(service.id)}
-              />
-            ))}
-          </div>
-
-          {addons.length > 0 ? (
-            <div className="mt-4">
-              <p className="mb-2 text-sm font-medium text-ink">Premium add-ons</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {addons.map((service) => (
-                  <ServiceRow
-                    key={service.id}
-                    service={service}
-                    checked={selectedIds.includes(service.id)}
-                    onToggle={() => toggleService(service.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {selected.length > 0 ? (
-            <Card className="mt-4 p-4">
-              <ul className="space-y-2">
-                {selected.map((service) => (
-                  <li
-                    key={service.id}
-                    className="flex items-baseline justify-between gap-3 text-sm"
-                  >
-                    <span className="text-ink">
-                      {service.name}
-                      <span className="ml-2 text-xs text-ink-muted">
-                        {formatDuration(service.durationMinutes)}
-                      </span>
-                    </span>
-                    <span data-numeric className="font-medium text-ink">
-                      {formatMoney(service.priceMinor)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-3 flex items-baseline justify-between gap-3 border-t border-line pt-3 text-sm">
-                <span className="text-ink-muted">Subtotal</span>
-                <span data-numeric className="font-semibold text-ink">
-                  {formatMoney(previewSubtotal)}
-                </span>
-              </div>
-              {/* No total until a time is chosen: the travel fee and any
-                  emergency rate both depend on it, and a placeholder figure that
-                  later moves is worse than no figure at all. */}
-              <p className="mt-1 text-xs text-ink-muted">
-                Total calculated at scheduling
-              </p>
-
-              {durationStrip ? <div className="mt-3">{durationStrip}</div> : null}
-            </Card>
-          ) : null}
-        </section>
-
-      
-        {/* ============ C-05 — reference upload (optional) =============== */}
-        <section>
-          <SectionTitle hint="Optional">Add a reference</SectionTitle>
-          <Card className="p-4">
-            {imageUploadsEnabled ? (
-              <ImageUpload
-                folder="reference"
-                value={referenceImage}
-                onChange={setReferenceImage}
-                label="Reference photo"
-                hint="Show the look you want, so your provider arrives prepared."
-                disabled={submitting}
-              />
-            ) : (
-              /* No media library configured: say so rather than showing a
-                 control that cannot work. */
-              <p className="text-[15px] text-ink-muted">
-                Photo uploads are unavailable right now. You can describe the look
-                you want in the notes at checkout instead.
-              </p>
-            )}
-            <p className="mt-3 text-xs text-ink-muted">
-              A clear photo of the finished look, in good light. Your provider
-              sees it the moment they accept, so they arrive with the right kit.
-              You can skip this and add one later.
-            </p>
-          </Card>
-        </section>
-
-      
-        </>
-      ) : null}
-
-      {activeStep === 2 ? (
-        <>
-        {/* ============ C-06 — date & time =============================== */}
-        <section>
-          <SectionTitle
-            hint={
-              previewDuration > 0
-                ? `${formatDuration(previewDuration + TRANSITION_MINUTES)} reserved`
-                : undefined
-            }
-          >
-            Pick a date and time
-          </SectionTitle>
-
-          <div className="space-y-4">
-            <DateStrip
-              value={date}
-              onChange={(next) => {
-                setDate(next);
-                setSelectedSlot(null);
-              }}
+      {/* ============ C-04 — service builder =========================== */}
+      <section>
+        <SectionTitle hint="Step 1 of 3">Build your appointment</SectionTitle>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {baseServices.map((service) => (
+            <ServiceRow
+              key={service.id}
+              service={service}
+              checked={selectedIds.includes(service.id)}
+              onToggle={() => toggleService(service.id)}
             />
+          ))}
+        </div>
 
-            {selectedIds.length === 0 ? (
-              <EmptyState
-                icon={<Plus size={24} weight="light" />}
-                title="Choose a service first"
-              >
-                Availability depends on how long your appointment runs, so pick
-                what you want above and the real times will appear here.
-              </EmptyState>
-            ) : slotsLoading ? (
-              <SlotGridSkeleton />
-            ) : slots.length === 0 ? (
-              <EmptyState
-                icon={<Clock size={24} weight="light" />}
-                title="No room on that day"
-                action={
+        {addons.length > 0 ? (
+          <div className="mt-4">
+            <p className="mb-2 text-sm font-medium text-ink">Premium add-ons</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {addons.map((service) => (
+                <ServiceRow
+                  key={service.id}
+                  service={service}
+                  checked={selectedIds.includes(service.id)}
+                  onToggle={() => toggleService(service.id)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {selected.length > 0 ? (
+          <Card className="mt-4 p-4">
+            <ul className="space-y-2">
+              {selected.map((service) => (
+                <li
+                  key={service.id}
+                  className="flex items-baseline justify-between gap-3 text-sm"
+                >
+                  <span className="text-ink">
+                    {service.name}
+                    <span className="ml-2 text-xs text-ink-muted">
+                      {formatDuration(service.durationMinutes)}
+                    </span>
+                  </span>
+                  <span data-numeric className="font-medium text-ink">
+                    {formatMoney(service.priceMinor)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-3 flex items-baseline justify-between gap-3 border-t border-line pt-3 text-sm">
+              <span className="text-ink-muted">Subtotal</span>
+              <span data-numeric className="font-semibold text-ink">
+                {formatMoney(previewSubtotal)}
+              </span>
+            </div>
+            {/* No total until a time is chosen: the travel fee and any
+                emergency rate both depend on it, and a placeholder figure that
+                later moves is worse than no figure at all. */}
+            <p className="mt-1 text-xs text-ink-muted">
+              Total calculated at scheduling
+            </p>
+
+            {durationStrip ? <div className="mt-3">{durationStrip}</div> : null}
+          </Card>
+        ) : null}
+      </section>
+
+      {/* ============ C-05 — reference upload (optional) =============== */}
+      <section>
+        <SectionTitle hint="Optional">Add a reference</SectionTitle>
+        <Card className="p-4">
+          {imageUploadsEnabled ? (
+            <ImageUpload
+              folder="reference"
+              value={referenceImage}
+              onChange={setReferenceImage}
+              label="Reference photo"
+              hint="Show the look you want, so your vendor arrives prepared."
+              disabled={submitting}
+            />
+          ) : (
+            /* No media library configured: say so rather than showing a
+               control that cannot work. */
+            <p className="text-[15px] text-ink-muted">
+              Photo uploads are unavailable right now. You can describe the look
+              you want in the notes at checkout instead.
+            </p>
+          )}
+          <p className="mt-3 text-xs text-ink-muted">
+            A clear photo of the finished look, in good light. Your vendor
+            sees it the moment they accept, so they arrive with the right kit.
+            You can skip this and add one later.
+          </p>
+        </Card>
+      </section>
+
+      {/* ============ C-06 — date & time =============================== */}
+      <section>
+        <SectionTitle
+          hint={
+            previewDuration > 0
+              ? `${formatDuration(previewDuration + TRANSITION_MINUTES)} reserved`
+              : "Step 2 of 3"
+          }
+        >
+          Pick a date and time
+        </SectionTitle>
+
+        <div className="space-y-4">
+          <DateStrip
+            value={date}
+            onChange={(next) => {
+              setDate(next);
+              setSelectedSlot(null);
+            }}
+          />
+
+          {selectedIds.length === 0 ? (
+            <EmptyState
+              icon={<Plus size={24} weight="light" />}
+              title="Choose a service first"
+            >
+              Availability depends on how long your appointment runs, so pick
+              what you want above and the real times will appear here.
+            </EmptyState>
+          ) : slotsLoading ? (
+            <SlotGridSkeleton />
+          ) : slots.length === 0 ? (
+            <EmptyState
+              icon={<Clock size={24} weight="light" />}
+              title="No room on that day"
+              action={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDate(shiftDate(date, 1));
+                    setSelectedSlot(null);
+                  }}
+                  className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
+                >
+                  Try {formatDay(shiftDate(date, 1))}
+                </button>
+              }
+            >
+              Nobody in {hub.sector} can fit{" "}
+              {formatDuration(previewDuration)} plus the 15-minute transition on{" "}
+              {formatDay(date)}.
+            </EmptyState>
+          ) : (
+            <>
+              <SlotGrid
+                slots={slots}
+                selected={selectedSlot}
+                onSelect={selectSlot}
+              />
+              <SlotLegend />
+              {!hasFreeSlot ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-glam border border-line bg-sunken p-4">
+                  <p className="text-[15px] text-ink">
+                    Every time on {formatDay(date)} is already committed.
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
                       setDate(shiftDate(date, 1));
                       setSelectedSlot(null);
                     }}
-                    className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
+                    className="inline-flex min-h-11 items-center rounded-full bg-metal px-5 text-sm font-bold text-metal-ink active:scale-[0.98]"
                   >
                     Try {formatDay(shiftDate(date, 1))}
                   </button>
-                }
-              >
-                Nobody in {hub.sector} can fit{" "}
-                {formatDuration(previewDuration)} plus the 15-minute transition on{" "}
-                {formatDay(date)}.
-              </EmptyState>
-            ) : (
-              <>
-                <SlotGrid
-                  slots={slots}
-                  selected={selectedSlot}
-                  onSelect={setSelectedSlot}
-                />
-                <SlotLegend />
-                {!hasFreeSlot ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-glam border border-line bg-sunken p-4">
-                    <p className="text-[15px] text-ink">
-                      Every time on {formatDay(date)} is already committed.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDate(shiftDate(date, 1));
-                        setSelectedSlot(null);
-                      }}
-                      className="inline-flex min-h-11 items-center rounded-full bg-metal px-5 text-sm font-bold text-metal-ink active:scale-[0.98]"
-                    >
-                      Try {formatDay(shiftDate(date, 1))}
-                    </button>
-                  </div>
-                ) : null}
+                </div>
+              ) : null}
             </>
           )}
 
@@ -569,138 +607,165 @@ export function BookingFlow({
         </div>
       </section>
 
-      
-        </>
-      ) : null}
+      {/* ============ C-07 — checkout & pre-auth ======================= */}
+      <section>
+        <SectionTitle hint="Step 3 of 3">Confirm and pay</SectionTitle>
 
-      {activeStep === 3 ? (
-        <>
-        {/* ============ C-07 — checkout & pre-auth ======================= */}
-        <section>
-          <SectionTitle>Confirm and pay</SectionTitle>
-
-          {!quote ? (
-            <EmptyState icon={<Clock size={24} weight="light" />}>
-              Working out your price. Every line is itemised here before anything
-              is authorised.
-            </EmptyState>
-          ) : (
-            <div className="space-y-4">
-              <Card className="overflow-hidden">
-                {quote.isEmergency ? (
-                  <div className="flex items-start gap-3 border-b border-emergency/25 bg-emergency-soft px-4 py-3">
-                    <span
-                      aria-hidden
-                      className="breathe-emergency mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emergency text-on-emergency"
-                    >
-                      <Lightning size={16} weight="fill" />
-                    </span>
-                    <div>
-                      <p className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-emergency-ink">
-                        Emergency
-                      </p>
-                      <p className="mt-1 text-[15px] text-ink">
-                        You are booking {quote.noticeLabel} ahead, inside our{" "}
-                        {thresholdHours}-hour window, so the emergency rate below
-                        applies.
-                      </p>
-                    </div>
+        {!quote ? (
+          <EmptyState icon={<Clock size={24} weight="light" />}>
+            Pick a time above and your full price appears here, itemised, before
+            anything is authorised.
+          </EmptyState>
+        ) : (
+          <div className="space-y-4">
+            <Card className="overflow-hidden">
+              {quote.isEmergency ? (
+                <div className="flex items-start gap-3 border-b border-emergency/25 bg-emergency-soft px-4 py-3">
+                  <span
+                    aria-hidden
+                    className="breathe-emergency mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emergency text-on-emergency"
+                  >
+                    <Lightning size={16} weight="fill" />
+                  </span>
+                  <div>
+                    <p className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-emergency-ink">
+                      Emergency
+                    </p>
+                    <p className="mt-1 text-[15px] text-ink">
+                      You are booking {quote.noticeLabel} ahead, inside our{" "}
+                      {thresholdHours}-hour window, so the emergency rate below
+                      applies.
+                    </p>
                   </div>
-                ) : null}
+                </div>
+              ) : null}
 
-                <div className="p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
-                    <div>
-                      <p className="font-display text-lg font-semibold text-ink">
-                        {formatDay(quote.appointmentStartAt)},{" "}
-                        {formatCustomerTime(quote.appointmentStartAt)}–
-                        {formatCustomerTime(quote.appointmentEndAt)}
-                      </p>
-                      <p className="text-xs text-ink-muted" data-numeric>
-                        {formatDuration(quote.serviceDurationMinutes)} of services ·{" "}
-                        {quote.noticeLabel} notice · {quote.providersAvailable}{" "}
-                        provider{quote.providersAvailable === 1 ? "" : "s"} free
-                      </p>
-                    </div>
-                    <BookingTypeTag bookingType={quote.bookingType} />
+              <div className="p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+                  <div>
+                    <p className="font-display text-lg font-semibold text-ink">
+                      {formatDay(quote.appointmentStartAt)},{" "}
+                      {formatCustomerTime(quote.appointmentStartAt)}–
+                      {formatCustomerTime(quote.appointmentEndAt)}
+                    </p>
+                    <p className="text-xs text-ink-muted" data-numeric>
+                      {formatDuration(quote.serviceDurationMinutes)} of services ·{" "}
+                      {quote.noticeLabel} notice · {quote.providersAvailable}{" "}
+                      provider{quote.providersAvailable === 1 ? "" : "s"} free
+                    </p>
                   </div>
+                  <BookingTypeTag bookingType={quote.bookingType} />
+                </div>
 
-                  {/* Every line, always. Nothing is collapsed behind a
-                      "details" disclosure and no surcharge is unnamed. */}
-                  <dl className="mt-3 space-y-1.5">
-                    {quote.price.lines.map((line) => (
-                      <div
-                        key={line.key}
-                        className={`flex items-baseline justify-between gap-4 text-sm ${
-                          line.emphasis === "emergency"
-                            ? "font-bold text-emergency-ink"
-                            : "text-ink"
-                        }`}
-                      >
-                        <dt>{line.label}</dt>
-                        <dd data-numeric className="text-right">
-                          {formatMoney(line.amountMinor)}
-                        </dd>
-                      </div>
-                    ))}
+                {/* Every line, always. Nothing is collapsed behind a
+                    "details" disclosure and no surcharge is unnamed. */}
+                <dl className="mt-3 space-y-1.5">
+                  {quote.price.lines.map((line) => (
                     <div
-                      className={`flex items-baseline justify-between gap-4 border-t border-line pt-3 ${
-                        quote.isEmergency ? "text-emergency-ink" : "text-ink"
+                      key={line.key}
+                      className={`flex items-baseline justify-between gap-4 text-sm ${
+                        line.emphasis === "emergency"
+                          ? "font-bold text-emergency-ink"
+                          : "text-ink"
                       }`}
                     >
-                      <dt className="text-base font-bold">Total</dt>
-                      <dd
-                        data-numeric
-                        className={`text-right text-xl font-bold ${
-                          quote.isEmergency ? "" : "text-accent-700"
-                        }`}
-                      >
-                        {formatMoney(quote.price.totalMinor)}
+                      <dt>{line.label}</dt>
+                      <dd data-numeric className="text-right">
+                        {formatMoney(line.amountMinor)}
                       </dd>
                     </div>
-                  </dl>
-                </div>
-              </Card>
+                  ))}
+                  <div
+                    className={`flex items-baseline justify-between gap-4 border-t border-line pt-3 ${
+                      quote.isEmergency ? "text-emergency-ink" : "text-ink"
+                    }`}
+                  >
+                    <dt className="text-base font-bold">Total</dt>
+                    <dd
+                      data-numeric
+                      className={`text-right text-xl font-bold ${
+                        quote.isEmergency ? "" : "text-accent-700"
+                      }`}
+                    >
+                      {formatMoney(quote.price.totalMinor)}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </Card>
 
+            <Card className="space-y-3 p-4">
+              <p className="text-sm text-ink-muted">
+                Booking as{" "}
+                <span className="font-medium text-ink">{customerName}</span>
+              </p>
+
+              <div>
+                <AddressFields value={address} onChange={setAddress} />
+                <p className="mt-1 text-xs text-ink-muted">Only released to your vendor once they are on their way.</p>
+              </div>
+
+              <label className="block">
+                <span className="text-sm font-medium text-ink">
+                  Notes <span className="text-ink-muted">(optional)</span>
+                </span>
+                <textarea
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={2}
+                  className="mt-1 min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 py-2 text-[15px] outline-none transition duration-[180ms] focus:border-brand-400"
+                />
+              </label>
+            </Card>
+
+            <CancellationTerms appointmentStartAt={quote.appointmentStartAt} />
+
+            {hold ? (
               <Card className="space-y-3 p-4">
-                <p className="text-sm text-ink-muted">
-                  Booking as{" "}
-                  <span className="font-medium text-ink">{customerName}</span>
+                <p className="font-display font-semibold text-ink">Add your card</p>
+                <CardHold
+                  bookingId={hold.id}
+                  clientSecret={hold.clientSecret}
+                  amountMinor={quote.price.totalMinor}
+                  mode={hold.mode}
+                  onAuthorised={() => {
+                    trackBookingPlaced({
+                      bookingId: hold.id,
+                      channel: "broadcast",
+                      items: selected.map(analyticsItem),
+                      totalMinor: quote.price.totalMinor,
+                      bookingType: hold.bookingType,
+                      cardAuthorised: true,
+                    });
+                    setConfirmation({ id: hold.id, bookingType: hold.bookingType });
+                  }}
+                />
+                <p className="text-xs text-ink-muted">
+                  Your request goes out to vendors as soon as your card is in place.
                 </p>
-
-                <label className="block">
-                  <span className="text-sm font-medium text-ink">Your address</span>
-                  <input
-                    value={addressLine}
-                    onChange={(event) => setAddressLine(event.target.value)}
-                    placeholder="Street, town, postcode"
-                    className="mt-1 min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 py-2 text-[15px] outline-none transition duration-[180ms] focus:border-brand-400"
-                  />
-                  <span className="mt-1 block text-xs text-ink-muted">
-                    Only released to your provider once they are on their way.
-                  </span>
-                </label>
-
-                <label className="block">
-                  <span className="text-sm font-medium text-ink">
-                    Notes <span className="text-ink-muted">(optional)</span>
-                  </span>
-                  <textarea
-                    value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
-                    rows={2}
-                    className="mt-1 min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 py-2 text-[15px] outline-none transition duration-[180ms] focus:border-brand-400"
-                  />
-                </label>
               </Card>
-
-            </div>
-          )}
-        </section>
-
-      
-        </>
-      ) : null}
+            ) : (
+              <Button
+                variant={quote.isEmergency ? "emergency" : "primary"}
+                onClick={submit}
+                disabled={submitting || !customerId}
+                className="w-full"
+              >
+                {submitting
+                  ? "Just a moment…"
+                  : quote.isEmergency
+                    ? "Confirm emergency booking"
+                    : "Confirm booking"}
+              </Button>
+            )}
+            <p className="text-center text-xs text-ink-muted">
+              We hold {formatMoney(quote.price.totalMinor)} on your card and only
+              take it when you give your vendor your PIN at the end of the
+              appointment.
+            </p>
+          </div>
+        )}
+      </section>
 
       {error ? (
         <p
@@ -710,212 +775,9 @@ export function BookingFlow({
           {error}
         </p>
       ) : null}
-
-      <TotalBar
-        step={activeStep}
-        serviceCount={selected.length}
-        previewSubtotal={previewSubtotal}
-        previewDuration={previewDuration}
-        totalMinor={quote?.price.totalMinor ?? null}
-        isEmergency={quote?.isEmergency ?? false}
-        blockedReason={blockedReason}
-        submitting={submitting}
-        onBack={activeStep > 1 ? () => setStep(activeStep - 1) : null}
-        onNext={
-          activeStep === 3
-            ? submit
-            : activeStep < furthestStep
-              ? () => setStep(activeStep + 1)
-              : null
-        }
-        disabled={activeStep === 3 && (submitting || !customerId)}
-      />
     </div>
   );
 }
-
-/**
- * The step rail (§C-04–C-07, restructured).
- *
- * Splitting one long form into steps is the single biggest mobile improvement
- * available here: the old page asked for services, a reference photo, a date,
- * a time, an address and notes all on one scroll, which on a phone is a wall.
- *
- * Note what GLAMNET deliberately does *not* have between "Services" and
- * "Time": a "choose your professional" step. Booking broadcasts to every
- * eligible provider and the first to accept takes the job, so a picker there
- * would be selling a choice the matching engine does not offer.
- *
- * Completed steps are buttons; steps ahead are plain text. A customer can go
- * back and change their basket without losing the time they picked.
- */
-function StepRail({
-  current,
-  furthest,
-  onGoTo,
-}: {
-  current: number;
-  furthest: number;
-  onGoTo: (step: number) => void;
-}) {
-  return (
-    <nav aria-label="Booking steps">
-      <ol className="flex items-center gap-1.5">
-        {BOOKING_STEPS.map((label, index) => {
-          const step = index + 1;
-          const isCurrent = step === current;
-          const isReachable = step <= furthest;
-          const isDone = step < current;
-
-          return (
-            <li key={label} className="flex min-w-0 flex-1 items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => isReachable && onGoTo(step)}
-                disabled={!isReachable}
-                aria-current={isCurrent ? "step" : undefined}
-                className={`flex min-h-11 w-full min-w-0 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-semibold transition duration-[180ms] ease-glam ${
-                  isCurrent
-                    ? "bg-ink text-canvas"
-                    : isReachable
-                      ? "bg-sunken text-ink hover:bg-brand-50"
-                      : "text-ink-muted/60"
-                }`}
-              >
-                {isDone ? (
-                  <CheckCircle size={15} weight="fill" aria-hidden />
-                ) : (
-                  <span
-                    data-numeric
-                    aria-hidden
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                      isCurrent ? "bg-canvas/20" : "bg-surface"
-                    }`}
-                  >
-                    {step}
-                  </span>
-                )}
-                <span className="truncate">{label}</span>
-                <span className="sr-only">
-                  {isDone ? " (completed)" : isReachable ? "" : " (not yet available)"}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
-  );
-}
-
-/**
- * The running total, pinned to the bottom of every step.
- *
- * The rule it follows is the same one the old single-page builder followed,
- * and the reason it is worth keeping: **no total until a time is chosen.**
- * The travel fee and any emergency rate both depend on when the appointment
- * is, so a headline figure on step 1 that moved on step 2 would be worse than
- * no figure at all. Until then the bar shows the service subtotal, labelled as
- * a subtotal.
- */
-function TotalBar({
-  step,
-  serviceCount,
-  previewSubtotal,
-  previewDuration,
-  totalMinor,
-  isEmergency,
-  blockedReason,
-  submitting,
-  onBack,
-  onNext,
-  disabled,
-}: {
-  step: number;
-  serviceCount: number;
-  previewSubtotal: number;
-  previewDuration: number;
-  totalMinor: number | null;
-  isEmergency: boolean;
-  blockedReason: string | null;
-  submitting: boolean;
-  onBack: (() => void) | null;
-  onNext: (() => void) | null;
-  disabled: boolean;
-}) {
-  const showTotal = totalMinor !== null && step === 3;
-
-  return (
-    <div className="safe-bottom sticky bottom-0 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          {serviceCount === 0 ? (
-            <p className="text-sm text-ink-muted">No services yet</p>
-          ) : (
-            <>
-              <p
-                data-numeric
-                className={`text-lg font-bold ${
-                  isEmergency ? "text-emergency-ink" : "text-ink"
-                }`}
-              >
-                {formatMoney(showTotal ? totalMinor : previewSubtotal)}
-              </p>
-              <p data-numeric className="truncate text-xs text-ink-muted">
-                {showTotal ? "Total" : "Services subtotal"} · {serviceCount}{" "}
-                {serviceCount === 1 ? "service" : "services"} ·{" "}
-                {formatDuration(previewDuration)}
-              </p>
-            </>
-          )}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold text-ink-muted transition duration-[180ms] hover:bg-sunken hover:text-ink"
-            >
-              Back
-            </button>
-          ) : null}
-
-          {blockedReason ? (
-            /* A disabled button with no explanation is a dead end. The reason
-               sits where the button would be, so the customer knows what to
-               do rather than tapping something inert. */
-            <p className="max-w-[10rem] text-right text-xs text-ink-muted">
-              {blockedReason}
-            </p>
-          ) : (
-            <Button
-              variant={isEmergency && step === 3 ? "emergency" : "primary"}
-              onClick={() => onNext?.()}
-              disabled={disabled || onNext === null}
-            >
-              {step === 3
-                ? submitting
-                  ? "Authorising…"
-                  : isEmergency
-                    ? "Confirm emergency"
-                    : "Confirm booking"
-                : "Continue"}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {step === 3 && totalMinor !== null ? (
-        <p className="mt-2 text-center text-xs text-ink-muted">
-          We pre-authorise {formatMoney(totalMinor)} now and release it to your
-          provider after the appointment is completed and rated.
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 
 /**
  * The date strip (§C-06).
@@ -1058,7 +920,7 @@ function SlotLegend() {
       </li>
       <li className="flex items-center gap-1.5">
         <span aria-hidden className="h-3 w-5 rounded-[4px] bg-sunken" />
-        <span className="line-through">No provider free</span>
+        <span className="line-through">No vendor free</span>
       </li>
     </ul>
   );

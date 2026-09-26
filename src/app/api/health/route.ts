@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isEmailConfigured } from "@/lib/server/email";
+import { imageKitEndpoint, isImageKitConfigured } from "@/lib/imagekit";
 import { prisma } from "@/lib/server/prisma";
 
 /**
@@ -118,6 +119,19 @@ export async function GET() {
     // never echoed.
     emailConfigured: isEmailConfigured(),
     emailFromConfigured: Boolean(process.env.RESEND_FROM?.trim()),
+    // Images degrade to the brand gradient when this is unset, which is the
+    // intended failure mode but an invisible one: a page of placeholders looks
+    // like a design, not a misconfiguration. Reported because it is a real
+    // deployment question, and the endpoint is public by nature — it appears
+    // in the URL of every image the site serves.
+    imageKitConfigured: isImageKitConfigured(),
+    imageKitEndpoint: imageKitEndpoint(),
+    imageKitPublicKeyConfigured: Boolean(
+      process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY?.trim(),
+    ),
+    imageKitPrivateKeyConfigured: Boolean(
+      process.env.IMAGEKIT_PRIVATE_KEY?.trim(),
+    ),
     datasource: describeDatasource(process.env.DATABASE_URL),
     vercelEnv: process.env.VERCEL_ENV ?? null,
     checkedAt: new Date().toISOString(),

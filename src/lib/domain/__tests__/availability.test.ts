@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { uk, ukAt } from "@/lib/domain/__tests__/uk-clock";
 import {
   buildDayGrid,
   buildSlotOptions,
@@ -11,7 +12,7 @@ import {
 import { selectBroadcastTargets, type MatchCandidate } from "../matching";
 
 /** Local-time helper: tests assert on wall-clock behaviour, as the UI does. */
-const local = (iso: string) => new Date(iso);
+const local = uk;
 
 const ALL_WEEK: WorkingWindow[] = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
   dayOfWeek,
@@ -117,7 +118,7 @@ describe("isProviderAvailable", () => {
     ).toBe(false);
   });
 
-  it("rejects a day the provider does not work", () => {
+  it("rejects a day the vendor does not work", () => {
     const weekdaysOnly = schedule({
       workingWindows: [{ dayOfWeek: 1, startMinute: 540, endMinute: 1_080 }],
     });
@@ -129,7 +130,7 @@ describe("isProviderAvailable", () => {
 });
 
 describe("buildSlotOptions", () => {
-  it("offers only slots at least one provider can serve", () => {
+  it("offers only slots at least one vendor can serve", () => {
     const slots = buildSlotOptions(
       local("2026-04-01T00:00:00"),
       120,
@@ -139,10 +140,10 @@ describe("buildSlotOptions", () => {
 
     expect(slots.length).toBeGreaterThan(0);
     // First legal start is 09:00; last is 17:45 (ends 19:45 + 15min = 20:00).
-    expect(slots[0].startAt.getHours()).toBe(9);
+    expect(ukAt(slots[0].startAt).hour).toBe(9);
     const last = slots[slots.length - 1];
-    expect(last.startAt.getHours()).toBe(17);
-    expect(last.startAt.getMinutes()).toBe(45);
+    expect(ukAt(last.startAt).hour).toBe(17);
+    expect(ukAt(last.startAt).minute).toBe(45);
   });
 
   it("never offers a slot in the past", () => {
@@ -189,7 +190,7 @@ describe("buildDayGrid", () => {
     expect(grid.every((slot) => slot.availableProviderIds.length === 0)).toBe(true);
   });
 
-  it("omits times outside every provider's working hours", () => {
+  it("omits times outside every vendor's working hours", () => {
     const grid = buildDayGrid(
       local("2026-04-01T00:00:00"),
       60,
@@ -197,7 +198,7 @@ describe("buildDayGrid", () => {
       local("2026-04-01T00:00:00"),
     );
 
-    expect(grid.every((slot) => slot.startAt.getHours() >= 9)).toBe(true);
+    expect(grid.every((slot) => ukAt(slot.startAt).hour >= 9)).toBe(true);
   });
 
   it("is the superset buildSlotOptions filters", () => {
@@ -244,7 +245,7 @@ describe("selectBroadcastTargets (spec §7, §13)", () => {
     serviceDurationMinutes: 120,
   };
 
-  it("returns at most five providers, best rated first", () => {
+  it("returns at most five vendors, best rated first", () => {
     const candidates = Array.from({ length: 8 }, (_, index) =>
       candidate(`p${index}`, { rating: index / 2 }),
     );
@@ -255,7 +256,7 @@ describe("selectBroadcastTargets (spec §7, §13)", () => {
     expect(targets.map((target) => target.rating)).toEqual([3.5, 3, 2.5, 2, 1.5]);
   });
 
-  it("excludes providers outside the sector", () => {
+  it("excludes vendors outside the sector", () => {
     const targets = selectBroadcastTargets(
       [candidate("p1", { sectors: ["S20"] }), candidate("p2")],
       request,
@@ -263,7 +264,7 @@ describe("selectBroadcastTargets (spec §7, §13)", () => {
     expect(targets.map((target) => target.providerId)).toEqual(["p2"]);
   });
 
-  it("excludes providers who cannot deliver every requested service", () => {
+  it("excludes vendors who cannot deliver every requested service", () => {
     const targets = selectBroadcastTargets(
       [candidate("p1", { serviceIds: ["glam"] }), candidate("p2")],
       request,
@@ -271,7 +272,7 @@ describe("selectBroadcastTargets (spec §7, §13)", () => {
     expect(targets.map((target) => target.providerId)).toEqual(["p2"]);
   });
 
-  it("excludes providers whose calendar conflicts, even for an emergency", () => {
+  it("excludes vendors whose calendar conflicts, even for an emergency", () => {
     const conflicted = candidate("p1", {
       schedule: schedule({
         providerId: "p1",

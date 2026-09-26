@@ -18,22 +18,22 @@ const STEPS = [
   {
     icon: <MagnifyingGlass size={22} weight="bold" />,
     title: "Search",
-    body: "Tell us what you need and where you are. You only see services a vetted professional can actually deliver in your area — nothing that leads to a dead end.",
+    body: "Tell us what you need and where you are. You only see services a vetted vendor can actually deliver in your area — nothing that leads to a dead end.",
   },
   {
     icon: <CalendarCheck size={22} weight="bold" />,
     title: "Pick a time",
-    body: "We check every nearby professional's real calendar, including travel and the gap between jobs, and show only times someone can genuinely make. You see the full price, itemised, before you authorise anything.",
+    body: "We check every nearby vendor's real calendar, including travel and the gap between jobs, and show only times someone can genuinely make. You see the full price, itemised, before you authorise anything.",
   },
   {
     icon: <House size={22} weight="bold" />,
     title: "They come to you",
-    body: "Your request goes to the five best-matched professionals at once. The first to accept takes the job, and the time is locked into their calendar so nobody double-books you.",
+    body: "Your request goes to the five best-matched vendors at once. The first to accept takes the job, and the time is locked into their calendar so nobody double-books you.",
   },
   {
     icon: <Star size={22} weight="bold" />,
     title: "Rate and release",
-    body: "Payment is held until the appointment is done. You rate the work, and the professional is paid.",
+    body: "Payment is held until the appointment is done. You rate the work, and the vendor is paid.",
   },
 ];
 
@@ -48,8 +48,8 @@ export default async function HowItWorksPage() {
           How GLAMNET works
         </h1>
         <p className="mt-3 max-w-xl text-base text-ink-muted">
-          Four steps from &ldquo;I need my hair done&rdquo; to someone
-          professional standing at your door.
+          Four steps from &ldquo;I need my hair done&rdquo; to a verified
+          pro doing it — at their studio or at your door.
         </p>
       </section>
 
@@ -94,7 +94,7 @@ export default async function HowItWorksPage() {
       <section>
         <Card className="p-5">
           <h2 className="font-display text-xl font-semibold text-ink">
-            For professionals
+            For vendors
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-ink-muted">
             Set your services, your area and your working hours. Requests come

@@ -13,7 +13,7 @@ import { summariseReputation } from "@/lib/domain/reputation";
 export interface ProviderCardData {
   id: string;
   name: string;
-  /** Where the booking flow for this provider starts. */
+  /** Where the booking flow for this vendor starts. */
   href: string;
   rating: number;
   reviewCount: number;
@@ -21,12 +21,12 @@ export interface ProviderCardData {
   completedBookings: number;
   city: string;
   sector: string;
-  /** Cheapest bookable service, in pence. Null when the provider has none. */
+  /** Cheapest bookable service, in pence. Null when the vendor has none. */
   fromMinor: number | null;
   /** Flat travel fee for this sector, in pence. */
   travelFeeMinor: number;
   vetted: boolean;
-  /** Media-library photo. Empty until the provider has uploaded one. */
+  /** Media-library photo. Empty until the vendor has uploaded one. */
   imageUrl: string;
   /**
    * Free for a booking this evening, computed against the real calendar.
@@ -37,7 +37,7 @@ export interface ProviderCardData {
 }
 
 /**
- * The GLAMNET provider card.
+ * The GLAMNET vendor card.
  *
  * A card without proximity is not a GlamNet card, so the location row is not
  * optional: pin, city, sector, and what the journey costs. The catalogue has
@@ -61,7 +61,7 @@ export function ProviderCard({ provider }: { provider: ProviderCardData }) {
       className="group flex flex-col overflow-hidden rounded-glam border border-line bg-surface shadow-card transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-raised"
     >
       {/* 4:3 portfolio image. GlamImage falls back to the brand metal when a
-          provider has no photo yet — a legitimate fill, and the one thing the
+          vendor has no photo yet — a legitimate fill, and the one thing the
           slot must not do is collapse, or the grid reflows when photos land. */}
       <div className="relative aspect-[4/3] w-full">
         <GlamImage
@@ -147,7 +147,7 @@ export function ProviderCard({ provider }: { provider: ProviderCardData }) {
 }
 
 /**
- * The loading state for a provider card: the same footprint, shimmering.
+ * The loading state for a vendor card: the same footprint, shimmering.
  * Never a spinner.
  */
 export function ProviderCardSkeleton() {
@@ -161,19 +161,6 @@ export function ProviderCardSkeleton() {
           <Skeleton className="h-3 w-1/3" />
         </div>
       </div>
-    </div>
-  );
-}
-
-/**
- * The grid every list of providers uses. `auto-fill` with a minimum track
- * means it reflows four-up to one-up on its own — there is no breakpoint here
- * to keep in step with the search page's.
- */
-export function ProviderGrid({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(216px,1fr))]">
-      {children}
     </div>
   );
 }

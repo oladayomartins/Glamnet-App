@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import type { SessionUser } from "./session";
 
 /**
- * A provider may only act on themselves; an admin may act on anyone.
+ * A vendor may only act on themselves; an admin may act on anyone.
  *
- * Shared because every provider-scoped endpoint needs it and each one that
+ * Shared because every vendor-scoped endpoint needs it and each one that
  * forgets is the same hole: the id in the path would otherwise be enough to
  * edit a competitor's calendar or take them out of the broadcast pool.
  *

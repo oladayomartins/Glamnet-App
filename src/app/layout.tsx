@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import {
+  Bricolage_Grotesque,
+  Instrument_Sans,
+  JetBrains_Mono,
+} from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { GlamNetPin } from "@/components/brand";
@@ -9,12 +13,16 @@ import {
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_TAGLINE,
+  gaMeasurementId,
   isProductionSite,
   siteUrl,
 } from "@/lib/site";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MobileMenu } from "@/components/mobile-menu";
+import { UserMenu } from "@/components/user-menu";
 import { OfflineNotice } from "@/components/offline-notice";
+import { Analytics, GoogleTag } from "@/components/analytics";
 
 /**
  * The brand families, paired with the token layer in globals.css.
@@ -28,6 +36,15 @@ const brandSans = Instrument_Sans({
   variable: "--font-brand-sans",
   subsets: ["latin"],
   axes: ["wdth"],
+  display: "swap",
+});
+
+const brandDisplay = Bricolage_Grotesque({
+  variable: "--font-brand-display",
+  subsets: ["latin"],
+  // Variable axis rather than fixed cuts: headings sit at 800 and the wordmark
+  // at 700, and shipping one file for both is lighter than two.
+  weight: ["700", "800"],
   display: "swap",
 });
 
@@ -50,6 +67,8 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   appleWebApp: { capable: true, statusBarStyle: "default", title: SITE_NAME },
+  // iOS reads the home-screen icon from here, not the manifest.
+  icons: { apple: "/apple-touch-icon.png" },
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
@@ -71,12 +90,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Obsidian in dark, warm paper in light — the browser chrome follows the
-  // active mode rather than pinning one brand colour.
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfaf7" },
-    { media: "(prefers-color-scheme: dark)", color: "#100f13" },
-  ],
+  // Obsidian Black, matching the dark canvas the app now starts in (Open
+  // Marketplace Directory §1), so the browser chrome runs into the page.
+  themeColor: "#121212",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -84,9 +100,10 @@ export const viewport: Viewport = {
 
 /** Public navigation. Role-specific links are added from the session below. */
 const NAV = [
+  { href: "/salons", label: "Salons" },
   { href: "/search", label: "Find a service" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/sign-up", label: "Become a provider" },
+  { href: "/become-a-vendor", label: "Become a vendor" },
 ];
 
 /**
@@ -103,6 +120,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // request-scoped and cannot be prerendered — so it does not reintroduce the
   // build-time database dependency that the 404 page was tripping over.
   const user = await getSessionUser();
+  const gaId = gaMeasurementId();
 
   const roleLinks = [
     ...(user?.role === "PROVIDER"
@@ -117,14 +135,22 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       // next-themes writes data-theme here before paint, which React would
       // otherwise flag as a hydration mismatch.
       suppressHydrationWarning
-      className={`${brandSans.variable} ${brandMono.variable} h-full antialiased`}
+      className={`${brandSans.variable} ${brandDisplay.variable} ${brandMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-canvas font-sans text-ink">
         <ThemeProvider>
+          {/* First in the tree so gtag is configured before any page's own
+              tracking effects run. Admins are staff: their clicks around the
+              console would only skew the numbers, so they are never tracked. */}
+          <GoogleTag measurementId={user?.role === "ADMIN" ? null : gaId} />
+          <Analytics
+            measurementId={user?.role === "ADMIN" ? null : gaId}
+            user={user ? { id: user.appUserId, role: user.role } : null}
+          />
           <OfflineNotice />
 
           <header className="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur">
-            <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3">
+            <div className="mx-auto flex w-full max-w-[var(--glam-page-max)] items-center justify-between gap-2 px-4 py-3">
               <Link
                 href="/"
                 aria-label="GLAMNET home"
@@ -138,42 +164,54 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 </span>
               </Link>
               <nav className="flex items-center gap-1" aria-label="Main">
-                {[...(user ? NAV.filter((i) => i.href !== "/sign-up") : NAV), ...roleLinks].map((item) => (
+                {/* The full link row from large screens; below that the links
+                    live in the menu sheet so the header never wraps. */}
+                {[...NAV, ...roleLinks].map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="tap-44 hidden rounded-glam-sm px-3 py-1.5 text-sm font-medium text-ink-muted transition hover:bg-brand-50 hover:text-brand-700 sm:inline-flex"
+                    className="tap-44 hidden rounded-glam-sm px-3 py-1.5 text-sm font-medium text-ink-muted transition hover:bg-sunken hover:text-ink lg:inline-flex"
                   >
                     {item.label}
                   </Link>
                 ))}
 
                 {user ? (
-                  <Link
-                    href="/account"
-                    className="tap-44 rounded-glam-sm px-3 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
-                  >
-                    Account
-                  </Link>
+                  <UserMenu name={user.name} email={user.email} avatarUrl={user.avatarUrl} role={user.role} />
                 ) : (
-                  <Link
-                    href="/sign-in"
-                    className="tap-44 rounded-glam-sm px-3 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
-                  >
-                    Sign in
-                  </Link>
+                  <>
+                    {/* Sign up is the quiet option, Sign in the button. */}
+                    <Link
+                      href="/sign-up"
+                      className="tap-44 hidden rounded-glam-sm px-3 py-1.5 text-sm font-semibold text-ink transition hover:text-accent-700 sm:inline-flex"
+                    >
+                      Sign up
+                    </Link>
+                    <Link
+                      href="/sign-in"
+                      className="tap-44 ml-1 inline-flex min-h-10 items-center rounded-full bg-metal px-4 text-sm font-bold text-metal-ink shadow-card transition hover:brightness-105"
+                    >
+                      Sign in
+                    </Link>
+                  </>
                 )}
 
-                <ThemeToggle />
+                <span className="hidden lg:inline-flex">
+                  <ThemeToggle />
+                </span>
+                <MobileMenu links={[...NAV, ...roleLinks]} signedIn={Boolean(user)} />
               </nav>
             </div>
           </header>
 
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+          <main
+            data-page-shell
+            className="mx-auto w-full max-w-[var(--glam-page-max)] flex-1 px-4 py-6"
+          >
             {children}
           </main>
 
-          <SiteFooter />
+          <SiteFooter cookieSettings={gaId !== null} />
         </ThemeProvider>
       </body>
     </html>

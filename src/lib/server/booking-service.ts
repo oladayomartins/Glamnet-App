@@ -11,15 +11,16 @@ import {
 import { priceBooking, type PriceBreakdown } from "@/lib/domain/pricing";
 import { addMinutes, reservationWindow } from "@/lib/domain/availability";
 import { selectBroadcastTargets } from "@/lib/domain/matching";
-import {
-  BROADCAST_ACCEPTANCE_WINDOW_MINUTES,
-  TRANSITION_BUFFER_MINUTES,
-} from "@/lib/domain/constants";
+import { TRANSITION_BUFFER_MINUTES } from "@/lib/domain/constants";
 import type { BasketLine, BookingType } from "@/lib/domain/types";
+import { applyBps } from "@/lib/domain/pricing";
 import {
-  deliverBookingConfirmedEmail,
-  deliverBroadcastEmails,
-} from "./notifications";
+  decideCommission,
+  settle,
+  type BookingSource,
+  type CommissionDecision,
+} from "@/lib/domain/settlement";
+import { deliverBookingConfirmedEmail } from "./notifications";
 
 export class BookingError extends Error {
   constructor(
@@ -42,6 +43,81 @@ export class BookingError extends Error {
   }
 }
 
+/**
+ * The money fields a booking stores once its commission rule is known.
+ *
+ * `providerEarningsMinor` stays the vendor's share *before* any tip, which is
+ * what the earnings ledger has always shown; `providerPayoutMinor` is what is
+ * actually transferred at release, tip included.
+ */
+export function settlementFields(
+  price: {
+    totalMinor: number;
+    subtotalMinor: number;
+    emergencySurchargeMinor: number;
+    otherSurchargesMinor: number;
+    trustFeeMinor: number;
+  },
+  commission: CommissionDecision,
+  tipMinor = 0,
+  discountMinor = 0,
+) {
+  const result = settle({
+    totalMinor: price.totalMinor,
+    commissionableMinor:
+      price.subtotalMinor + price.emergencySurchargeMinor + price.otherSurchargesMinor,
+    trustFeeMinor: price.trustFeeMinor,
+    tipMinor,
+    commission,
+    discountMinor,
+  });
+  const tip = result.chargeMinor + result.discountMinor - price.totalMinor;
+  return {
+    firstDiscoveryBooking: commission.firstDiscoveryBooking,
+    commissionBps: commission.commissionBps,
+    tipMinor: tip,
+    discountMinor: result.discountMinor,
+    platformCommissionMinor: result.platformCommissionMinor,
+    processingFeeMinor: result.processingFeeMinor,
+    providerPayoutMinor: result.providerPayoutMinor,
+    providerEarningsMinor: result.providerPayoutMinor - tip,
+    providerEmergencyEarningsMinor: applyBps(
+      price.emergencySurchargeMinor,
+      10_000 - commission.commissionBps,
+    ),
+  };
+}
+
+/** Customers each vendor has already served — they are no longer "new". */
+export async function servedCustomer(
+  customerId: string,
+  providerIds: string[],
+): Promise<Set<string>> {
+  if (providerIds.length === 0) return new Set();
+  const prior = await prisma.booking.findMany({
+    where: {
+      customerId,
+      providerId: { in: providerIds },
+      status: {
+        in: [
+          "ACCEPTED",
+          "CONFIRMED",
+          "ADDRESS_UNLOCKED",
+          "PROVIDER_EN_ROUTE",
+          "ARRIVED",
+          "IN_PROGRESS",
+          "COMPLETED",
+          "PAYMENT_RELEASED",
+          "REVIEWED",
+        ],
+      },
+    },
+    select: { providerId: true },
+    distinct: ["providerId"],
+  });
+  return new Set(prior.map((booking) => booking.providerId ?? ""));
+}
+
 export interface QuoteRequest {
   hubId: string;
   serviceIds: string[];
@@ -60,12 +136,12 @@ export interface Quote {
   sector: string;
   basket: BasketLine[];
   price: PriceBreakdown;
-  /** Providers who could take this slot right now. */
+  /** Vendors who could take this slot right now. */
   eligibleProviderIds: string[];
 }
 
 /**
- * Build a full server-side quote: classification, duration, price and provider
+ * Build a full server-side quote: classification, duration, price and vendor
  * eligibility.
  *
  * This is the single source of truth for both the checkout preview and the
@@ -124,7 +200,7 @@ export async function quoteBooking(
     now,
   );
 
-  const candidates = await loadCandidates(hub.sector, window.startAt, window.endAt);
+  const candidates = await loadCandidates(hub, window.startAt, window.endAt);
   const eligible = selectBroadcastTargets(candidates, {
     sector: hub.sector,
     requiredServiceIds: basket
@@ -159,11 +235,18 @@ export interface CreateBookingRequest extends QuoteRequest {
 }
 
 /**
- * Create a booking and broadcast it to the top five eligible providers.
+ * Create a broadcast booking, ready for its card.
+ *
+ * The booking waits at REQUESTED until the customer's card is secured; only
+ * then is it broadcast (see `dispatchBroadcast` in payment-flow). Sending a
+ * request to five vendors before anyone knew the customer could pay meant
+ * vendors accepting jobs with no money behind them.
  *
  * The quote is recomputed here rather than accepted from the client, so the
  * stored classification, duration and price are all server-derived (spec §9,
- * §12 "Customer cannot override the classification").
+ * §12 "Customer cannot override the classification"). The vendor list is
+ * checked now so a customer isn't asked for a card when nobody could come,
+ * and again at broadcast time.
  */
 export async function createBooking(
   request: CreateBookingRequest,
@@ -173,106 +256,58 @@ export async function createBooking(
 
   if (quote.eligibleProviderIds.length === 0) {
     throw new BookingError(
-      "No providers are available for that time. Please choose another slot.",
+      "No vendors are available for that time. Please choose another slot.",
       "NO_PROVIDER",
       409,
     );
   }
 
-  const expiresAt = addMinutes(now, BROADCAST_ACCEPTANCE_WINDOW_MINUTES);
+  // Provisional (Rule B) until a vendor accepts and the rule is final.
+  const provisional = settlementFields(
+    quote.price,
+    decideCommission({ source: "BROADCAST", hasPriorBooking: false }),
+  );
 
-  const booking = await prisma.$transaction(async (tx) => {
-    const booking = await tx.booking.create({
-      data: {
-        bookingType: quote.bookingType,
-        bookingCreatedAt: now,
-        appointmentStartAt: quote.appointmentStartAt,
-        noticePeriodMinutes: quote.noticePeriodMinutes,
-        thresholdMinutesUsed: quote.thresholdMinutesUsed,
-        serviceDurationMinutes: quote.serviceDurationMinutes,
-        reservedDurationMinutes: quote.reservedDurationMinutes,
-        reservedUntilAt: quote.reservedUntilAt,
-        subtotalMinor: quote.price.subtotalMinor,
-        travelFeeMinor: quote.price.travelFeeMinor,
-        emergencySurchargeMinor: quote.price.emergencySurchargeMinor,
-        otherSurchargesMinor: quote.price.otherSurchargesMinor,
-        trustFeeMinor: quote.price.trustFeeMinor,
-        totalInvoicePriceMinor: quote.price.totalMinor,
-        providerEarningsMinor: quote.price.providerEarningsMinor,
-        providerEmergencyEarningsMinor: quote.price.providerEmergencyEarningsMinor,
-        status: "BROADCAST",
-        sector: quote.sector,
-        addressLine: request.addressLine ?? "",
-        notes: request.notes ?? "",
-        referenceImageUrl: request.referenceImageUrl ?? "",
-        referenceImageFileId: request.referenceImageFileId ?? "",
-        customerId: request.customerId,
-        hubId: request.hubId,
-        items: {
-          create: quote.basket.map((line) => ({
-            serviceId: line.id,
-            name: line.name,
-            priceMinor: line.priceMinor,
-            durationMinutes: line.durationMinutes,
-            kind: line.kind,
-          })),
-        },
-        broadcasts: {
-          create: quote.eligibleProviderIds.map((providerId) => ({
-            providerId,
-            expiresAt,
-            earningsMinor: quote.price.providerEarningsMinor,
-            emergencyEarningsMinor: quote.price.providerEmergencyEarningsMinor,
-          })),
-        },
-        events: {
-          create: [
-            { fromStatus: null, toStatus: "REQUESTED", actor: "CUSTOMER" },
-            {
-              fromStatus: "REQUESTED",
-              toStatus: "BROADCAST",
-              actor: "SYSTEM",
-              note: `Broadcast to ${quote.eligibleProviderIds.length} provider(s).`,
-            },
-          ],
-        },
+  return prisma.booking.create({
+    data: {
+      bookingType: quote.bookingType,
+      bookingCreatedAt: now,
+      appointmentStartAt: quote.appointmentStartAt,
+      noticePeriodMinutes: quote.noticePeriodMinutes,
+      thresholdMinutesUsed: quote.thresholdMinutesUsed,
+      serviceDurationMinutes: quote.serviceDurationMinutes,
+      reservedDurationMinutes: quote.reservedDurationMinutes,
+      reservedUntilAt: quote.reservedUntilAt,
+      subtotalMinor: quote.price.subtotalMinor,
+      travelFeeMinor: quote.price.travelFeeMinor,
+      emergencySurchargeMinor: quote.price.emergencySurchargeMinor,
+      otherSurchargesMinor: quote.price.otherSurchargesMinor,
+      trustFeeMinor: quote.price.trustFeeMinor,
+      totalInvoicePriceMinor: quote.price.totalMinor,
+      ...provisional,
+      source: "BROADCAST",
+      status: "REQUESTED",
+      sector: quote.sector,
+      addressLine: request.addressLine ?? "",
+      notes: request.notes ?? "",
+      referenceImageUrl: request.referenceImageUrl ?? "",
+      referenceImageFileId: request.referenceImageFileId ?? "",
+      customerId: request.customerId,
+      hubId: request.hubId,
+      items: {
+        create: quote.basket.map((line) => ({
+          serviceId: line.id,
+          name: line.name,
+          priceMinor: line.priceMinor,
+          durationMinutes: line.durationMinutes,
+          kind: line.kind,
+        })),
       },
-      include: { items: true, broadcasts: true },
-    });
-
-    // Spec §11: the EMERGENCY tag must appear consistently in every channel.
-    const isEmergency = quote.bookingType === "EMERGENCY";
-    const thresholdHours = Math.round(quote.thresholdMinutesUsed / 60);
-    await tx.notification.createMany({
-      data: quote.eligibleProviderIds.map((providerId) => ({
-        bookingId: booking.id,
-        providerId,
-        audience: "PROVIDER",
-        channel: "PUSH",
-        bookingType: quote.bookingType,
-        title: isEmergency ? "EMERGENCY BOOKING REQUEST" : "New booking request",
-        body: isEmergency
-          ? `A customer needs a beauty service within the next ${thresholdHours} hours.`
-          : `New request in sector ${quote.sector}.`,
-      })),
-    });
-
-    return booking;
+      events: {
+        create: [{ fromStatus: null, toStatus: "REQUESTED", actor: "CUSTOMER", note: "Awaiting card." }],
+      },
+    },
   });
-
-  // After the commit, never inside it: a slow Resend call must not hold the
-  // transaction open, and a failed one must not undo a valid booking.
-  await deliverBroadcastEmails({
-    bookingId: booking.id,
-    providerIds: quote.eligibleProviderIds,
-    isEmergency: quote.bookingType === "EMERGENCY",
-    serviceNames: quote.basket.map((line) => line.name),
-    appointmentStartAt: quote.appointmentStartAt,
-    sector: quote.sector,
-    providerEarningsMinor: quote.price.providerEarningsMinor,
-  });
-
-  return booking;
 }
 
 /**
@@ -310,7 +345,7 @@ async function withContentionRetry<T>(run: () => Promise<T>): Promise<T> {
     } catch (retryError) {
       if (!isContention(retryError)) throw retryError;
       throw new BookingError(
-        "Another provider is responding to this booking right now. Try again in a moment.",
+        "Another vendor is responding to this booking right now. Try again in a moment.",
         "CONTENDED",
         409,
       );
@@ -319,11 +354,11 @@ async function withContentionRetry<T>(run: () => Promise<T>): Promise<T> {
 }
 
 /**
- * A provider accepts a broadcast request (spec §12 "Concurrent booking
+ * A vendor accepts a broadcast request (spec §12 "Concurrent booking
  * acceptance is transactionally protected").
  *
  * Everything happens in one transaction, and the winning update is guarded by
- * `status: "BROADCAST"` — so if two providers accept at the same instant, the
+ * `status: "BROADCAST"` — so if two vendors accept at the same instant, the
  * second update matches zero rows and that caller is told the job is gone
  * rather than double-booking the slot.
  */
@@ -348,7 +383,7 @@ export async function acceptBooking(
     const booking = await tx.booking.findUnique({ where: { id: bookingId } });
     if (!booking) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
 
-    // Re-check the calendar inside the transaction: the provider may have
+    // Re-check the calendar inside the transaction: the vendor may have
     // accepted another job since the broadcast was sent (spec §7).
     const conflict = await tx.booking.findFirst({
       where: {
@@ -386,11 +421,51 @@ export async function acceptBooking(
     });
     if (claimed.count === 0) {
       throw new BookingError(
-        "This booking has already been accepted by another provider.",
+        "This booking has already been accepted by another vendor.",
         "ALREADY_TAKEN",
         409,
       );
     }
+
+    // The rule is final now that the vendor is known.
+    const prior = await tx.booking.findFirst({
+      where: {
+        customerId: booking.customerId,
+        providerId,
+        id: { not: bookingId },
+        status: {
+          in: [
+            "ACCEPTED",
+            "CONFIRMED",
+            "ADDRESS_UNLOCKED",
+            "PROVIDER_EN_ROUTE",
+            "ARRIVED",
+            "IN_PROGRESS",
+            "COMPLETED",
+            "PAYMENT_RELEASED",
+            "REVIEWED",
+          ],
+        },
+      },
+      select: { id: true },
+    });
+    await tx.booking.update({
+      where: { id: bookingId },
+      data: settlementFields(
+        {
+          totalMinor: booking.totalInvoicePriceMinor,
+          subtotalMinor: booking.subtotalMinor,
+          emergencySurchargeMinor: booking.emergencySurchargeMinor,
+          otherSurchargesMinor: booking.otherSurchargesMinor,
+          trustFeeMinor: booking.trustFeeMinor,
+        },
+        decideCommission({
+          source: booking.source as BookingSource,
+          hasPriorBooking: prior !== null,
+        }),
+        booking.tipMinor,
+      ),
+    });
 
     await tx.bookingBroadcast.update({
       where: { bookingId_providerId: { bookingId, providerId } },
@@ -421,7 +496,7 @@ export async function acceptBooking(
           booking.bookingType === "EMERGENCY"
             ? "EMERGENCY BOOKING confirmed"
             : "Your booking is confirmed",
-        body: "A provider has accepted your request.",
+        body: "A vendor has accepted your request.",
       },
     });
 
@@ -440,7 +515,7 @@ export async function acceptBooking(
     bookingId: booking.id,
     customerName: booking.customer.name,
     customerEmail: booking.customer.email,
-    providerName: booking.provider?.name ?? "Your provider",
+    providerName: booking.provider?.name ?? "Your vendor",
     isEmergency: booking.bookingType === "EMERGENCY",
     serviceNames: booking.items.map((item) => item.name),
     appointmentStartAt: booking.appointmentStartAt,

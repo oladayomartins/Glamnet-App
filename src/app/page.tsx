@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { citySlug } from "@/lib/domain/postcode";
+import { getSessionUser } from "@/lib/auth/session";
+import { AdSlot } from "@/components/ad-slot";
+import { CampaignBanner } from "@/components/campaign-banner";
 import type { ReactNode } from "react";
 import {
   ArrowRight,
@@ -8,74 +12,141 @@ import {
   MagnifyingGlass,
   PaintBrush,
   Receipt,
+  Lightning,
+  LockKey,
+  SealCheck,
   Scissors,
+  ShieldCheck,
   SquaresFour,
 } from "@phosphor-icons/react/dist/ssr";
 import { getPricingContext } from "@/lib/server/emergency-config";
 import { getMarketingData } from "@/lib/server/marketing";
 import { BlockHeading } from "@/components/ui";
-import { SearchBar } from "@/components/search-bar";
+import { BookingLauncher } from "@/components/booking-launcher";
 import { FeaturedProviders } from "@/components/featured-providers";
 import { GlamImage } from "@/components/glam-image";
+import { BrandImage } from "@/components/brand-image";
+import { Rail } from "@/components/rail";
+import {
+  GOOGLE_REVIEW_BADGE_PATH,
+  GOOGLE_REVIEW_URL,
+  HERO_IMAGE_PATH,
+  categoryImagePath,
+  HOW_IT_WORKS_IMAGE_PATHS,
+  brandMediaOrigin,
+} from "@/lib/imagekit";
 import type { ProviderCardData } from "@/components/provider-card";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Category icons. Phosphor, Light weight at 20px — the whole icon set is one
- * stroke width, so a category we have not drawn for falls back to the generic
- * tile icon rather than borrowing a heavier mark from somewhere else.
+ * Category icons. Phosphor, Light weight — the whole icon set is one stroke
+ * width, so a category we have not drawn for falls back to the generic tile
+ * icon rather than borrowing a heavier mark from somewhere else.
  */
 const CATEGORY_ICONS: Record<string, ReactNode> = {
-  Hair: <Scissors size={20} weight="light" />,
-  Makeup: <PaintBrush size={20} weight="light" />,
-  Nails: <Hand size={20} weight="light" />,
-  Skin: <Heart size={20} weight="light" />,
+  "Afro & Textured": <Scissors size={18} weight="light" />,
+  "European & Western": <Scissors size={18} weight="light" />,
+  "MUA Glam & Asian Bridal": <PaintBrush size={18} weight="light" />,
+  "Manicures & Pedicures": <Hand size={18} weight="light" />,
+  "Massage & Wellness": <Heart size={18} weight="light" />,
 };
 
 /** §C-01 block 5. Three steps, in the customer's order, one line each. */
 const HOW_IT_WORKS = [
   {
     icon: <MagnifyingGlass size={20} weight="light" />,
-    title: "Search your sector",
-    body: "You only ever see services a vetted provider can actually deliver where you are.",
-  },
-  {
-    icon: <Receipt size={20} weight="light" />,
-    title: "Compare the full price",
-    body: "Every line is itemised — services, travel, any emergency rate — before you authorise a penny.",
+    title: "Find your pro",
+    body: "Pick a hub, add your postcode, and browse verified pros nearest first — their looks, menus and reviews.",
   },
   {
     icon: <CalendarCheck size={20} weight="light" />,
-    title: "Book and track",
-    body: "The first matched provider to accept takes the job, and you follow them to the door.",
+    title: "Book a real slot",
+    body: "Choose services and an open time from their own calendar. You see the full price, and your card is only held.",
+  },
+  {
+    icon: <LockKey size={20} weight="light" />,
+    title: "Pay with your PIN",
+    body: "Happy with the result? Read your pro a 4-digit PIN and the payment is released. Not happy? Keep it, and tell us.",
   },
 ];
+
+/** The platform's own promises — shown where a marketplace would put reviews. */
+const PROMISES = [
+  {
+    icon: <SealCheck size={22} weight="fill" />,
+    title: "Every pro is checked",
+    body: "Insurance or practitioner licence reviewed before a storefront ever goes live.",
+  },
+  {
+    icon: <Receipt size={22} weight="light" />,
+    title: "One honest price",
+    body: "Every line itemised before you book — services, any travel, any short-notice rate.",
+  },
+  {
+    icon: <LockKey size={22} weight="fill" />,
+    title: "Paid only when you're happy",
+    body: "Your card is held, not charged, until you give your pro the PIN — with 24 hours to raise a problem after.",
+  },
+];
+
+/** The contained column every block below the hero sits in. */
+function Container({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`mx-auto w-full max-w-[var(--glam-page-max)] px-4 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
 
 /**
  * The customer home is a marketplace, not a dashboard.
  *
- * Five blocks in a fixed order — search hero, categories, featured providers,
+ * Five blocks in a fixed order — search hero, categories, featured vendors,
  * cities, how it works — and then the CTA band. Each block gets at most one
  * metal element, which is why the hero's submit, the active filter chip and
  * the CTA's primary button are the only metal on the page.
+ *
+ * The browse blocks are rails rather than wrapping grids: they are a glance,
+ * not a search, and the point is to show there is more without spending four
+ * rows of the page saying so. Search is where everything is, and that stays a
+ * grid.
  */
 export default async function MarketingPage() {
-  const [{ providers, categories, cities, stats }, { thresholdMinutes }] =
-    await Promise.all([getMarketingData(), getPricingContext()]);
+  const [
+    { providers, categories, cities, searchHints, stats },
+    { thresholdMinutes },
+    viewer,
+  ] =
+    await Promise.all([getMarketingData(), getPricingContext(), getSessionUser()]);
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
-  const areas = cities.map((city) => ({
-    id: city.hubId,
-    name: city.city,
-    city: city.city,
-    sector: city.sector,
-  }));
+  // Quick picks in the search bar: only areas where someone can be booked.
+  const areas = cities
+    .filter((city) => city.providerCount > 0 && city.hubId)
+    .map((city) => ({
+      hubId: city.hubId!,
+      name: city.label,
+      city: city.label,
+      sector: city.sector,
+    }));
 
   const cards: ProviderCardData[] = providers.map((provider) => ({
     id: provider.id,
     name: provider.name,
-    href: `/providers/${provider.id}`,
+    // A live storefront is where the booking happens now; vendors without
+    // one yet still have their broadcast profile.
+    href: provider.storefrontSlug
+      ? `/pro/${provider.storefrontSlug}?via=directory`
+      : `/providers/${provider.id}`,
     rating: provider.rating,
     reviewCount: provider.reviewCount,
     completedBookings: provider.completedBookings,
@@ -90,279 +161,574 @@ export default async function MarketingPage() {
   }));
 
   return (
-    <div className="space-y-16 pb-6 sm:space-y-20">
+    // `full` hands the whole width to the page, which then contains its own
+    // sections — so the hero can run edge to edge without a child trying to
+    // break out of a container it sits inside.
+    <div data-page-width="full" className="-mt-6 pb-6">
       {/* ================= Block 1 — search hero ====================== */}
-      <section className="grid items-center gap-8 lg:grid-cols-[1.1fr_1fr]">
-        <div>
-          <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
-            {/* Jade means live. One breathing dot, and the words carry the
-                meaning on their own if the motion is switched off. */}
-            <span
-              aria-hidden
-              className="breathe h-2 w-2 rounded-full bg-normal"
-            />
-            Beauty, at your door
-          </p>
+      {/*
+        The banner is 8:3 with the subject on the right and deliberate cream
+        negative space on the left, so the copy sits in space the photograph
+        already left for it. No scrim: the left third measures 227 mean
+        luminance and 191 at its darkest, which puts dark ink at 7.75:1 even
+        at the worst point — a black wash would only destroy the composition
+        that makes that true.
 
-          <h1 className="mt-4 font-display text-4xl font-bold leading-[1.03] tracking-[-0.03em] text-ink sm:text-5xl">
-            Book a vetted beauty
-            <br />
-            professional to come to you.
-          </h1>
+        The band is a light region in both themes, so it scopes the light
+        palette. Without that, dark mode would invert the copy and the search
+        bar to their dark selves on top of a cream photograph.
+      */}
+      <section
+        /*
+          A floor on the band's height, and the copy centred in it. The bar's
+          panels float, so the bar never changes height and this is the only
+          thing deciding the crop.
 
-          <p className="mt-4 max-w-lg text-[15px] text-ink-muted">
-            Real availability from real calendars, an itemised price before you
-            pay, and someone at your door — today, if that is what you need.
-          </p>
+          37rem is arithmetic, not taste. `cover` scales an 8:3 source to the
+          band's height, so the fraction of the picture still visible is
+          540 / bandHeight at a 1440 viewport: 688px showed 78% of it and cut
+          the subject at the right edge, 592px shows 91% — the whole
+          composition, mirror and dressing table included, which is the
+          framing in the reference.
+        */
+        className="on-light relative min-h-[var(--glam-hero-band-min)] bg-[var(--glam-hero-ground)] text-ink lg:flex lg:items-center"
+      >
+        {/*
+          The photograph runs the full width of the band from `lg`, with the
+          copy over the cream negative space the composition already leaves on
+          the left. That is the arrangement the band was designed around; it
+          was given its own 46% column for a while because the booking module
+          made the band tall enough to zoom an 8:3 photograph in until the
+          subject walked across the words.
 
-          <div className="mt-6">
-            <SearchBar areas={areas} />
-          </div>
+          The band's HEIGHT is what governs that crop, so the height is what
+          is controlled instead: an open step scrolls inside a capped panel
+          rather than growing the band, and everything above is trimmed to
+          keep the band near 2:1 on a desktop — about the proportion the
+          picture was shot for. There is a measurement in the commit.
+        */}
+        {/*
+          Desktop only, in two arrangements, and the switch between them is
+          measured rather than chosen by eye.
 
-          {/* Trust figures. Real counts, never rounded up. */}
-          <dl className="mt-7 flex flex-wrap gap-x-10 gap-y-4">
-            <TrustFigure
-              value={String(stats.providerCount)}
-              label={
-                stats.providerCount === 1
-                  ? "Vetted provider"
-                  : "Vetted providers"
-              }
-            />
-            <TrustFigure
-              value={
-                stats.averageRating ? stats.averageRating.toFixed(1) : "—"
-              }
-              label="Average rating"
-            />
-            <TrustFigure
-              value={`${thresholdHours}h`}
-              label="Emergency cover"
-            />
-          </dl>
+          From 1400px the photograph runs the full width of the band with the
+          copy over the cream negative space the composition already leaves on
+          the left — the arrangement the picture was shot for. Below that it
+          takes its own right-hand column instead. The reason is the crop: the
+          source is 8:3, the band is about 684px tall, and `cover` therefore
+          shows less and less of the source width as the viewport narrows —
+          79% at 1440, 70% at 1280, 57% at 1024. Every percent lost walks the
+          subject further left, into the words. Reading the pixels actually
+          behind the copy gives 5.4:1 at 1440 and 3.3:1 at 1280, so 1400 is
+          roughly where the full-bleed version stops being readable.
+
+          `lazy` rather than `priority`: an eager image inside a
+          `display: none` wrapper is still fetched, so priority would download
+          a hero for every phone that never shows one.
+        */}
+        <div className="hero-picture pointer-events-none hidden lg:block">
+          <BrandImage
+            path={HERO_IMAGE_PATH}
+            alt="A client with fresh braids and evening makeup at home"
+            width={1600}
+            height={600}
+            sizes="(max-width: 1399px) 46vw, 100vw"
+            className="h-full w-full object-cover"
+          />
+          {/* Column arrangement: a narrow fade so the picture's left edge is
+              a join rather than a cut. */}
+          <div
+            aria-hidden
+            className="hero-fade-edge absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[var(--glam-hero-ground)] to-transparent"
+          />
+          {/*
+            Full-bleed arrangement: a wash of the band's own ground colour
+            across the left, gone before it reaches the subject. Not a scrim
+            over the photograph — the same cream the photograph already has
+            there, held steady so the copy's contrast does not depend on how
+            far the crop happens to zoom at a given width.
+          */}
+          <div
+            aria-hidden
+            className="hero-fade-wash absolute inset-y-0 left-0 w-[62%] bg-gradient-to-r from-[var(--glam-hero-ground)] from-45% to-transparent"
+          />
         </div>
 
-        {/* 4:3 hero slot. Real photography drops in here; until then it holds
-            its aspect ratio so the hero never reflows when it arrives. */}
-        <div
-          aria-hidden
-          className="hidden aspect-[4/3] w-full rounded-glam-lg bg-metal shadow-raised lg:block"
-        />
+        <Container className="relative pb-7 pt-8 lg:py-8 xl:py-10">
+          {/*
+            The copy column is wide rather than clamped to `max-w-lg`: a narrow
+            column inside a full-bleed band reads as floating in the middle of
+            the cream instead of sitting on the page grid. It stops short of
+            the photograph's column at every width — 34rem is inside the 54%
+            left half from 1024px up, and the extra 2rem at `xl` still is.
+          */}
+          <div className="max-w-[var(--glam-hero-col)]">
+            <p className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
+              {/* Jade means live. One breathing dot, and the words carry the
+                  meaning on their own if the motion is switched off. */}
+              <span
+                aria-hidden
+                className="breathe h-2 w-2 rounded-full bg-normal"
+              />
+              The UK&rsquo;s beauty marketplace
+            </p>
+
+            {/* 800, which is heavier than Instrument Sans could go at all —
+                the reason the display family exists. */}
+            <h1 className="mt-4 font-display text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
+              Find trusted beauty pros for every occasion
+            </h1>
+
+            <p className="mt-5 max-w-lg text-base text-ink-muted">
+              Braids, bridal glam, BIAB and massage from verified independent
+              pros — at their home salon, studio or chair, or at your door.
+              Real availability, one honest price, paid only when you&rsquo;re
+              happy.
+            </p>
+          </div>
+
+          {/*
+            The bar is deliberately wider than the words above it. A measure
+            that suits a headline is too narrow for a control holding a field,
+            a town and a button — below `lg` those stack and the width is moot,
+            and from `lg` the extra 4rem still lands on the photograph's cream
+            half, well clear of the subject.
+          */}
+          <div className="mt-6 max-w-[var(--glam-hero-col)]">
+            <BookingLauncher
+              areas={areas}
+              hints={searchHints}
+              thresholdMinutes={thresholdMinutes}
+            />
+          </div>
+
+          <div className="max-w-[34rem] xl:max-w-[38rem]">
+
+            <Link
+              href="/salons"
+              className="tap-44 mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ink underline-offset-4 hover:underline"
+            >
+              Or browse every salon, chair and studio near you
+              <ArrowRight size={14} weight="bold" aria-hidden />
+            </Link>
+
+            {/* Trust figures. Real counts, never rounded up. */}
+            <dl className="mt-5 flex max-w-[var(--glam-hero-col)] flex-wrap items-center gap-x-7 gap-y-3">
+              <HeroFigure
+                icon={<ShieldCheck size={15} weight="fill" aria-hidden />}
+                value={String(stats.providerCount)}
+                label={
+                  stats.providerCount === 1 ? "Vetted vendor" : "Vetted vendors"
+                }
+              />
+              <HeroFigure
+                icon={<LockKey size={15} weight="fill" aria-hidden />}
+                value="PIN"
+                label="Paid only when you're happy"
+              />
+              <HeroFigure
+                icon={<Lightning size={15} weight="fill" aria-hidden />}
+                value={`${thresholdHours}h`}
+                label="Emergency cover"
+              />
+
+              {/*
+                On the same row as the figures, and last in it. Those are
+                counts; this is an invitation, so it reads better after the
+                statements than among them — and it only appears once there is
+                a review form to send people to.
+              */}
+              {GOOGLE_REVIEW_URL ? (
+                <a
+                  href={GOOGLE_REVIEW_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="tap-44 inline-flex items-center transition duration-[180ms] ease-glam hover:opacity-85"
+                >
+                  <BrandImage
+                    path={GOOGLE_REVIEW_BADGE_PATH}
+                    alt="Leave us a review on Google"
+                    width={813}
+                    height={260}
+                    sizes="160px"
+                    className="h-10 w-auto"
+                  />
+                </a>
+              ) : null}
+            </dl>
+          </div>
+        </Container>
+
       </section>
+
+      {/* ================= Announcements and sponsored slot ============= */}
+      <Container className="space-y-4 pt-8 empty:hidden">
+        <CampaignBanner viewer={viewer?.role ?? null} />
+        <AdSlot slot="HOME_BANNER" />
+      </Container>
 
       {/* ================= Block 2 — service categories ================ */}
       {categories.length > 0 ? (
-        <section>
+        <Container className="pt-14 sm:pt-16">
           <BlockHeading
-            title="Browse service categories"
-            lede="Every category below has a provider behind it right now."
+            title="Browse by specialty"
+            lede="Each hub has pros who specialise in exactly that craft."
+            action={<SeeAll href="/salons" />}
           />
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(138px,1fr))]">
+
+          <Rail label="Service categories">
             {categories.map((category) => (
               <Link
                 key={category.name}
-                href={`/search?q=${encodeURIComponent(category.name)}`}
-                className="flex min-h-[118px] flex-col justify-between rounded-glam border border-line bg-surface p-4 shadow-card transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-raised"
+                // Every tile is an admin-managed category, so it opens the
+                // directory filtered to it.
+                href={`/salons?hub=${category.slug}`}
+                className="group w-[180px] shrink-0 snap-start sm:w-[210px]"
               >
-                <span className="text-brand-700" aria-hidden>
-                  {CATEGORY_ICONS[category.name] ?? (
-                    <SquaresFour size={20} weight="light" />
+                <span className="relative block overflow-hidden rounded-glam">
+                  {/* Anything really uploaded against the service wins; the
+                      shipped artwork is the fallback, and a category with
+                      neither still falls through to the brand metal. */}
+                  {category.imageUrl ? (
+                    <GlamImage
+                      src={category.imageUrl}
+                      alt=""
+                      width={420}
+                      height={320}
+                      sizes="210px"
+                      className="aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                    />
+                  ) : categoryImagePath(category.name) ? (
+                    <BrandImage
+                      path={categoryImagePath(category.name)!}
+                      alt=""
+                      width={420}
+                      height={320}
+                      sizes="210px"
+                      className="aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className="block aspect-[4/3] w-full bg-metal"
+                    />
                   )}
+                  {/* The icon survives the photograph rather than being
+                      replaced by it, on a surface chip so it stays legible
+                      whatever the image behind it is doing. */}
+                  <span
+                    aria-hidden
+                    className="absolute left-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 text-brand-700 backdrop-blur"
+                  >
+                    {CATEGORY_ICONS[category.name] ?? (
+                      <SquaresFour size={18} weight="light" />
+                    )}
+                  </span>
                 </span>
-                <span>
-                  <span className="block text-sm font-semibold text-ink">
-                    {category.name}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-ink-muted">
-                    {category.providerCount}{" "}
-                    {category.providerCount === 1 ? "provider" : "providers"}
-                  </span>
+
+                {/* Label beneath the image rather than over it: a category
+                    name on a photograph of a face is the one place contrast
+                    cannot be guaranteed. */}
+                <span className="mt-2.5 block text-sm font-semibold text-ink">
+                  {category.name}
+                </span>
+                <span className="mt-0.5 block text-xs text-ink-muted">
+                  {category.providerCount}{" "}
+                  {category.providerCount === 1 ? "provider" : "providers"}
                 </span>
               </Link>
             ))}
 
-            {/* The last tile is the way out of the grid, in the rose tint. */}
+            {/* The last card is the way out of the rail, in the rose tint. */}
             <Link
-              href="/search"
-              className="flex min-h-[118px] flex-col justify-between rounded-glam border border-brand-200 bg-brand-50 p-4 transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-card"
+              href="/salons"
+              className="w-[180px] shrink-0 snap-start sm:w-[210px]"
             >
-              <span className="text-brand-700" aria-hidden>
-                <SquaresFour size={20} weight="light" />
+              <span className="flex aspect-[4/3] w-full items-center justify-center rounded-glam border border-brand-200 bg-brand-50 text-brand-700 transition duration-[180ms] ease-glam hover:bg-brand-100">
+                <SquaresFour size={28} weight="light" aria-hidden />
               </span>
-              <span>
-                <span className="block text-sm font-semibold text-brand-700">
-                  All categories
-                </span>
-                <span className="mt-0.5 block text-xs text-brand-700/80">
-                  {stats.serviceCount} services
-                </span>
+              <span className="mt-2.5 block text-sm font-semibold text-brand-700">
+                All salons
+              </span>
+              <span className="mt-0.5 block text-xs text-ink-muted">
+                {stats.serviceCount} services
               </span>
             </Link>
-          </div>
-        </section>
+          </Rail>
+        </Container>
       ) : null}
 
-      {/* ================= Block 3 — featured providers ================ */}
+      {/* ================= Block 3 — featured vendors ================ */}
       {cards.length > 0 ? (
-        <section>
+        <Container className="pt-14 sm:pt-16">
           <BlockHeading
-            title="Featured providers"
+            title="Featured pros"
             lede="Ranked by rating and completed work, never by what they paid us."
-            action={
-              <Link
-                href="/search"
-                className="tap-44 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline"
-              >
-                See all
-                <ArrowRight size={14} weight="light" aria-hidden />
-              </Link>
-            }
+            action={<SeeAll href="/salons" />}
           />
           <FeaturedProviders
             providers={cards}
             categories={categories.map((category) => category.name)}
           />
-        </section>
+        </Container>
       ) : null}
 
       {/* ================= Block 4 — cities ============================ */}
       {cities.length > 0 ? (
-        <section>
-          <BlockHeading title="Browse by city" />
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]">
-            {cities.slice(0, 6).map((city) => (
-              <Link
-                key={city.city}
-                href={`/search?location=${encodeURIComponent(city.city)}`}
-                className="group overflow-hidden rounded-glam border border-line bg-surface shadow-card transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:shadow-raised"
-              >
-                <div aria-hidden className="aspect-[16/10] w-full bg-metal" />
-                <div className="p-3.5">
-                  <p className="text-sm font-semibold text-ink">{city.city}</p>
-                  <p className="mt-0.5 text-xs text-ink-muted">
-                    {city.providerCount}{" "}
-                    {city.providerCount === 1 ? "provider" : "providers"} ·{" "}
-                    {city.sector}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+        <section className="mt-14 bg-sunken py-14 sm:mt-16 sm:py-16">
+          <Container>
+            <BlockHeading
+              title="Browse by city"
+              lede="Verified pros close to home, sorted by distance from your postcode."
+            />
+            <Rail label="Cities">
+              {cities.map((city) => (
+                <Link
+                  key={city.city}
+                  href={`/${citySlug(city.city)}/salons`}
+                  className="group relative w-[200px] shrink-0 snap-start overflow-hidden rounded-glam sm:w-[240px]"
+                >
+                  {city.image ? (
+                    // Photos in our own library render even if the upload
+                    // endpoint variable is unset; anything else is checked.
+                    city.image.startsWith(`${brandMediaOrigin()}/`) ? (
+                      <BrandImage
+                        path={decodeURI(city.image.slice(brandMediaOrigin().length))}
+                        alt=""
+                        width={480}
+                        height={360}
+                        sizes="240px"
+                        className="block aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                    <GlamImage
+                      src={city.image}
+                      alt=""
+                      width={480}
+                      height={360}
+                      sizes="240px"
+                      className="block aspect-[4/3] w-full object-cover transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                    />
+                    )
+                  ) : (
+                    <>
+                      {/* No photograph for this city yet: the brand metal,
+                          with its initial so the rail still reads as places. */}
+                      <span
+                        aria-hidden
+                        className="block aspect-[4/3] w-full bg-metal transition duration-[320ms] ease-glam group-hover:scale-[1.03]"
+                      />
+                      <span
+                        aria-hidden
+                        className="absolute -top-2 right-3 font-display text-[96px] font-extrabold leading-none text-black/10"
+                      >
+                        {city.label.slice(0, 1)}
+                      </span>
+                    </>
+                  )}
+                  {/* Name over the image, so the scrim is load-bearing and
+                      stays fixed in both themes. */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"
+                  />
+                  <span className="absolute inset-x-0 bottom-0 p-3.5">
+                    <span className="block text-sm font-bold text-white">
+                      {city.label}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-white/80">
+                      {city.providerCount > 0
+                        ? `${city.providerCount} ${city.providerCount === 1 ? "provider" : "providers"}`
+                        : "Pros joining soon"}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </Rail>
+          </Container>
         </section>
       ) : null}
 
       {/* ================= Block 5 — how it works ====================== */}
-      <section>
-        <BlockHeading title="How it works" />
-        <ol className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
+      <Container className="pt-14 sm:pt-16">
+        <BlockHeading
+          title="How it works"
+          lede="Three steps from browsing to beautiful."
+        />
+        <ol className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
           {HOW_IT_WORKS.map((step, index) => (
-            <li
-              key={step.title}
-              className="overflow-hidden rounded-glam border border-line bg-surface shadow-card"
-            >
-              <div className="relative aspect-[16/10] w-full bg-sunken">
-                {/* The badge overlaps the bottom-left of the image, half in
-                    and half out — the one metal element in this block. */}
+            <li key={step.title}>
+              <div className="relative overflow-hidden rounded-glam bg-metal">
+                <BrandImage
+                  path={HOW_IT_WORKS_IMAGE_PATHS[index]}
+                  alt=""
+                  width={640}
+                  height={480}
+                  sizes="(max-width: 640px) 100vw, 33vw"
+                  className="block aspect-[4/3] w-full object-cover"
+                />
                 <span
                   aria-hidden
-                  className="absolute -bottom-5 left-4 flex h-10 w-10 items-center justify-center rounded-full bg-metal text-metal-ink shadow-card"
+                  className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-glam-sm bg-surface/90 text-brand-700 backdrop-blur"
                 >
                   {step.icon}
                 </span>
               </div>
-              <div className="px-4 pb-4 pt-8">
-                <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-ink-muted">
-                  Step 0{index + 1}
-                </p>
-                <h3 className="mt-1.5 font-display text-lg font-semibold text-ink">
-                  {step.title}
-                </h3>
-                <p className="mt-1.5 text-[15px] text-ink-muted">{step.body}</p>
-              </div>
+              <p className="mt-3.5 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-ink-muted">
+                Step 0{index + 1}
+              </p>
+              <h3 className="mt-1.5 font-display text-lg font-semibold text-ink">
+                {step.title}
+              </h3>
+              <p className="mt-1.5 text-[15px] text-ink-muted">{step.body}</p>
             </li>
           ))}
         </ol>
+      </Container>
+
+      {/* ================= Promises ==================================== */}
+      {/* Where a marketplace would show customer reviews. GLAMNET does not
+          have enough yet to show honestly, so it shows what it guarantees. */}
+      <section className="mt-14 bg-sunken py-14 sm:mt-16 sm:py-16">
+        <Container>
+          <BlockHeading
+            title="Why book through GLAMNET"
+            lede="Three promises that hold for every booking, with every pro."
+          />
+          <ul className="grid gap-4 md:grid-cols-3">
+            {PROMISES.map((promise) => (
+              <li
+                key={promise.title}
+                className="rounded-glam-lg border border-line bg-surface p-6"
+              >
+                <span
+                  aria-hidden
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-100 text-accent-700"
+                >
+                  {promise.icon}
+                </span>
+                <h3 className="mt-4 font-display text-lg font-semibold text-ink">
+                  {promise.title}
+                </h3>
+                <p className="mt-1.5 text-[15px] text-ink-muted">{promise.body}</p>
+              </li>
+            ))}
+          </ul>
+        </Container>
       </section>
 
       {/* ================= CTA band ==================================== */}
-      <section className="overflow-hidden rounded-glam-lg border border-line bg-surface shadow-card">
-        <div className="grid gap-8 p-7 sm:p-10 lg:grid-cols-[1.2fr_1fr] lg:items-center">
-          <div>
-            <h2 className="font-display text-3xl font-bold tracking-[-0.02em] text-ink">
-              Bring your next occasion to life
-            </h2>
-            <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
-              Whether you need someone this evening or you want to take bookings
-              of your own, it starts in the same place.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/search"
-                className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
-              >
-                Find a provider
-              </Link>
-              <Link
-                href="/sign-up"
-                className="inline-flex min-h-11 items-center rounded-full bg-surface px-6 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] ease-glam hover:bg-sunken active:scale-[0.98]"
-              >
-                Become a provider
-              </Link>
+      <Container className="pt-14 sm:pt-16">
+        {/*
+          A warm gradient band, in the brand's own champagne and rose rather
+          than a borrowed accent. Not the metal gradient: that is reserved for
+          the single primary action, which is the button sitting on top of it.
+        */}
+        <div className="overflow-hidden rounded-glam-lg border border-accent-500/40 bg-[radial-gradient(80%_120%_at_0%_0%,color-mix(in_oklab,var(--glam-gold)_22%,transparent),transparent_70%)] bg-surface p-8 sm:p-12">
+          <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+            <div>
+              <h2 className="font-display text-3xl font-bold tracking-[-0.02em] text-ink sm:text-4xl">
+                Bring your next occasion to life
+              </h2>
+              <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
+                Book a pro for this evening or next season — or, if you are the
+                pro, claim a free storefront with 0% commission on your own link.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link
+                  href="/salons"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
+                >
+                  Find a pro
+                  <ArrowRight size={15} weight="bold" aria-hidden />
+                </Link>
+                <Link
+                  href="/become-a-vendor"
+                  className="inline-flex min-h-11 items-center rounded-full bg-surface px-6 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] ease-glam hover:bg-sunken active:scale-[0.98]"
+                >
+                  List your business free
+                </Link>
+              </div>
+            </div>
+
+            {/* Overlapping avatar stack. The overflow chip counts the
+                vendors the stack could not show — a marketplace that
+                inflates its own numbers here is contradicted by the search
+                page one click away. */}
+            <div className="flex items-center gap-3">
+              <span aria-hidden className="flex -space-x-3">
+                {cards.slice(0, 4).map((provider) => (
+                  <GlamImage
+                    key={provider.id}
+                    src={provider.imageUrl}
+                    alt=""
+                    width={80}
+                    height={80}
+                    className="h-10 w-10 rounded-full object-cover ring-2 ring-surface"
+                  />
+                ))}
+                {stats.providerCount > 4 ? (
+                  <span className="flex h-10 items-center rounded-full bg-surface px-3 font-mono text-xs font-semibold text-ink ring-2 ring-surface">
+                    +{stats.providerCount - 4}
+                  </span>
+                ) : null}
+              </span>
+              <p className="text-sm text-ink-muted">
+                <span className="font-semibold text-ink">
+                  {stats.providerCount}
+                </span>{" "}
+                vetted {stats.providerCount === 1 ? "provider" : "providers"}{" "}
+                taking work across {stats.cityCount}{" "}
+                {stats.cityCount === 1 ? "city" : "cities"}
+              </p>
             </div>
           </div>
-
-          {/* Overlapping avatar stack. The faces are placeholders, but the
-              overflow chip is not a decorative "+2k": it counts the providers
-              the stack could not show. A marketplace that inflates its own
-              numbers here is contradicted by the search page one click away. */}
-          <div className="flex items-center gap-3">
-            <span aria-hidden className="flex -space-x-3">
-              {cards.slice(0, 4).map((provider) => (
-                <GlamImage
-                  key={provider.id}
-                  src={provider.imageUrl}
-                  alt=""
-                  width={80}
-                  height={80}
-                  className="h-10 w-10 rounded-full object-cover ring-2 ring-surface"
-                />
-              ))}
-              {stats.providerCount > 4 ? (
-                <span className="flex h-10 items-center rounded-full bg-sunken px-3 font-mono text-xs font-semibold text-ink ring-2 ring-surface">
-                  +{stats.providerCount - 4}
-                </span>
-              ) : null}
-            </span>
-            <p className="text-sm text-ink-muted">
-              <span className="font-semibold text-ink">
-                {stats.providerCount}
-              </span>{" "}
-              vetted{" "}
-              {stats.providerCount === 1 ? "provider" : "providers"} taking work
-              across {stats.cityCount}{" "}
-              {stats.cityCount === 1 ? "city" : "cities"}
-            </p>
-          </div>
         </div>
-      </section>
+      </Container>
     </div>
   );
 }
 
-/** A hero trust figure: champagne number, muted label. */
-function TrustFigure({ value, label }: { value: string; label: string }) {
+function SeeAll({ href }: { href: string }) {
   return (
-    <div>
-      <dt className="sr-only">{label}</dt>
-      <dd>
-        <span
-          data-numeric
-          className="block font-display text-3xl font-bold tracking-[-0.02em] text-accent-700"
-        >
-          {value}
-        </span>
-        <span className="mt-0.5 block text-xs text-ink-muted">{label}</span>
-      </dd>
+    <Link
+      href={href}
+      className="tap-44 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline"
+    >
+      See all
+      <ArrowRight size={14} weight="light" aria-hidden />
+    </Link>
+  );
+}
+
+/**
+ * A hero trust figure.
+ *
+ * Uses the ordinary ink tokens, which is safe here precisely because the band
+ * scopes the light palette — inside it they resolve to their light-mode values
+ * in both themes, matching the cream the copy sits on.
+ */
+function HeroFigure({
+  icon,
+  value,
+  label,
+}: {
+  icon?: ReactNode;
+  value: string;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      {icon ? <span className="text-accent-700">{icon}</span> : null}
+      <div>
+        <dt className="sr-only">{label}</dt>
+        <dd>
+          <span data-numeric className="text-sm font-bold text-ink">
+            {value}
+          </span>{" "}
+          <span className="text-sm text-ink-muted">{label}</span>
+        </dd>
+      </div>
     </div>
   );
 }

@@ -11,6 +11,7 @@ const FILTERS = [
   "CONFIRMED",
   "COMPLETED",
   "CANCELLED",
+  "NO_SHOW",
   "DISPUTED",
 ] as const;
 
@@ -24,6 +25,7 @@ function whereFor(filter: Filter) {
     case "CONFIRMED":
     case "COMPLETED":
     case "CANCELLED":
+    case "NO_SHOW":
     case "DISPUTED":
       return { status: filter };
     default:

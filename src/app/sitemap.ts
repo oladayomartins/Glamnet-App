@@ -1,5 +1,7 @@
+import { citySlug } from "@/lib/domain/postcode";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/server/prisma";
+import { listCities } from "@/lib/server/cities";
 import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +11,7 @@ export const dynamic = "force-dynamic";
  *
  * Service searches are included because they are the pages a customer would
  * actually arrive on from a search engine — "knotless braids sheffield" should
- * land on results, not the homepage. Only services with an approved provider
+ * land on results, not the homepage. Only services with an approved vendor
  * are listed, so a crawled page is never an empty result.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -19,9 +21,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: base, lastModified: now, changeFrequency: "weekly", priority: 1 },
     { url: `${base}/search`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/salons`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/book`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/sign-up`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/sign-in`, lastModified: now, changeFrequency: "monthly", priority: 0.3 },
+    ...["/terms", "/privacy", "/cookies", "/cancellations"].map((path) => ({
+      url: `${base}${path}`,
+      lastModified: now,
+      changeFrequency: "yearly" as const,
+      priority: 0.2,
+    })),
   ];
 
   try {
@@ -33,8 +42,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         select: { name: true },
       }),
-      prisma.hub.findMany({ select: { id: true, city: true } }),
-      // Only providers a customer can actually reach: the profile route 404s
+      // Only cities with a live pro: an empty directory page is not worth indexing.
+      prisma.hub.findMany({
+        where: { providers: { some: { approvalStatus: "APPROVED" } } },
+        select: { id: true, city: true },
+      }),
+      // Only vendors a customer can actually reach: the profile route 404s
       // for anyone pending, rejected or not taking work, and a sitemap full
       // of 404s is worse than a shorter one.
       prisma.provider.findMany({
@@ -50,8 +63,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-    const cityRoutes = [...new Set(hubs.map((hub) => hub.city))].map((city) => ({
-      url: `${base}/search?location=${encodeURIComponent(city)}`,
+    const cityRoutes = [...new Set([...(await listCities()).map((city) => city.name), ...hubs.map((hub) => hub.city)])].map((city) => ({
+      url: `${base}/${citySlug(city)}/salons`,
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.7,

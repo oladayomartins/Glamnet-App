@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 
-/** GET /api/providers — provider directory, used to switch dashboards in the demo. */
+/** GET /api/providers — vendor directory, used to switch dashboards in the demo. */
 export async function GET() {
   try {
     const providers = await prisma.provider.findMany({

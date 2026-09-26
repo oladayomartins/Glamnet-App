@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 import { parseQueryDate } from "../parse-date";
 
 describe("parseQueryDate", () => {
-  it("reads YYYY-MM-DD as local midnight", () => {
-    const parsed = parseQueryDate("2026-04-01");
-    expect(parsed).not.toBeNull();
-    expect(parsed!.getFullYear()).toBe(2026);
-    expect(parsed!.getMonth()).toBe(3);
-    expect(parsed!.getDate()).toBe(1);
-    expect(parsed!.getHours()).toBe(0);
+  it("reads YYYY-MM-DD as UK midnight, whatever the server's zone", () => {
+    // 1 April is British Summer Time: UK midnight is 23:00 UTC the day before.
+    expect(parseQueryDate("2026-04-01")!.toISOString()).toBe("2026-03-31T23:00:00.000Z");
+    // In winter the UK is on GMT.
+    expect(parseQueryDate("2026-01-15")!.toISOString()).toBe("2026-01-15T00:00:00.000Z");
   });
 
   it("reads a full ISO timestamp", () => {

@@ -30,9 +30,9 @@ export interface PriceBreakdown {
   otherSurchargesMinor: number;
   trustFeeMinor: number;
   totalMinor: number;
-  /** Share of the total paid out to the provider, incl. their surge share. */
+  /** Share of the total paid out to the vendor, incl. their surge share. */
   providerEarningsMinor: number;
-  /** The provider's portion of the emergency surcharge specifically. */
+  /** The vendor's portion of the emergency surcharge specifically. */
   providerEmergencyEarningsMinor: number;
 }
 
@@ -50,13 +50,20 @@ export interface PricingInput {
   /** Non-emergency surcharges (peak hour, bank holiday, …). */
   otherSurcharges?: readonly OtherSurcharge[];
   emergencyConfig: EmergencyPricingConfig | null;
-  /** Provider's share of the booking, in basis points. Default 70%. */
+  /** Vendor's share of the booking, in basis points. Default 70%. */
   providerCommissionBps?: number;
-  /** Provider's share of the emergency surcharge, in bps. Default 70%. */
+  /** Vendor's share of the emergency surcharge, in bps. Default 70%. */
   providerEmergencyShareBps?: number;
 }
 
-const DEFAULT_PROVIDER_COMMISSION_BPS = 7_000;
+/**
+ * The vendor's share of service work, in basis points.
+ *
+ * Exported because the vendor landing page quotes it. A marketing page that
+ * states a number the engine does not use is worse than one that states none,
+ * so it reads the same constant the money does.
+ */
+export const DEFAULT_PROVIDER_COMMISSION_BPS = 7_000;
 
 /**
  * Multiply a pence amount by a basis-point rate, rounding half-up.
@@ -175,7 +182,7 @@ export function priceBooking(
     otherSurchargesMinor +
     TRUST_FEE_MINOR;
 
-  // The provider earns a share of the service work and of the surge, plus the
+  // The vendor earns a share of the service work and of the surge, plus the
   // travel fee in full. The trust fee is a platform fee and is never shared.
   const providerEmergencyEarningsMinor = applyBps(
     surcharge,

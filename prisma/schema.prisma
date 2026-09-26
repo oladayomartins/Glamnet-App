@@ -28,6 +28,10 @@ model Hub {
   /// Fixed travel fee for bookings in this sector, in pence.
   travelFeeMinor Int      @default(500)
   createdAt      DateTime @default(now())
+  /// Centroid of the outward code, from the ONS postcode directory. Hubs are
+  /// created on demand for any UK outward code.
+  latitude       Float?
+  longitude      Float?
 
   providers Provider[]
   bookings  Booking[]
@@ -59,26 +63,65 @@ model Service {
 /// app needs to authorise a request. `authUserId` is the Supabase user id
 /// (a uuid), and is the join between a session and everything below.
 model AppUser {
-  id         String   @id @default(cuid())
+  id              String    @id @default(cuid())
   /// Supabase auth.users.id. Unique so a session maps to exactly one profile.
-  authUserId String   @unique
-  email      String   @unique
+  authUserId      String    @unique
+  email           String    @unique
   /// "CUSTOMER" | "PROVIDER" | "ADMIN". Never settable from the client.
-  role       String   @default("CUSTOMER")
-  createdAt  DateTime @default(now())
+  role            String    @default("CUSTOMER")
+  createdAt       DateTime  @default(now())
+  /// Set by an admin to lock the account out. Checked on every request.
+  suspendedAt     DateTime?
+  suspendedReason String    @default("")
+  /// Set when the person unsubscribes from marketing email (campaigns).
+  /// Booking and account emails are unaffected: they are part of the service.
+  marketingOptOutAt DateTime?
+  /// Secret in every campaign email's unsubscribe link, so opting out needs
+  /// no sign-in. Random, and never shown anywhere else.
+  unsubscribeToken  String    @unique @default(dbgenerated("(gen_random_uuid())::text"))
 
   customer Customer?
   provider Provider?
 
+  pushSubscriptions PushSubscription[]
+
   @@index([role])
 }
 
+/// A browser or installed app that asked for push notifications. One person
+/// can have several (phone, laptop). Removed when the push service says the
+/// subscription is gone.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  appUserId  String
+  appUser    AppUser   @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+  /// The push service URL. Unique: re-subscribing the same browser updates it.
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String    @default("")
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([appUserId])
+}
+
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  phone     String   @default("")
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  name             String
+  email            String   @unique
+  phone            String   @default("")
+  createdAt        DateTime @default(now())
+  /// The customer's home postcode, remembered for "pros near you". Private.
+  postcode         String   @default("")
+  latitude         Float?
+  longitude        Float?
+  /// Stripe Customer, created the first time a card is saved for later.
+  stripeCustomerId String   @default("")
+  /// Profile photo shown in the header menu. fileId lets a replaced photo be
+  /// deleted from ImageKit rather than orphaned.
+  avatarUrl        String   @default("")
+  avatarFileId     String   @default("")
 
   /// Null for seeded demo records that have no login yet.
   appUserId String?  @unique
@@ -102,7 +145,8 @@ model Provider {
   avatarUrl    String @default("")
   avatarFileId String @default("")
 
-  /// "PENDING" | "APPROVED" | "REJECTED" (spec: vetted marketplace).
+  /// "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED" (spec: vetted
+  /// marketplace). SUSPENDED is an approved vendor taken offline by an admin.
   /// Only APPROVED providers are eligible for broadcasts — enforced in the
   /// matching query, not just hidden in the UI.
   approvalStatus String    @default("PENDING")
@@ -115,25 +159,104 @@ model Provider {
   hubId String
   hub   Hub    @relation(fields: [hubId], references: [id])
 
+  // --- Storefront (Open Marketplace Directory §B, §C) ---------------------
+  /// Public storefront handle: glamnet.co/pro/:slug. Null until the vendor
+  /// claims one in the onboarding wizard.
+  slug             String?   @unique
+  phone            String    @default("")
+  instagramHandle  String    @default("")
+  tiktokHandle     String    @default("")
+  /// "HOME_SALON" | "PRIVATE_ROOM" | "CHAIR" | "MOBILE". Where clients come
+  /// to; MOBILE vendors only travel.
+  workspaceType    String    @default("MOBILE")
+  /// Outward postcode sector of the workspace (e.g. "S10"), used for the
+  /// directory's proximity sort. Empty falls back to the hub's sector.
+  workspaceSector  String    @default("")
+  /// Whether the vendor also travels to the client's address.
+  travelsToClients Boolean   @default(true)
+  /// The vendor's full base postcode and its coordinates. PRIVATE: used only
+  /// for distance. Publicly a vendor is shown at their outward code.
+  basePostcode     String    @default("")
+  latitude         Float?
+  longitude        Float?
+  /// Set when the vendor finishes the onboarding wizard.
+  onboardedAt      DateTime?
+  /// is_verified: approved by an admin with compliance documents on file.
+  /// Only verified vendors have a live storefront and booking calendar.
+  isVerified       Boolean   @default(false)
+
+  // --- Payouts (Stripe Connect Express) -----------------------------------
+  stripeAccountId String  @default("")
+  payoutsEnabled  Boolean @default(false)
+
+  /// Promoted by an admin: listed first in the directory and on the home page.
+  isFeatured Boolean @default(false)
+
   services     ProviderService[]
   availability ProviderAvailability[]
   timeOff      ProviderTimeOff[]
   bookings     Booking[]
   broadcasts   BookingBroadcast[]
+  lookbook     ProviderLookbookImage[]
+  documents    ProviderDocument[]
 
   @@index([hubId])
   @@index([approvalStatus])
 }
 
-/// Which services a provider is qualified to deliver.
+/// Which services a provider is qualified to deliver, and at what price on
+/// their own storefront.
 model ProviderService {
-  providerId String
-  serviceId  String
-  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  providerId      String
+  serviceId       String
+  /// The vendor's own price in pence; null uses the catalogue price. Only the
+  /// storefront (direct) booking uses it — a broadcast is priced before any
+  /// vendor is chosen, so it can only use the catalogue.
+  priceMinor      Int?
+  /// The vendor's own duration; null uses the catalogue duration.
+  durationMinutes Int?
+  provider        Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  service         Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@id([providerId, serviceId])
   @@index([serviceId])
+}
+
+/// One of up to three "look transformation" photos on a storefront.
+model ProviderLookbookImage {
+  id         String   @id @default(cuid())
+  providerId String
+  url        String
+  fileId     String   @default("")
+  caption    String   @default("")
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, position])
+}
+
+/// Insurance certificate or practitioner licence, uploaded for admin review.
+model ProviderDocument {
+  id         String    @id @default(cuid())
+  providerId String
+  /// "INSURANCE" | "LICENCE" | "CERTIFICATE".
+  kind       String
+  fileName   String    @default("")
+  mimeType   String    @default("")
+  url        String
+  fileId     String    @default("")
+  /// "PENDING" | "APPROVED" | "REJECTED".
+  status     String    @default("PENDING")
+  reviewNote String    @default("")
+  uploadedAt DateTime  @default(now())
+  reviewedAt DateTime?
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([status])
 }
 
 /// A recurring weekly working window, in local wall-clock minutes from midnight.
@@ -229,6 +352,83 @@ model Booking {
   /// payment. Empty when they rated without writing anything.
   reviewNote           String  @default("")
   cancelledReason      String  @default("")
+  /// Who cancelled: "CUSTOMER", "PROVIDER", "ADMIN" or "SYSTEM".
+  cancelledBy          String  @default("")
+  cancelledAt          DateTime?
+  /// Set when the vendor marks the client as not having turned up.
+  noShowAt             DateTime?
+  /// A late-cancellation or missed-appointment fee taken from the card hold
+  /// (see domain/cancellation.ts), and the vendor's share of it. A fee is
+  /// released like a payment, so it can be disputed for 24 hours.
+  cancellationFeeMinor       Int @default(0)
+  cancellationFeePayoutMinor Int @default(0)
+  /// The "free cancellation ends soon" reminder, sent once.
+  reminderSentAt       DateTime?
+
+  // --- Origin & commission (Directory §D, dual-commission protocol) --------
+  /// "BROADCAST" (emergency/request flow), "MARKETPLACE" (chosen on the
+  /// directory) or "DIRECT_LINK" (the vendor's own /pro/:slug link).
+  source                  String  @default("BROADCAST")
+  /// "CUSTOMER_ADDRESS" (vendor travels) or "VENDOR_PREMISES".
+  serviceLocation         String  @default("CUSTOMER_ADDRESS")
+  /// Rule B: a new client found through the marketplace. Only ever true on
+  /// the first booking between this customer and this vendor.
+  firstDiscoveryBooking   Boolean @default(false)
+  /// Marketplace commission applied, in basis points (0 or 3000).
+  commissionBps           Int     @default(3000)
+  /// Tip added at checkout. Always passed to the vendor in full.
+  tipMinor                Int     @default(0)
+  platformCommissionMinor Int     @default(0)
+  /// Card processing fee deducted from the vendor's payout (Rule A only).
+  processingFeeMinor      Int     @default(0)
+  /// What the vendor receives at escrow release, tip included.
+  providerPayoutMinor     Int     @default(0)
+
+  // --- Escrow (Directory §D, Flow 2) ---------------------------------------
+  /// "NOT_STARTED" | "PENDING_AUTHORISATION" | "CARD_SAVED" | "AUTHORISED" |
+  /// "AUTHORISATION_FAILED" | "ESCROW_RELEASED" | "VOIDED" | "REFUNDED" |
+  /// "PARTIALLY_REFUNDED".
+  paymentStatus         String    @default("NOT_STARTED")
+  paymentIntentId       String    @default("")
+  transferId            String    @default("")
+  /// Bookings too far ahead for a card hold (Stripe drops one after about
+  /// seven days) save the card with a SetupIntent at checkout instead, and
+  /// the hold is placed off-session nearer the date.
+  setupIntentId         String    @default("")
+  paymentMethodId       String    @default("")
+  /// How many holds have been attempted; keys each one's idempotency.
+  holdAttempts          Int       @default(0)
+  holdAuthorisedAt      DateTime?
+  /// Why the last hold failed, in the card issuer's words, for the customer.
+  paymentFailureReason  String    @default("")
+  /// One-time 4-digit code shown only to the customer. Never returned to the
+  /// vendor, who has to be told it in person.
+  completionPin         String    @default("")
+  completionPinIssuedAt DateTime?
+  completionPinAttempts Int       @default(0)
+  escrowReleasedAt      DateTime?
+  /// escrowReleasedAt + 24h. After it, the booking is closed_uncontestable.
+  disputeWindowClosesAt DateTime?
+  /// "OPEN" | "DISPUTED" | "CLOSED_UNCONTESTABLE".
+  settlementStatus      String    @default("OPEN")
+  disputeReason         String    @default("")
+  disputedAt            DateTime?
+  /// An admin's ruling on a dispute: what the customer got back and what was
+  /// recovered from the vendor. settlementStatus becomes "RESOLVED".
+  refundedMinor         Int       @default(0)
+  clawbackMinor         Int       @default(0)
+  refundId              String    @default("")
+  transferReversalId    String    @default("")
+  disputeResolution     String    @default("")
+  disputeResolvedAt     DateTime?
+  disputeResolvedBy     String    @default("")
+
+  // --- Promotions -------------------------------------------------------------
+  /// Taken off what the customer is charged. Funded by GLAMNET: the vendor's
+  /// payout is exactly what it would have been without the code.
+  discountMinor Int        @default(0)
+  promoCodeId   String?
+  promoCode     PromoCode? @relation(fields: [promoCodeId], references: [id])
 
   customerId String
   customer   Customer  @relation(fields: [customerId], references: [id])
@@ -238,15 +438,36 @@ model Booking {
   providerId String?
   provider   Provider? @relation(fields: [providerId], references: [id])
 
-  items         BookingItem[]
-  broadcasts    BookingBroadcast[]
-  events        BookingStatusEvent[]
-  notifications Notification[]
+  items            BookingItem[]
+  broadcasts       BookingBroadcast[]
+  events           BookingStatusEvent[]
+  notifications    Notification[]
+  completionPhotos BookingCompletionPhoto[]
+  promoRedemption  PromoRedemption?
 
   @@index([status])
   @@index([bookingType])
   @@index([providerId, appointmentStartAt])
   @@index([appointmentStartAt])
+  @@index([customerId, providerId])
+  @@index([settlementStatus, disputeWindowClosesAt])
+  @@index([paymentStatus, appointmentStartAt])
+}
+
+/// One of the three mandatory photos of the finished work, taken by the
+/// vendor before the release PIN is issued — the visual audit trail a
+/// dispute is judged against.
+model BookingCompletionPhoto {
+  id        String   @id @default(cuid())
+  bookingId String
+  url       String
+  fileId    String   @default("")
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
 }
 
 /// A basket line, snapshotted at booking time so later price changes to the
@@ -324,4 +545,169 @@ model Notification {
 
   @@index([audience, createdAt])
   @@index([providerId, createdAt])
+}
+
+// --- Admin console ---------------------------------------------------------
+
+/// A Specialty Hub: a category of work. `name` is what Service.category holds,
+/// so renaming one renames it on every service in the same transaction.
+model Category {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String   @unique
+  emoji       String   @default("")
+  blurb       String   @default("")
+  imageUrl    String   @default("")
+  imageFileId String   @default("")
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+/// Stripe webhook events already handled. Stripe retries and can deliver an
+/// event more than once; the id makes every handler run at most once.
+model StripeEvent {
+  id         String   @id
+  type       String
+  receivedAt DateTime @default(now())
+}
+
+/// A city listed under "Browse by city", managed by admins.
+///
+/// `name` is the district postcodes in the city resolve to ("Brighton and
+/// Hove", "Newcastle upon Tyne") — vendors are counted by their Beauty Hub's
+/// city, so it must match. `label` is what the tile shows, when different.
+model City {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String   @unique
+  label       String   @default("")
+  /// A central outward code: the search area when the tile is used.
+  outcode     String
+  latitude    Float
+  longitude   Float
+  imageUrl    String   @default("")
+  imageFileId String   @default("")
+  sortOrder   Int      @default(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+/// A marketing campaign: an on-site announcement, an email, or both.
+model Campaign {
+  id          String    @id @default(cuid())
+  name        String
+  /// "ALL" | "CUSTOMERS" | "VENDORS".
+  audience    String    @default("ALL")
+  title       String
+  message     String
+  ctaLabel    String    @default("")
+  ctaUrl      String    @default("")
+  /// Show as a banner on the site while live.
+  showBanner  Boolean   @default(true)
+  startsAt    DateTime  @default(now())
+  endsAt      DateTime?
+  isActive    Boolean   @default(false)
+  emailSentAt DateTime?
+  emailSentTo Int       @default(0)
+  createdBy   String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive, startsAt])
+}
+
+/// A paid or house ad in a named slot on the site.
+model AdPlacement {
+  id          String    @id @default(cuid())
+  /// "HOME_BANNER" | "DIRECTORY_TOP" | "STOREFRONT_FOOTER".
+  slot        String
+  title       String
+  subtitle    String    @default("")
+  imageUrl    String    @default("")
+  imageFileId String    @default("")
+  linkUrl     String    @default("")
+  /// Who the ad is for — shown to admins, never to visitors.
+  advertiser  String    @default("")
+  startsAt    DateTime  @default(now())
+  endsAt      DateTime?
+  isActive    Boolean   @default(true)
+  /// Higher shows first when a slot has several live ads.
+  priority    Int       @default(0)
+  impressions Int       @default(0)
+  clicks      Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slot, isActive])
+}
+
+/// Every admin action, for accountability.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorEmail String
+  /// e.g. "vendor.approve", "account.suspend", "category.update".
+  action     String
+  targetType String
+  targetId   String   @default("")
+  summary    String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// A discount code customers enter at checkout. GLAMNET-funded: it comes out
+/// of the platform's share of a booking, never the vendor's payout.
+model PromoCode {
+  id               String    @id @default(cuid())
+  /// Upper-case, letters/numbers/dashes. What the customer types.
+  code             String    @unique
+  description      String    @default("")
+  /// "PERCENT" (value in basis points) or "FIXED" (value in pence).
+  discountType     String    @default("PERCENT")
+  value            Int
+  /// Largest discount one booking can get, in pence. 0 = no cap beyond
+  /// GLAMNET's share of the booking.
+  maxDiscountMinor Int       @default(0)
+  /// Services subtotal a basket must reach, in pence.
+  minSpendMinor    Int       @default(0)
+  /// Only a customer's first ever booking on GLAMNET.
+  firstBookingOnly Boolean   @default(false)
+  /// Empty = any category; otherwise the category name the basket must include.
+  category         String    @default("")
+  /// Total redemptions allowed across everyone. 0 = unlimited.
+  maxRedemptions   Int       @default(0)
+  /// Redemptions allowed per customer. 0 = unlimited.
+  perCustomerLimit Int       @default(1)
+  startsAt         DateTime  @default(now())
+  endsAt           DateTime?
+  isActive         Boolean   @default(true)
+  createdBy        String    @default("")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  bookings    Booking[]
+  redemptions PromoRedemption[]
+}
+
+/// One use of a code. Counts only while its booking is still live.
+model PromoRedemption {
+  id            String    @id @default(cuid())
+  promoCodeId   String
+  promoCode     PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  /// One code per booking.
+  bookingId     String    @unique
+  booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerId    String
+  discountMinor Int
+  createdAt     DateTime  @default(now())
+
+  @@index([promoCodeId])
+  @@index([customerId, promoCodeId])
 }

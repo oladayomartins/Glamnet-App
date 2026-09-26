@@ -18,9 +18,9 @@ const PROBE_MINUTES = 60;
 const PROBE_STEP_MINUTES = 30;
 
 /**
- * Whether a provider could still take an hour's work in `[from, to)` today.
+ * Whether a vendor could still take an hour's work in `[from, to)` today.
  *
- * Both probes below run through exactly the same gate as the customer slot
+ * The probe runs through exactly the same gate as the customer slot
  * picker and the broadcast matcher — working hours, existing reservations
  * (which already carry the 15-minute transition) and blocked periods. That is
  * what stops a card badge or a filter from promising something the

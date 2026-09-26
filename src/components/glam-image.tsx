@@ -8,7 +8,7 @@ import { imageKitEndpoint, isTrustedImageUrl } from "@/lib/imagekit";
  *
  *  1. It refuses to render a URL that is not from our own delivery endpoint.
  *     Reference images are supplied by customers, and an arbitrary remote URL
- *     would let a booking embed a tracking pixel that fires for every provider
+ *     would let a booking embed a tracking pixel that fires for every vendor
  *     and admin who opens it.
  *  2. When nothing is configured or no image exists, it falls back to the
  *     brand's metal gradient rather than a broken image — so the marketing

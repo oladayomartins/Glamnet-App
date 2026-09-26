@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { TrackEvent } from "@/components/analytics";
+import { CURRENCY, serviceItem } from "@/lib/analytics";
 import {
   Broadcast,
   CalendarCheck,
@@ -19,10 +21,10 @@ import { formatDay, formatDuration, formatMoney, formatTime } from "@/lib/format
 export const dynamic = "force-dynamic";
 
 /**
- * The customer-facing provider profile (§C-03).
+ * The customer-facing vendor profile (§C-03).
  *
  * One honest thing this page has to say, and says twice: booking from here
- * does not book *this* provider. GLAMNET broadcasts to every vetted provider
+ * does not book *this* vendor. GLAMNET broadcasts to every vetted vendor
  * in the sector who is free for the whole appointment, and the first to accept
  * takes the job. A profile that implied otherwise would be selling a promise
  * the matching engine does not make.
@@ -39,7 +41,7 @@ export default async function ProviderProfilePage({
   const { id } = await params;
   const provider = await getProviderProfile(id);
 
-  // Also 404 for a provider who is pending, rejected or not taking work: a
+  // Also 404 for a vendor who is pending, rejected or not taking work: a
   // page whose only possible outcome is a dead end is not worth serving.
   if (!provider) notFound();
 
@@ -65,12 +67,25 @@ export default async function ProviderProfilePage({
   ];
 
   return (
-    <div className="space-y-8 pb-6">
+    <div data-page-width="wide" className="space-y-8 pb-6">
+      <TrackEvent
+        name="view_item"
+        dedupeKey={provider.id}
+        params={{
+          currency: CURRENCY,
+          vendor_id: provider.id,
+          booking_source: "marketplace",
+          items: baseServices.slice(0, 25).map((service, index) => ({
+            ...serviceItem({ ...service, vendor: provider.name, city: provider.city }),
+            index,
+          })),
+        }}
+      />
       <Link
         href="/search"
         className="tap-44 text-sm text-ink-muted hover:text-brand-700"
       >
-        ← All providers
+        ← All vendors
       </Link>
 
       {/* --- Hero: photo + identity --------------------------------------- */}
@@ -226,11 +241,11 @@ export default async function ProviderProfilePage({
                 href="/search"
                 className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
               >
-                See other providers
+                See other vendors
               </Link>
             }
           >
-            This provider has not listed anything bookable yet.
+            This vendor has not listed anything bookable yet.
           </EmptyState>
         </section>
       )}

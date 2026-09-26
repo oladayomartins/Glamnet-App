@@ -6,19 +6,23 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "GLAMNET",
     short_name: "GLAMNET",
     description:
-      "Book a vetted beauty professional to come to you, with emergency bookings for short notice.",
+      "Find and book verified independent beauty pros — home salons, private rooms and chairs — or get one to you at short notice.",
     start_url: "/",
     id: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    // Sourced from the design tokens in globals.css. The manifest spec takes
-    // plain hex, so these are sRGB equivalents of --glam-canvas (light) and
-    // --glam-rose-700 (light) — update them together with the tokens.
-    background_color: "#fbfaf7",
-    theme_color: "#7a3b32",
+    // Sourced from the design tokens in globals.css: Obsidian Black
+    // (--glam-canvas, dark) for the splash screen and status bar — update
+    // them together with the tokens.
+    background_color: "#121212",
+    theme_color: "#121212",
+    // PNGs rendered from app/icon.svg: installing (and so push on iPhone)
+    // needs raster icons, and "maskable" lets Android crop to its own shape.
     icons: [
-      { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

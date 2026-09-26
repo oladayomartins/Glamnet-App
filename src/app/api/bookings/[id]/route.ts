@@ -3,6 +3,8 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { BookingError } from "@/lib/server/booking-service";
 import { getSessionUser } from "@/lib/auth/session";
+import { withoutPin } from "@/lib/api/redact";
+import { expireUnansweredBroadcasts } from "@/lib/server/payment-flow";
 
 /** GET /api/bookings/:id — full booking record with lifecycle history. */
 export async function GET(
@@ -11,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const booking = await prisma.booking.findUnique({
+    const load = () => prisma.booking.findUnique({
       where: { id },
       include: {
         items: true,
@@ -22,11 +24,12 @@ export async function GET(
         broadcasts: { include: { provider: { select: { id: true, name: true } } } },
       },
     });
+    let booking = await load();
 
     if (!booking) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
 
-    // Ownership, not just a role. A signed-in provider must not be able to
-    // read another provider's job, and a customer must not read someone
+    // Ownership, not just a role. A signed-in vendor must not be able to
+    // read another vendor's job, and a customer must not read someone
     // else's booking by guessing an id.
     const viewer = await getSessionUser();
     const mayView =
@@ -40,13 +43,20 @@ export async function GET(
       throw new BookingError("Booking not found.", "NOT_FOUND", 404);
     }
 
+    // The searching screen polls this. A request every vendor let lapse is
+    // closed here, so the customer's hold is released at once rather than
+    // sitting on their card for days.
+    if (booking.status === "BROADCAST" && (await expireUnansweredBroadcasts(new Date(), id)) > 0) {
+      booking = (await load())!;
+    }
+
     // The address is withheld until the ADDRESS_UNLOCKED step (spec §8).
-    return NextResponse.json({
-      booking: {
-        ...booking,
-        addressLine: booking.addressUnlocked ? booking.addressLine : null,
-      },
-    });
+    const isCustomer = viewer?.customerId === booking.customerId;
+    const visible = {
+      ...booking,
+      addressLine: booking.addressUnlocked ? booking.addressLine : null,
+    };
+    return NextResponse.json({ booking: isCustomer ? visible : withoutPin(visible) });
   } catch (error) {
     return errorResponse(error);
   }

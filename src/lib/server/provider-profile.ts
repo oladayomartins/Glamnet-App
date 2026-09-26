@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { addMinutes, startOfLocalDay, type ProviderSchedule } from "@/lib/domain/availability";
+import { addDays, startOfLocalDay, type ProviderSchedule } from "@/lib/domain/availability";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import { isFreeTonight, nextOpening, NEXT_OPENING_HORIZON_DAYS } from "./openings";
 import { openUntil, weeklyHours, type DayHours } from "@/lib/domain/opening-hours";
@@ -17,7 +17,7 @@ export interface ProviderProfile {
   city: string;
   sector: string;
   travelFeeMinor: number;
-  /** Media-library photo. Empty until the provider has uploaded one. */
+  /** Media-library photo. Empty until the vendor has uploaded one. */
   avatarUrl: string;
   freeTonight: boolean;
   /**
@@ -50,9 +50,9 @@ export interface ProviderProfile {
 }
 
 /**
- * The customer-facing provider profile (§C-03).
+ * The customer-facing vendor profile (§C-03).
  *
- * Only approved providers who are taking work are returned. A profile for
+ * Only approved vendors who are taking work are returned. A profile for
  * someone the matching engine would never broadcast to is a page whose only
  * possible outcome is a dead end.
  */
@@ -64,7 +64,7 @@ export async function getProviderProfile(
   // "Next available" looks past today, so the calendar it reasons over has to
   // as well. Loading only today would let a fortnight of solid bookings read
   // as wide open.
-  const horizonEnd = addMinutes(dayStart, NEXT_OPENING_HORIZON_DAYS * 24 * 60);
+  const horizonEnd = addDays(dayStart, NEXT_OPENING_HORIZON_DAYS);
 
   const provider = await prisma.provider.findFirst({
     where: { id, approvalStatus: "APPROVED", isAcceptingWork: true },

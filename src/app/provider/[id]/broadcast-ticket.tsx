@@ -26,15 +26,15 @@ export interface BroadcastRequest {
 }
 
 /**
- * The provider broadcast ticket (§P-02).
+ * The vendor broadcast ticket (§P-02).
  *
- * The field order is fixed, because a provider decides on this in seconds and
+ * The field order is fixed, because a vendor decides on this in seconds and
  * always in the same order: what kind of job and how long they have to answer,
  * when it is and how much notice that is, what the work is, how long it blocks,
  * where, what it pays, and only then the button. The tone is blunt and factual
  * throughout — no persuasion, no exclamation marks.
  *
- * The address is deliberately absent. At broadcast stage a provider gets the
+ * The address is deliberately absent. At broadcast stage a vendor gets the
  * sector and nothing more; the street only appears once the booking reaches
  * Address Unlocked.
  */
@@ -42,12 +42,22 @@ export function BroadcastTicket({
   request,
   busy,
   onAccept,
+  onDecline,
 }: {
   request: BroadcastRequest;
   busy: boolean;
   onAccept: () => void;
+  onDecline: () => void;
 }) {
   const isEmergency = request.bookingType === "EMERGENCY";
+  // Declining can't be undone, so it takes two taps: the first arms it for a
+  // few seconds, the second sends it.
+  const [confirmDecline, setConfirmDecline] = useState(false);
+  useEffect(() => {
+    if (!confirmDecline) return;
+    const timer = setTimeout(() => setConfirmDecline(false), 4_000);
+    return () => clearTimeout(timer);
+  }, [confirmDecline]);
   const secondsLeft = useCountdown(request.acceptanceExpiresAt);
   const expired = secondsLeft <= 0;
   const windowSeconds = BROADCAST_ACCEPTANCE_WINDOW_MINUTES * 60;
@@ -162,21 +172,31 @@ export function BroadcastTicket({
           />
         </div>
 
-        {/* 8 — the decision. */}
-        <Button
-          variant={isEmergency ? "emergency" : "primary"}
-          onClick={onAccept}
-          disabled={busy || expired}
-          className="mt-4 w-full uppercase tracking-wider"
-        >
-          {busy
-            ? "Accepting…"
-            : expired
-              ? "Request expired"
-              : isEmergency
-                ? "Accept emergency booking"
-                : "Accept booking"}
-        </Button>
+        {/* 8 — the decision. Accept is the wider, stronger button. */}
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => (confirmDecline ? onDecline() : setConfirmDecline(true))}
+            disabled={busy || expired}
+            className="w-full"
+          >
+            {confirmDecline ? "Confirm?" : "Decline"}
+          </Button>
+          <Button
+            variant={isEmergency ? "emergency" : "primary"}
+            onClick={onAccept}
+            disabled={busy || expired}
+            className="w-full uppercase tracking-wider"
+          >
+            {busy
+              ? "Sending…"
+              : expired
+                ? "Expired"
+                : isEmergency
+                  ? "Accept emergency"
+                  : "Accept"}
+          </Button>
+        </div>
       </div>
     </Card>
   );

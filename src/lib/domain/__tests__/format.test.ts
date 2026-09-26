@@ -6,6 +6,7 @@ import {
   formatTime,
   toDateInputValue,
 } from "@/lib/format";
+import { uk } from "./uk-clock";
 
 describe("formatDuration", () => {
   it("renders hours and minutes", () => {
@@ -28,16 +29,22 @@ describe("describeSurcharge", () => {
 
 describe("toDateInputValue", () => {
   it("zero-pads month and day", () => {
-    expect(toDateInputValue(new Date(2026, 3, 1))).toBe("2026-04-01");
-    expect(toDateInputValue(new Date(2026, 11, 25))).toBe("2026-12-25");
+    expect(toDateInputValue(uk("2026-04-01T00:00"))).toBe("2026-04-01");
+    expect(toDateInputValue(uk("2026-12-25T12:00"))).toBe("2026-12-25");
+  });
+
+  it("gives the UK date, not the UTC one", () => {
+    // 00:30 on 1 April in the UK is still 31 March in UTC.
+    expect(toDateInputValue(uk("2026-04-01T00:30"))).toBe("2026-04-01");
   });
 });
 
 describe("the two clocks", () => {
-  const evening = new Date(2026, 3, 1, 18, 0);
-  const morning = new Date(2026, 3, 1, 9, 5);
+  // UK wall-clock times; the server that renders them runs in UTC.
+  const evening = uk("2026-04-01T18:00");
+  const morning = uk("2026-04-01T09:05");
 
-  it("gives providers 24-hour time", () => {
+  it("gives vendors 24-hour time", () => {
     expect(formatTime(evening)).toBe("18:00");
     expect(formatTime(morning)).toBe("09:05");
   });

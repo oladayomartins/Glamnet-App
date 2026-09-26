@@ -14,7 +14,7 @@
  *  - red (#D0342C, from --glam-emergency) is reserved for the EMERGENCY tag.
  *    It never appears on a normal booking, which is the whole point of the
  *    tag: spec §11 requires the classification to read identically in every
- *    channel, so a customer or provider can tell the two apart at a glance.
+ *    channel, so a customer or vendor can tell the two apart at a glance.
  */
 
 const INK = "#2A2A31";
@@ -33,6 +33,8 @@ export interface EmailBody {
   subject: string;
   html: string;
   text: string;
+  /** Extra headers, e.g. List-Unsubscribe on marketing email. */
+  headers?: Record<string, string>;
 }
 
 /** Minimal HTML escape — every interpolated value below is user-supplied. */
@@ -58,8 +60,10 @@ function shell(options: {
   body: string;
   cta?: { label: string; url: string };
   footerNote?: string;
+  /** Marketing email only: a visible way to opt out, in every message. */
+  unsubscribeUrl?: string;
 }): string {
-  const { preheader, tag, heading, body, cta, footerNote } = options;
+  const { preheader, tag, heading, body, cta, footerNote, unsubscribeUrl } = options;
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -86,7 +90,11 @@ function shell(options: {
     }
   </td></tr>
   <tr><td style="padding:18px 28px;border-top:1px solid ${BORDER};background:${CANVAS};">
-    <p style="margin:0;font-size:12px;line-height:1.6;color:${INK_MUTED};">${escapeHtml(footerNote ?? "You are receiving this because of activity on your GLAMNET account.")}</p>
+    <p style="margin:0;font-size:12px;line-height:1.6;color:${INK_MUTED};">${escapeHtml(footerNote ?? "You are receiving this because of activity on your GLAMNET account.")}${
+      unsubscribeUrl
+        ? ` <a href="${escapeHtml(unsubscribeUrl)}" style="color:${INK_MUTED};text-decoration:underline;">Unsubscribe</a>`
+        : ""
+    }</p>
   </td></tr>
 </table>
 </td></tr></table>
@@ -123,10 +131,10 @@ export interface BookingEmailFacts {
 }
 
 /**
- * Provider broadcast — the message that wins or loses the job.
+ * Vendor broadcast — the message that wins or loses the job.
  *
  * The EMERGENCY variant leads with the deadline because that is the only
- * decision the provider is making in the ten-minute acceptance window.
+ * decision the vendor is making in the ten-minute acceptance window.
  */
 export function providerBroadcastEmail(
   providerName: string,
@@ -148,8 +156,8 @@ export function providerBroadcastEmail(
       paragraph(`Hi ${providerName},`) +
       paragraph(
         facts.isEmergency
-          ? "A customer needs this at short notice. First provider to accept takes the job."
-          : "You are one of the providers this request went out to. First to accept takes the job.",
+          ? "A customer needs this at short notice. First vendor to accept takes the job."
+          : "You are one of the vendors this request went out to. First to accept takes the job.",
       ) +
       factList([
         ["Service", facts.serviceNames.join(", ")],
@@ -159,7 +167,7 @@ export function providerBroadcastEmail(
       ]),
     cta: { label: "View the request", url: facts.url },
     footerNote:
-      "Requests are offered to several providers at once and close as soon as one accepts.",
+      "Requests are offered to several vendors at once and close as soon as one accepts.",
   });
 
   const text = textBlock([
@@ -167,8 +175,8 @@ export function providerBroadcastEmail(
     "",
     `Hi ${providerName},`,
     facts.isEmergency
-      ? "A customer needs this at short notice. First provider to accept takes the job."
-      : "You are one of the providers this request went out to. First to accept takes the job.",
+      ? "A customer needs this at short notice. First vendor to accept takes the job."
+      : "You are one of the vendors this request went out to. First to accept takes the job.",
     "",
     `Service: ${facts.serviceNames.join(", ")}`,
     `When: ${facts.appointmentLabel}`,
@@ -181,7 +189,7 @@ export function providerBroadcastEmail(
   return { subject, html, text };
 }
 
-/** Customer confirmation — sent the moment a provider claims the booking. */
+/** Customer confirmation — sent the moment a vendor claims the booking. */
 export function customerBookingConfirmedEmail(
   customerName: string,
   providerName: string,
@@ -230,7 +238,7 @@ export function customerBookingConfirmedEmail(
 }
 
 /**
- * Provider vetting decision.
+ * Vendor vetting decision.
  *
  * A rejection is not an error state, so it gets no red: the brand guide keeps
  * red for EMERGENCY, and dressing a rejection in it would both break that rule
@@ -288,4 +296,78 @@ export function providerApprovalEmail(
   ]);
 
   return { subject: copy.subject, html, text };
+}
+
+/** A marketing campaign email, written by an admin in the console. */
+export function campaignEmail(input: {
+  title: string;
+  message: string;
+  cta?: { label: string; url: string };
+  /** The recipient's own opt-out link (visible). */
+  unsubscribeUrl: string;
+  /** Where mail apps' one-click unsubscribe posts (RFC 8058). */
+  oneClickUrl: string;
+}): EmailBody {
+  const paragraphs = input.message.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  const html = shell({
+    preheader: paragraphs[0] ?? input.title,
+    heading: input.title,
+    body: paragraphs.map(paragraph).join(""),
+    cta: input.cta,
+    footerNote: "You are receiving this because you have a GLAMNET account. Don't want news and offers?",
+    unsubscribeUrl: input.unsubscribeUrl,
+  });
+  const text = textBlock([
+    input.title,
+    "",
+    ...paragraphs.flatMap((block) => [block, ""]),
+    input.cta ? `${input.cta.label}: ${input.cta.url}` : null,
+    "",
+    `Unsubscribe from GLAMNET news and offers: ${input.unsubscribeUrl}`,
+  ]);
+  return {
+    subject: input.title,
+    html,
+    text,
+    // Lets Gmail, Yahoo and Apple Mail show their own "Unsubscribe" button,
+    // which Gmail and Yahoo require of bulk senders.
+    headers: {
+      "List-Unsubscribe": `<${input.oneClickUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  };
+}
+
+/**
+ * A plain booking notice — a card that needs attention, a dispute ruling, a
+ * booking that couldn't go ahead. One template so every payment message reads
+ * the same way.
+ */
+export function bookingNoticeEmail(input: {
+  subject: string;
+  heading: string;
+  name: string;
+  lead: string;
+  facts?: Array<[string, string]>;
+  cta: { label: string; url: string };
+}): EmailBody {
+  const html = shell({
+    preheader: input.lead,
+    heading: input.heading,
+    body:
+      paragraph(`Hi ${input.name},`) +
+      paragraph(input.lead) +
+      (input.facts && input.facts.length > 0 ? factList(input.facts) : ""),
+    cta: input.cta,
+  });
+  const text = textBlock([
+    input.heading,
+    "",
+    `Hi ${input.name},`,
+    input.lead,
+    ...(input.facts ?? []).map(([label, value]) => `${label}: ${value}`),
+    "",
+    `${input.cta.label}: ${input.cta.url}`,
+  ]);
+  return { subject: input.subject, html, text };
 }

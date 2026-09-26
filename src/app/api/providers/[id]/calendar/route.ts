@@ -15,7 +15,7 @@ import { getSessionUser } from "@/lib/auth/session";
 /**
  * GET /api/providers/:id/calendar?view=day|week&date=ISO
  *
- * Everything the provider calendar needs (spec §2): confirmed appointments, the
+ * Everything the vendor calendar needs (spec §2): confirmed appointments, the
  * reserved period including the 15-minute buffer, blocked periods and the
  * working windows the day view is drawn against. Emergency bookings are tagged
  * so the UI can identify them.
@@ -27,7 +27,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    // A provider's calendar is theirs alone; admins may also view it.
+    // A vendor's calendar is theirs alone; admins may also view it.
     const viewer = await getSessionUser();
     if (!viewer || (viewer.role !== "ADMIN" && viewer.providerId !== id)) {
       return NextResponse.json(
@@ -56,7 +56,7 @@ export async function GET(
       where: { id },
       include: { availability: { orderBy: { dayOfWeek: "asc" } } },
     });
-    if (!provider) throw new BookingError("Provider not found.", "NOT_FOUND", 404);
+    if (!provider) throw new BookingError("Vendor not found.", "NOT_FOUND", 404);
 
     const bookings = await prisma.booking.findMany({
       where: {

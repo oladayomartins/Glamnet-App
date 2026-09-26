@@ -3,10 +3,11 @@ import { prisma } from "@/lib/server/prisma";
 import { getPricingContext } from "@/lib/server/emergency-config";
 import { Card, SectionTitle } from "@/components/ui";
 import { describeSurcharge, formatMoney } from "@/lib/format";
+import { PostcodeStart } from "./postcode-start";
 
 /**
  * Read live from the database on every request. Without this Next prerenders
- * the page at build time, which would freeze the hub and provider data into
+ * the page at build time, which would freeze the hub and vendor data into
  * the build output.
  */
 export const dynamic = "force-dynamic";
@@ -14,9 +15,12 @@ export const dynamic = "force-dynamic";
 /** Step 1 of the booking journey (spec §13): Select Beauty Hub. */
 export default async function BookPage() {
   const [hubs, { config, thresholdMinutes }] = await Promise.all([
+    // Quick picks: only areas that already have live pros.
     prisma.hub.findMany({
+      where: { providers: { some: { approvalStatus: "APPROVED", isAcceptingWork: true } } },
       orderBy: { name: "asc" },
-      include: { _count: { select: { providers: true } } },
+      take: 12,
+      include: { _count: { select: { providers: { where: { approvalStatus: "APPROVED" } } } } },
     }),
     getPricingContext(),
   ]);
@@ -30,10 +34,13 @@ export default async function BookPage() {
           Where are you?
         </h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          Pick your Beauty Hub to see the professionals covering your area and
-          the times they are genuinely free — service duration, travel and the
-          15-minute transition period all accounted for.
+          Enter your postcode to see the pros who cover you and the times they
+          are genuinely free — service duration, travel and the 15-minute
+          transition period all accounted for.
         </p>
+        <div className="mt-5">
+          <PostcodeStart />
+        </div>
       </section>
 
       <Card className="border-l-4 border-l-emergency p-4">
@@ -52,8 +59,8 @@ export default async function BookPage() {
       </Card>
 
       <section>
-        <SectionTitle hint={`${hubs.length} hubs live`}>
-          Select your Beauty Hub
+        <SectionTitle hint="Areas with pros already on GLAMNET">
+          Or pick an area
         </SectionTitle>
 
         <div className="grid gap-3 sm:grid-cols-2">

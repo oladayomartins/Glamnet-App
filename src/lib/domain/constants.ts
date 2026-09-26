@@ -7,8 +7,8 @@
  */
 
 /**
- * Provider transition/buffer period appended to every booking (spec §2, §7).
- * A 12:00–14:00 service reserves 12:00–14:15 in the provider's calendar.
+ * Vendor transition/buffer period appended to every booking (spec §2, §7).
+ * A 12:00–14:00 service reserves 12:00–14:15 in the vendor's calendar.
  */
 export const TRANSITION_BUFFER_MINUTES = 15;
 
@@ -24,8 +24,8 @@ export const TRUST_FEE_MINOR = 50;
 /** Granularity of offered appointment start times. */
 export const SLOT_GRANULARITY_MINUTES = 15;
 
-/** Number of eligible providers an accepted request is broadcast to (spec §13). */
+/** Number of eligible vendors an accepted request is broadcast to (spec §13). */
 export const BROADCAST_FANOUT = 5;
 
-/** How long a provider has to accept a broadcast before it lapses. */
+/** How long a vendor has to accept a broadcast before it lapses. */
 export const BROADCAST_ACCEPTANCE_WINDOW_MINUTES = 10;

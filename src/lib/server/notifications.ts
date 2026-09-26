@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { sendEmail, sendEmails } from "./email";
 import {
+  bookingNoticeEmail,
   customerBookingConfirmedEmail,
   providerApprovalEmail,
   providerBroadcastEmail,
@@ -45,10 +46,10 @@ function bookingUrl(path: string): string {
 }
 
 /**
- * Email the providers a new request was broadcast to.
+ * Email the vendors a new request was broadcast to.
  *
  * One batched call rather than five sequential ones: the acceptance window is
- * ten minutes and every provider should see the request at the same moment,
+ * ten minutes and every vendor should see the request at the same moment,
  * not staggered by however long the previous send took.
  */
 export async function deliverBroadcastEmails(input: {
@@ -88,7 +89,7 @@ export async function deliverBroadcastEmails(input: {
   }
 }
 
-/** Email the customer that a provider has claimed their booking. */
+/** Email the customer that a vendor has claimed their booking. */
 export async function deliverBookingConfirmedEmail(input: {
   bookingId: string;
   customerName: string;
@@ -117,7 +118,7 @@ export async function deliverBookingConfirmedEmail(input: {
   }
 }
 
-/** Email a provider the outcome of their application. */
+/** Email a vendor the outcome of their application. */
 export async function deliverApprovalEmail(input: {
   name: string;
   email: string;
@@ -138,3 +139,36 @@ export async function deliverApprovalEmail(input: {
     console.error("[notifications] approval email failed:", cause);
   }
 }
+
+/** Email one person a booking notice (card problems, dispute outcomes). */
+export async function deliverBookingNotice(input: {
+  to: string;
+  name: string;
+  bookingId: string;
+  /** Where the button goes; defaults to the customer's booking page. */
+  path?: string;
+  subject: string;
+  heading: string;
+  lead: string;
+  facts?: Array<[string, string]>;
+  cta: string;
+}): Promise<void> {
+  if (!input.to) return;
+  try {
+    await sendEmail({
+      to: input.to,
+      ...bookingNoticeEmail({
+        subject: input.subject,
+        heading: input.heading,
+        name: input.name,
+        lead: input.lead,
+        facts: input.facts,
+        cta: { label: input.cta, url: bookingUrl(input.path ?? `/bookings/${input.bookingId}`) },
+      }),
+    });
+  } catch (cause) {
+    console.error("[notifications] booking notice failed:", cause);
+  }
+}
+
+export { formatAppointment };

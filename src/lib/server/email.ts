@@ -78,25 +78,34 @@ export async function sendEmails(messages: EmailMessage[]): Promise<EmailResult>
   if (!resend) return { ok: false, reason: "NOT_CONFIGURED" };
 
   const from = fromAddress();
-  const payload = deliverable.slice(0, BATCH_LIMIT).map((message) => ({
+  const payload = deliverable.map((message) => ({
     from,
     to: message.to,
     subject: message.subject,
     html: message.html,
     text: message.text,
+    ...(message.headers ? { headers: message.headers } : {}),
   }));
 
-  try {
-    const { error } = await resend.batch.send(payload);
-    if (error) {
-      console.error("[email] resend rejected the batch:", error.message);
-      return { ok: false, reason: "SEND_FAILED" };
+  // Resend takes at most 100 per batch, so a campaign to a bigger audience
+  // goes out in several. A batch that fails part-way reports what did send,
+  // so the caller never treats a half-sent campaign as unsent and repeats it.
+  let sent = 0;
+  for (let start = 0; start < payload.length; start += BATCH_LIMIT) {
+    const batch = payload.slice(start, start + BATCH_LIMIT);
+    try {
+      const { error } = await resend.batch.send(batch);
+      if (error) {
+        console.error("[email] resend rejected the batch:", error.message);
+        return sent > 0 ? { ok: true, sent } : { ok: false, reason: "SEND_FAILED" };
+      }
+      sent += batch.length;
+    } catch (cause) {
+      console.error("[email] could not reach resend:", cause);
+      return sent > 0 ? { ok: true, sent } : { ok: false, reason: "SEND_FAILED" };
     }
-    return { ok: true, sent: payload.length };
-  } catch (cause) {
-    console.error("[email] could not reach resend:", cause);
-    return { ok: false, reason: "SEND_FAILED" };
   }
+  return { ok: true, sent };
 }
 
 /** Convenience wrapper for the single-recipient case. */
