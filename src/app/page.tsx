@@ -24,6 +24,9 @@ import { getMarketingData } from "@/lib/server/marketing";
 import { BlockHeading } from "@/components/ui";
 import { BookingLauncher } from "@/components/booking-launcher";
 import { FeaturedProviders } from "@/components/featured-providers";
+import { DiscoveryRail } from "@/components/discovery-rail";
+import { discoveryVendors } from "@/lib/server/discovery";
+import { qualifyingRows } from "@/lib/domain/discovery-rows";
 import { GlamImage } from "@/components/glam-image";
 import { BrandImage } from "@/components/brand-image";
 import { Rail } from "@/components/rail";
@@ -127,6 +130,11 @@ export default async function MarketingPage() {
     viewer,
   ] =
     await Promise.all([getMarketingData(), getPricingContext(), getSessionUser()]);
+
+  // Discovery rows. Each is dropped rather than padded when its query comes
+  // back short — see lib/domain/discovery-rows.ts for why a thin "Trending"
+  // rail is the same mistake as a made-up booking counter.
+  const rows = qualifyingRows(await discoveryVendors());
 
   const thresholdHours = Math.round(thresholdMinutes / 60);
   // Quick picks in the search bar: only areas where someone can be booked.
@@ -472,6 +480,17 @@ export default async function MarketingPage() {
           />
         </Container>
       ) : null}
+
+      {/* ================= Block 3b — discovery rows ==================
+          Only the rows the marketplace has actually earned. With too few
+          vendors this renders nothing at all, which is the intended state
+          early on rather than a gap to fill. */}
+      {rows.map((row) => (
+        <Container key={row.spec.key} className="pt-14 sm:pt-16">
+          <BlockHeading title={row.spec.title} lede={row.spec.lede} />
+          <DiscoveryRail label={row.spec.title} vendors={row.vendors} />
+        </Container>
+      ))}
 
       {/* ================= Block 4 — cities ============================ */}
       {cities.length > 0 ? (
