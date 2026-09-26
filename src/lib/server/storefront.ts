@@ -14,6 +14,7 @@ import {
   startOfLocalDay,
   summariseDays,
 } from "@/lib/domain/availability";
+import { openUntil, weeklyHours } from "@/lib/domain/opening-hours";
 import {
   basketDurationMinutes,
   classifyBooking,
@@ -140,12 +141,27 @@ export async function getStorefront(slug: string) {
       },
       lookbook: { orderBy: { position: "asc" }, take: 3 },
       services: { select: SERVICE_SELECT },
+      // The working week, for the storefront's opening hours. Read from the
+      // same rows the vendor edits in their dashboard, so the two can never
+      // disagree about which days they work.
+      availability: {
+        select: { dayOfWeek: true, startMinute: true, endMinute: true },
+      },
     },
   });
   if (!provider || !provider.slug) return null;
 
   // Un-editable review log: read from the bookings themselves, newest first.
-  const reviews = await prisma.booking.findMany({
+  //
+  // The count is a separate query rather than `reviews.length`: the log is a
+  // page of 20, so reusing its length would cap every vendor at "20 reviews"
+  // however many they really had — and the whole point of printing a count is
+  // that it is the true one.
+  const [reviewCount, reviews] = await Promise.all([
+    prisma.booking.count({
+      where: { providerId: provider.id, rating: { not: null } },
+    }),
+    prisma.booking.findMany({
     where: { providerId: provider.id, rating: { not: null } },
     orderBy: { appointmentStartAt: "desc" },
     take: 20,
@@ -156,7 +172,8 @@ export async function getStorefront(slug: string) {
       appointmentStartAt: true,
       items: { select: { name: true } },
     },
-  });
+    }),
+  ]);
 
   const menu = menuFrom(provider.services);
 
@@ -175,10 +192,21 @@ export async function getStorefront(slug: string) {
         take: 3,
       });
 
+  const now = new Date();
+
   return {
     ...provider,
     sector: provider.workspaceSector || provider.hub.sector,
     menu,
+    reviewCount,
+    /** The full working week, Monday first, for the About section. */
+    weekHours: weeklyHours(provider.availability),
+    /** "Open until 18:00" while a shift is running, else null. */
+    openUntilLabel: openUntil(
+      provider.availability,
+      now.getDay(),
+      now.getHours() * 60 + now.getMinutes(),
+    ),
     reviews: reviews.map((review) => ({
       id: review.id,
       rating: review.rating ?? 0,

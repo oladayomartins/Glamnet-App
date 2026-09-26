@@ -2,13 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { citySlug } from "@/lib/domain/postcode";
 import { notFound } from "next/navigation";
-import { Clock, InstagramLogo, MapPin, SealCheck, Star, TiktokLogo } from "@phosphor-icons/react/dist/ssr";
+import {
+  Clock,
+  InstagramLogo,
+  MapPin,
+  SealCheck,
+  ShieldCheck,
+  Star,
+  TiktokLogo,
+} from "@phosphor-icons/react/dist/ssr";
 import { getStorefront, storefrontDays, workspaceLabel } from "@/lib/server/storefront";
 import { getSessionUser } from "@/lib/auth/session";
 import { GlamImage } from "@/components/glam-image";
 import { LookbookCarousel } from "./lookbook-carousel";
 import { AreaMap } from "./area-map";
 import { Card, EmptyState, SectionTitle } from "@/components/ui";
+import { SectionNav, type SectionLink } from "@/components/section-nav";
+import { describeDayHours } from "@/lib/domain/opening-hours";
 import { formatDay } from "@/lib/format";
 import { siteUrl } from "@/lib/site";
 import { StorefrontBooking } from "./storefront-booking";
@@ -73,6 +83,9 @@ export default async function StorefrontPage({
       : null;
   // Before the first review there is no score to show: the stored rating is
   // only the default, and "5.0 · no reviews yet" reads as a mistake.
+  //
+  // Averaged over the loaded page of reviews; the count beside it is the true
+  // total, which is the figure a customer is actually judging the score by.
   const reviewAverage =
     store.reviews.length > 0
       ? store.reviews.reduce((sum, review) => sum + review.rating, 0) / store.reviews.length
@@ -88,17 +101,30 @@ export default async function StorefrontPage({
     : null;
   const backHref = `/${citySlug(store.hub.city)}/salons`;
 
+  // A long storefront is a lot of thumb on a phone. Only list a section the
+  // page actually has: a Reviews link that jumps to an empty box is worse
+  // than no link at all.
+  const sections: SectionLink[] = [
+    ...(store.lookbook.length > 0 ? [{ id: "photos", label: "Photos" }] : []),
+    { id: "services", label: "Services" },
+    ...(area ? [{ id: "where", label: "Where" }] : []),
+    ...(store.reviews.length > 0 ? [{ id: "reviews", label: "Reviews" }] : []),
+    { id: "about", label: "About" },
+  ];
+
   return (
     <div data-page-width="wide" className="space-y-8 pb-6">
       {/* --- Lookbook carousel: the three best transformations ------------
           Only rendered once the vendor has uploaded looks: three empty
           frames would be the loudest thing on the page and say nothing. */}
       {store.lookbook.length > 0 ? (
+        <div id="photos" data-section-target>
         <LookbookCarousel
           looks={store.lookbook.map((image) => ({ id: image.id, url: image.url, caption: image.caption }))}
           providerName={store.name}
           backHref={backHref}
         />
+        </div>
       ) : null}
 
       {/* --- Identity ------------------------------------------------------ */}
@@ -132,7 +158,7 @@ export default async function StorefrontPage({
             <span className="flex items-center gap-1 text-sm text-ink-muted" data-numeric>
               <Star size={14} weight="fill" className="text-accent-500" aria-hidden />
               <span className="font-semibold text-ink">{reviewAverage.toFixed(1)}</span>(
-              {store.reviews.length} {store.reviews.length === 1 ? "review" : "reviews"})
+              {store.reviewCount} {store.reviewCount === 1 ? "review" : "reviews"})
             </span>
           )}
           {store.instagramHandle ? (
@@ -173,6 +199,8 @@ export default async function StorefrontPage({
         </p>
       </section>
 
+      <SectionNav sections={sections} />
+
       {/* --- Menu, calendar and checkout ---------------------------------- */}
       <TrackEvent
         name="view_item"
@@ -191,6 +219,7 @@ export default async function StorefrontPage({
         }}
       />
 
+      <div id="services" data-section-target>
       <StorefrontBooking
         slug={slug}
         providerName={store.name}
@@ -204,10 +233,11 @@ export default async function StorefrontPage({
         signedInAsCustomer={viewer?.role === "CUSTOMER"}
         vendorArea={area}
       />
+      </div>
 
       {/* --- Where: the area only, never the address ---------------------- */}
       {area ? (
-        <section>
+        <section id="where" data-section-target>
           <SectionTitle hint="Area shown, not the address">Where</SectionTitle>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem] md:items-start">
             <AreaMap center={area} label={`${store.name}'s area`} />
@@ -222,8 +252,16 @@ export default async function StorefrontPage({
       ) : null}
 
       {/* --- Client review matrix: read-only ------------------------------ */}
-      <section>
-        <SectionTitle hint="Left by clients after their appointment">Reviews</SectionTitle>
+      <section id="reviews" data-section-target>
+        <SectionTitle
+          hint={
+            store.reviewCount > store.reviews.length
+              ? `${store.reviewCount} in total · most recent first`
+              : "Left by clients after their appointment"
+          }
+        >
+          Reviews
+        </SectionTitle>
         {store.reviews.length === 0 ? (
           <EmptyState icon={<Star size={24} weight="light" />}>
             No reviews yet. Reviews appear once a client has finished an appointment.
@@ -257,6 +295,73 @@ export default async function StorefrontPage({
         )}
       </section>
 
+      {/* --- About: hours and the practical questions -------------------- */}
+      <section id="about" data-section-target>
+        <SectionTitle
+          hint={store.openUntilLabel ?? undefined}
+        >
+          About {store.name}
+        </SectionTitle>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card className="p-4">
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+              Opening hours
+            </h3>
+            {/* Straight from the ProviderAvailability rows the vendor edits in
+                their dashboard, so a storefront cannot say "closed today"
+                while the dashboard says "working". */}
+            <dl className="mt-2 space-y-1">
+              {store.weekHours.map((day) => (
+                <div key={day.dayOfWeek} className="flex justify-between gap-3">
+                  <dt className="text-sm text-ink-muted">{day.name}</dt>
+                  <dd
+                    data-numeric
+                    className={`text-sm ${
+                      day.windows.length === 0
+                        ? "text-ink-muted/70"
+                        : "font-medium text-ink"
+                    }`}
+                  >
+                    {describeDayHours(day)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {/* Being at work is not the same as being free, so the hours never
+                speak to bookability — "Next available" above does. */}
+            <p className="mt-3 text-xs text-ink-muted">
+              Working hours, not free slots. Check availability when you book.
+            </p>
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+              Good to know
+            </h3>
+            <ul className="mt-2 space-y-2">
+              {/* Facts about how Glamnet works, plus the two that come from
+                  this vendor's own record. Nothing that needs a field they
+                  have not filled in. */}
+              <TrustPoint>Identity and insurance checked before approval</TrustPoint>
+              <TrustPoint>
+                {store.workspaceType === "MOBILE"
+                  ? `Travels to clients across ${store.sector}`
+                  : `${workspaceLabel(store.workspaceType)} in ${store.sector}${
+                      store.travelsToClients ? ", and travels to you" : ""
+                    }`}
+              </TrustPoint>
+              <TrustPoint>
+                Price confirmed before you pay — no surprises on the day
+              </TrustPoint>
+              <TrustPoint>
+                Card held at booking, taken with your PIN at the end
+              </TrustPoint>
+            </ul>
+          </Card>
+        </div>
+      </section>
+
       <AdSlot slot="STOREFRONT_FOOTER" />
 
       <p className="text-center text-xs text-ink-muted">
@@ -265,5 +370,19 @@ export default async function StorefrontPage({
         </Link>
       </p>
     </div>
+  );
+}
+
+function TrustPoint({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2 text-sm text-ink-muted">
+      <ShieldCheck
+        size={15}
+        weight="light"
+        aria-hidden
+        className="mt-0.5 shrink-0 text-normal"
+      />
+      <span>{children}</span>
+    </li>
   );
 }

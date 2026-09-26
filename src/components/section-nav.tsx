@@ -34,20 +34,40 @@ export function SectionNav({ sections }: { sections: SectionLink[] }) {
     // throw during render of an otherwise-working page.
     if (typeof IntersectionObserver === "undefined") return;
 
+    // Every target currently inside the band, kept across callbacks.
+    //
+    // This set is the whole point. An IntersectionObserver callback receives
+    // only the entries that *changed*, not everything on screen — so deciding
+    // from `entries` alone meant that jumping to Reviews (already
+    // intersecting, therefore not in the batch) while About scrolled into the
+    // band lit up About. Tracking membership and then choosing the topmost of
+    // the full set is what makes the highlight match what the reader sees.
+    const onScreen = new Set<Element>();
+
     const observer = new IntersectionObserver(
       (entries) => {
-        // The topmost section currently on screen wins. Taking the *first*
-        // intersecting entry rather than the most recent one stops the
-        // highlight flickering between two sections that are both visible.
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (visible) setActiveId(visible.target.id);
+        for (const entry of entries) {
+          if (entry.isIntersecting) onScreen.add(entry.target);
+          else onScreen.delete(entry.target);
+        }
+
+        const topmost = [...onScreen].sort(
+          (a, b) =>
+            a.getBoundingClientRect().top - b.getBoundingClientRect().top,
+        )[0];
+
+        // Nothing in the band — between two long sections, say. Keep the last
+        // answer rather than clearing it, so the bar never flickers to blank.
+        if (topmost) setActiveId(topmost.id);
       },
       // Bias the viewport upward so a section counts as "current" once its
       // heading reaches the top third, not when it first peeks in at the
       // bottom — which is how a reader actually experiences it.
-      { rootMargin: "-88px 0px -66% 0px", threshold: 0 },
+      //
+      // The top figure stays below the 72px scroll-margin-top that jump
+      // targets use (globals.css): at -88px the section a jump landed on sat
+      // inside the excluded strip and never registered at all.
+      { rootMargin: "-56px 0px -60% 0px", threshold: 0 },
     );
 
     const targets = sections
