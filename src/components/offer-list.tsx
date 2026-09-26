@@ -95,18 +95,27 @@ export function OfferList({ offers }: { offers: OfferRow[] }) {
                     <span className="text-[15px] font-bold text-ink">
                       {offer.providerName}
                     </span>
-                    <span
-                      className="flex items-center gap-1 text-xs text-ink-muted"
-                      data-numeric
-                    >
-                      <Star
-                        size={11}
-                        weight="fill"
-                        className="text-accent-500"
-                        aria-hidden
-                      />
-                      {offer.rating.toFixed(1)} ({offer.reviewCount})
-                    </span>
+                    {/* No rating until someone has given one. "4.9 (0)" is a
+                        default dressed up as a score, and a customer who
+                        notices stops believing the real ones too. */}
+                    {offer.reviewCount === 0 ? (
+                      <span className="rounded-full bg-accent-100 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-accent-700">
+                        New
+                      </span>
+                    ) : (
+                      <span
+                        className="flex items-center gap-1 text-xs text-ink-muted"
+                        data-numeric
+                      >
+                        <Star
+                          size={11}
+                          weight="fill"
+                          className="text-accent-500"
+                          aria-hidden
+                        />
+                        {offer.rating.toFixed(1)} ({offer.reviewCount})
+                      </span>
+                    )}
                   </span>
 
                   <span className="mt-0.5 block truncate text-sm text-ink">

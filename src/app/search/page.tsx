@@ -35,6 +35,7 @@ export default async function SearchPage({
     availableToday?: string;
     date?: string;
     at?: string;
+    tags?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -45,6 +46,9 @@ export default async function SearchPage({
   const availableToday = params.availableToday === "1";
   const date = params.date ?? "";
   const at = params.at ?? "";
+  // Repeated as one comma-separated parameter so a filtered search stays a
+  // link someone can send.
+  const tags = (params.tags ?? "").split(",").filter(Boolean);
 
   const [offers, areas] = await Promise.all([
     searchOffers({
@@ -55,6 +59,7 @@ export default async function SearchPage({
       availableToday,
       date: date || undefined,
       at: at || undefined,
+      amenities: tags,
     }),
     searchableAreas(),
   ]);
@@ -128,7 +133,7 @@ export default async function SearchPage({
 
       <SearchFilters
         cities={cities}
-        initial={{ q, location, when: date, at, maxPrice, minRating, availableToday }}
+        initial={{ q, location, when: date, at, tags, maxPrice, minRating, availableToday }}
       />
 
       <div className="pt-5">

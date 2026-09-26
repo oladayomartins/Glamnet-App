@@ -174,6 +174,11 @@ model Provider {
   workspaceSector  String    @default("")
   /// Whether the vendor also travels to the client's address.
   travelsToClients Boolean   @default(true)
+  /// Amenity tags the vendor sets for themselves, from the catalogue in
+  /// lib/domain/vendor-tags.ts. A plain string array rather than an enum so
+  /// the catalogue can grow without a migration; unknown values are dropped
+  /// on read, never rendered raw.
+  amenities        String[]  @default([])
   /// The vendor's full base postcode and its coordinates. PRIVATE: used only
   /// for distance. Publicly a vendor is shown at their outward code.
   basePostcode     String    @default("")

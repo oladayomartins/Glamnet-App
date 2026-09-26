@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { normaliseAmenities } from "@/lib/domain/vendor-tags";
 import { BookingError } from "./booking-service";
 import { paymentGateway } from "./payments";
 import { isValidSlug } from "@/lib/domain/storefront";
@@ -46,6 +47,7 @@ export async function updateStorefrontProfile(
     workspaceType?: (typeof WORKSPACE_TYPES)[number];
     workspacePostcode?: string;
     travelsToClients?: boolean;
+    amenities?: string[];
     avatar?: { url: string; fileId: string } | null;
   },
 ) {
@@ -122,6 +124,11 @@ export async function updateStorefrontProfile(
       ...(input.workspaceType !== undefined ? { workspaceType: input.workspaceType } : {}),
       ...(location ?? {}),
       ...(input.travelsToClients !== undefined ? { travelsToClients: input.travelsToClients } : {}),
+      // Normalised on the way in as well as on the way out: the column should
+      // not accumulate values nothing can render.
+      ...(input.amenities !== undefined
+        ? { amenities: normaliseAmenities(input.amenities) }
+        : {}),
     },
   });
 

@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { normaliseAmenities } from "@/lib/domain/vendor-tags";
 import {
   addDays,
   buildSlotOptions,
@@ -75,6 +76,12 @@ export interface OfferQuery {
    * and one free only earlier is not.
    */
   at?: string;
+  /**
+   * Amenity tags the vendor must have ALL of — "female-only *and* parking"
+   * narrows, it does not widen. Unknown values are dropped before the query,
+   * so a stale link cannot silently return nothing.
+   */
+  amenities?: string[];
 }
 
 /**
@@ -103,6 +110,8 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
   // A requested day or time cannot pull an offer into the past, so the floor
   // is whichever is latest: this moment, the time asked for, or the start of
   // the day asked for.
+  const wantedAmenities = normaliseAmenities(filters.amenities ?? []);
+
   const requestedAt = parseInstant(filters.at);
   const requestedDay = requestedAt
     ? startOfLocalDay(requestedAt)
@@ -140,6 +149,9 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
               }
             : {}),
         ...(filters.minRating ? { rating: { gte: filters.minRating } } : {}),
+        ...(wantedAmenities.length > 0
+          ? { amenities: { hasEvery: wantedAmenities } }
+          : {}),
       },
       select: {
         id: true,

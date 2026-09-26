@@ -125,6 +125,12 @@ export const storefrontProfileSchema = z.object({
   workspaceType: z.enum(["HOME_SALON", "PRIVATE_ROOM", "CHAIR", "MOBILE"]).optional(),
   workspacePostcode: z.string().max(10).optional(),
   travelsToClients: z.boolean().optional(),
+  /**
+   * Amenity tags. Bounded but not enumerated here: unknown values are dropped
+   * by normaliseAmenities rather than failing the request, so a stale client
+   * cannot lock a vendor out of saving the rest of their profile.
+   */
+  amenities: z.array(z.string().max(40)).max(20).optional(),
   /** Profile photo from the media library; nulls clear it. */
   avatar: z
     .object({ url: z.string().url().max(2_000), fileId: z.string().max(200) })

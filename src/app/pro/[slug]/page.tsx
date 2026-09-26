@@ -19,6 +19,7 @@ import { AreaMap } from "./area-map";
 import { Card, EmptyState, SectionTitle } from "@/components/ui";
 import { SectionNav, type SectionLink } from "@/components/section-nav";
 import { describeDayHours } from "@/lib/domain/opening-hours";
+import { vendorTags } from "@/lib/domain/vendor-tags";
 import { formatDay } from "@/lib/format";
 import { siteUrl } from "@/lib/site";
 import { StorefrontBooking } from "./storefront-booking";
@@ -100,6 +101,14 @@ export default async function StorefrontPage({
     ? (await storefrontDays(store.id, shortest, new Date())).find((day) => day.firstStartAt)?.firstStartAt ?? null
     : null;
   const backHref = `/${citySlug(store.hub.city)}/salons`;
+
+  // What this vendor is, at a glance: where they work and whether they come
+  // to you, then whatever they have told us about the space.
+  const tags = vendorTags({
+    workspaceType: store.workspaceType,
+    travelsToClients: store.travelsToClients,
+    amenities: store.amenities,
+  });
 
   // A long storefront is a lot of thumb on a phone. Only list a section the
   // page actually has: a Reviews link that jumps to an empty box is worse
@@ -186,6 +195,19 @@ export default async function StorefrontPage({
             </a>
           ) : null}
         </div>
+        {tags.length > 0 ? (
+          <ul className="mt-3 flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <li
+                key={tag.label}
+                className="inline-flex min-h-8 items-center rounded-full bg-sunken px-3 text-xs font-semibold text-ink-muted"
+              >
+                {tag.label}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         {store.bio ? <p className="mt-4 max-w-2xl text-[15px] text-ink-muted">{store.bio}</p> : null}
         <p className="mt-4 flex items-center gap-2.5 rounded-glam-sm border border-normal/30 bg-normal-soft p-3 text-sm text-ink">
           <Clock size={20} className="shrink-0 text-normal-ink" aria-hidden />

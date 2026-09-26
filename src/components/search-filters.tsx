@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FunnelSimple, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui";
 import { whenOptions } from "@/lib/domain/when-options";
+import { VENDOR_AMENITIES } from "@/lib/domain/vendor-tags";
 
 export interface SearchFilterValues {
   q: string;
@@ -14,6 +15,8 @@ export interface SearchFilterValues {
   maxPrice: string;
   minRating: string;
   availableToday: boolean;
+  /** Amenity tags the vendor must have all of. */
+  tags: string[];
   /**
    * The `at` parameter, if the customer arrived with one. Not editable here —
    * it is carried so that changing a filter does not throw away the exact time
@@ -74,6 +77,7 @@ export function SearchFilters({
     initial.maxPrice,
     initial.minRating,
     initial.availableToday ? "1" : "",
+    ...initial.tags,
   ].filter(Boolean).length;
 
   // Built once per render from the current clock, in UK time — see
@@ -92,6 +96,7 @@ export function SearchFilters({
     if (next.maxPrice) params.set("maxPrice", next.maxPrice);
     if (next.minRating) params.set("minRating", next.minRating);
     if (next.availableToday) params.set("availableToday", "1");
+    if (next.tags.length > 0) params.set("tags", next.tags.join(","));
     router.push(`/search?${params.toString()}`);
   };
 
@@ -155,6 +160,35 @@ export function SearchFilters({
         />
         Available today
       </label>
+
+      {/* Amenity tags. Toggles rather than a select: they combine, and a
+          customer reads "female-only, parking" faster as two lit chips than
+          as a multi-select they have to open. */}
+      {VENDOR_AMENITIES.map(({ value, label }) => {
+        const on = values.tags.includes(value);
+        return (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={on}
+            onClick={() =>
+              apply({
+                ...values,
+                tags: on
+                  ? values.tags.filter((tag) => tag !== value)
+                  : [...values.tags, value],
+              })
+            }
+            className={`inline-flex min-h-11 items-center rounded-full border px-3.5 text-sm font-medium transition duration-[180ms] ease-glam ${
+              on
+                ? "border-accent-500 bg-accent-100/40 text-ink"
+                : "border-line bg-surface text-ink-muted hover:border-accent-500/60"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
     </>
   );
 

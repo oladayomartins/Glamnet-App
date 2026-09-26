@@ -68,6 +68,7 @@ export default async function OnboardingPage({
         workspaceType: provider.workspaceType,
         workspacePostcode: provider.basePostcode || provider.workspaceSector,
         travelsToClients: provider.travelsToClients,
+        amenities: provider.amenities,
         payoutsEnabled: provider.payoutsEnabled,
         avatar: provider.avatarUrl
           ? { url: provider.avatarUrl, fileId: provider.avatarFileId }

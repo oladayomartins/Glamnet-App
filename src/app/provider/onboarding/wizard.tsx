@@ -31,6 +31,7 @@ import { Pill } from "@/components/ui";
 import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
 import { MapView } from "@/components/map-view";
 import { formatPostcode } from "@/lib/domain/postcode";
+import { VENDOR_AMENITIES } from "@/lib/domain/vendor-tags";
 import { WelcomeIntro } from "./welcome";
 import { BioLink } from "@/components/bio-link";
 import { BrandImage } from "@/components/brand-image";
@@ -50,6 +51,7 @@ interface Profile {
   workspaceType: string;
   workspacePostcode: string;
   travelsToClients: boolean;
+  amenities: string[];
   payoutsEnabled: boolean;
   avatar: UploadedImage | null;
 }
@@ -306,6 +308,7 @@ export function OnboardingWizard(props: {
             workspaceType: profile.workspaceType,
             workspacePostcode: profile.workspacePostcode,
             travelsToClients: profile.workspaceType === "MOBILE" ? true : profile.travelsToClients,
+            amenities: profile.amenities,
           }),
         );
       case "lookbook":
@@ -698,6 +701,44 @@ export function OnboardingWizard(props: {
                     </div>
                   ) : null}
                 </div>
+                <fieldset>
+                  <legend className="text-sm font-semibold text-ink">
+                    What should clients know?
+                  </legend>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    Optional. These show on your storefront and clients can
+                    filter by them — only tick what is actually true.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {VENDOR_AMENITIES.map(({ value, label }) => {
+                      const on = profile.amenities.includes(value);
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                            set(
+                              "amenities",
+                              on
+                                ? profile.amenities.filter((tag) => tag !== value)
+                                : [...profile.amenities, value],
+                            )
+                          }
+                          className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition duration-[180ms] ease-glam ${
+                            on
+                              ? "border-accent-500 bg-accent-100/40 text-ink"
+                              : "border-line bg-surface text-ink-muted hover:border-accent-500/60"
+                          }`}
+                        >
+                          {on ? <Check size={14} weight="bold" aria-hidden /> : null}
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
                 {area ? (
                   <div className="rise-in">
                     <MapView
