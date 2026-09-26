@@ -170,6 +170,29 @@
   --glam-hero-col: 34rem;
 }
 
+/* --- Hero band height ----------------------------------------------------
+   A floor on the hero band, read by the band itself AND by its loading
+   skeleton, so the two cannot drift.
+
+   The skeleton exists to reserve this band; if it reserves a different height
+   the page jumps at the moment the content lands, which is worse than the
+   wait it was covering. Sharing one declaration is what stops a change to the
+   hero's copy from silently breaking the skeleton — which is exactly what
+   happened when the headline gained a line and the phone band grew 111px.
+
+   The phone figure is the band's own natural height, rounded up: a floor
+   below the content does nothing, and one far above it leaves dead cream. It
+   wants re-measuring if the hero copy changes length again. */
+:root {
+  --glam-hero-band-min: 45.5rem;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --glam-hero-band-min: 37rem;
+  }
+}
+
 @media (min-width: 1024px) {
   :root {
     --glam-hero-col: 32rem;
