@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import {
-  addMinutes,
+  addDays,
   startOfLocalDay,
   type ProviderSchedule,
 } from "@/lib/domain/availability";
@@ -20,7 +20,7 @@ import { hiddenCityNames, listCities } from "./cities";
 export async function getMarketingData() {
   const now = new Date();
   const dayStart = startOfLocalDay(now);
-  const dayEnd = addMinutes(dayStart, 24 * 60);
+  const dayEnd = addDays(dayStart, 1);
 
   const [providers, services, hubs] = await Promise.all([
     prisma.provider.findMany({

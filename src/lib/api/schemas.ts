@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseQueryDate } from "./parse-date";
 
 /**
  * Note what is absent from every schema below: `bookingType`, any price, and
@@ -88,9 +89,30 @@ export const storefrontCheckoutSchema = z.object({
   promoCode: z.string().trim().max(40).optional(),
 });
 
+/**
+ * A calendar day. "YYYY-MM-DD" is read as that date on the server, the way
+ * the vendor calendar reads it. A full timestamp is still accepted, but it
+ * names an instant, not a day: the browser's midnight in British Summer Time
+ * is 23:00 the day before in UTC, which once made the storefront show
+ * Friday's hours for a Saturday.
+ */
+const calendarDay = z.string().transform((value, context) => {
+  const parsed = parseQueryDate(value);
+  if (!parsed) {
+    context.addIssue({ code: "custom", message: "Must be a date (YYYY-MM-DD)." });
+    return z.NEVER;
+  }
+  return parsed;
+});
+
 export const storefrontSlotsSchema = z.object({
   serviceIds: z.array(z.string().min(1)).min(1),
-  date: isoDateTime,
+  date: calendarDay,
+});
+
+export const storefrontDaysSchema = z.object({
+  serviceIds: z.array(z.string().min(1)).min(1),
+  from: calendarDay.optional(),
 });
 
 export const storefrontProfileSchema = z.object({

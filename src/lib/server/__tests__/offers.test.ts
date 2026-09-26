@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { uk, ukAt } from "@/lib/domain/__tests__/uk-clock";
 import { compareOffers, earliestStart } from "@/lib/server/offers";
 import type { ProviderSchedule, WorkingWindow } from "@/lib/domain/availability";
 
-const local = (iso: string) => new Date(iso);
+const local = uk;
 
 const ALL_WEEK: WorkingWindow[] = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
   dayOfWeek,
@@ -21,7 +22,7 @@ const schedule = (overrides: Partial<ProviderSchedule> = {}): ProviderSchedule =
 describe("earliestStart", () => {
   it("offers the start of the working day when nothing is booked", () => {
     const start = earliestStart(schedule(), 60, local("2026-04-01T07:00:00"));
-    expect(start?.getHours()).toBe(9);
+    expect(ukAt(start!).hour).toBe(9);
   });
 
   it("never offers a time already in the past", () => {
@@ -44,8 +45,8 @@ describe("earliestStart", () => {
     });
 
     const start = earliestStart(busy, 60, local("2026-04-01T08:00:00"));
-    expect(start!.getDate()).toBe(2);
-    expect(start!.getHours()).toBe(9);
+    expect(ukAt(start!).day).toBe(2);
+    expect(ukAt(start!).hour).toBe(9);
   });
 
   it("skips a blocked day entirely", () => {
@@ -58,7 +59,7 @@ describe("earliestStart", () => {
       ],
     });
 
-    expect(earliestStart(off, 60, local("2026-04-01T08:00:00"))!.getDate()).toBe(2);
+    expect(ukAt(earliestStart(off, 60, local("2026-04-01T08:00:00"))!).day).toBe(2);
   });
 
   it("gives up rather than reaching past the horizon", () => {

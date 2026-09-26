@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { addMinutes, startOfLocalDay, type ProviderSchedule } from "@/lib/domain/availability";
+import { addDays, startOfLocalDay, type ProviderSchedule } from "@/lib/domain/availability";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import { isFreeTonight } from "./openings";
 
@@ -60,7 +60,7 @@ export async function getProviderProfile(
   now = new Date(),
 ): Promise<ProviderProfile | null> {
   const dayStart = startOfLocalDay(now);
-  const dayEnd = addMinutes(dayStart, 24 * 60);
+  const dayEnd = addDays(dayStart, 1);
 
   const provider = await prisma.provider.findFirst({
     where: { id, approvalStatus: "APPROVED", isAcceptingWork: true },

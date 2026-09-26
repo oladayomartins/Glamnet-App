@@ -110,3 +110,26 @@ export function crossSellFor(
     )
     .slice(0, limit);
 }
+
+/**
+ * Short customer-facing groups for a storefront's category buttons. Two hair
+ * hubs become one "Hair": a customer choosing a service thinks "hair", not
+ * which tradition the stylist works in.
+ */
+const MENU_GROUPS: Record<string, string> = {
+  "Afro & Textured": "Hair",
+  "European & Western": "Hair",
+  [MUA_BRIDAL_HUB]: "Makeup",
+  [NAILS_HUB]: "Nails",
+  "Massage & Wellness": "Massage",
+};
+
+/** The storefront group a Service.category belongs to; unknown ones stand alone. */
+export function menuGroup(category: string): string {
+  return MENU_GROUPS[category] ?? category;
+}
+
+/** The groups a menu covers, in menu order, each once. */
+export function menuGroups(categories: readonly string[]): string[] {
+  return [...new Set(categories.map(menuGroup))];
+}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { uk, ukAt } from "@/lib/domain/__tests__/uk-clock";
 import {
   buildDayGrid,
   buildSlotOptions,
@@ -11,7 +12,7 @@ import {
 import { selectBroadcastTargets, type MatchCandidate } from "../matching";
 
 /** Local-time helper: tests assert on wall-clock behaviour, as the UI does. */
-const local = (iso: string) => new Date(iso);
+const local = uk;
 
 const ALL_WEEK: WorkingWindow[] = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
   dayOfWeek,
@@ -139,10 +140,10 @@ describe("buildSlotOptions", () => {
 
     expect(slots.length).toBeGreaterThan(0);
     // First legal start is 09:00; last is 17:45 (ends 19:45 + 15min = 20:00).
-    expect(slots[0].startAt.getHours()).toBe(9);
+    expect(ukAt(slots[0].startAt).hour).toBe(9);
     const last = slots[slots.length - 1];
-    expect(last.startAt.getHours()).toBe(17);
-    expect(last.startAt.getMinutes()).toBe(45);
+    expect(ukAt(last.startAt).hour).toBe(17);
+    expect(ukAt(last.startAt).minute).toBe(45);
   });
 
   it("never offers a slot in the past", () => {
@@ -197,7 +198,7 @@ describe("buildDayGrid", () => {
       local("2026-04-01T00:00:00"),
     );
 
-    expect(grid.every((slot) => slot.startAt.getHours() >= 9)).toBe(true);
+    expect(grid.every((slot) => ukAt(slot.startAt).hour >= 9)).toBe(true);
   });
 
   it("is the superset buildSlotOptions filters", () => {

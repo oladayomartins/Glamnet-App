@@ -35,6 +35,7 @@ export function MapView({
   fitToMarkers = false,
   className = "h-72",
   label = "Map",
+  interactive = true,
 }: {
   center: { lat: number; lng: number };
   zoom?: number;
@@ -44,6 +45,11 @@ export function MapView({
   fitToMarkers?: boolean;
   className?: string;
   label?: string;
+  /**
+   * False for a still preview: no dragging, zooming or zoom buttons, so on a
+   * phone a swipe over it scrolls the page instead of the map.
+   */
+  interactive?: boolean;
 }) {
   const node = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
@@ -57,7 +63,20 @@ export function MapView({
       if (cancelled || !node.current) return;
 
       if (!map.current) {
-        map.current = L.map(node.current, { scrollWheelZoom: false, attributionControl: true });
+        map.current = L.map(node.current, {
+          scrollWheelZoom: false,
+          attributionControl: true,
+          ...(interactive
+            ? {}
+            : {
+                dragging: false,
+                touchZoom: false,
+                doubleClickZoom: false,
+                boxZoom: false,
+                keyboard: false,
+                zoomControl: false,
+              }),
+        });
         L.tileLayer(
           process.env.NEXT_PUBLIC_MAP_TILES_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
           {
