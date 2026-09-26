@@ -3,10 +3,16 @@ import { Card, Skeleton } from "@/components/ui";
 /**
  * Loading states, in the shape of the thing that is loading.
  *
- * Every page here is `force-dynamic` and reads the database before it can send
- * anything, so without these the browser holds the previous screen — or a
- * blank one on a cold navigation — until the query comes back. A skeleton in
- * the right footprint turns that wait into a page that is visibly arriving.
+ * For the APP screens only — search, a booking, a dashboard — where the page
+ * is `force-dynamic` and reads the database before it can send anything, so
+ * without these the browser holds the previous screen until the query comes
+ * back. A skeleton in the right footprint turns that wait into a page that is
+ * visibly arriving.
+ *
+ * Marketing and policy pages deliberately have none. They are mostly static,
+ * they arrive fast, and a shimmer on a home page or a privacy policy reads as
+ * a fault rather than as progress — the page looks broken for the moment
+ * before it looks finished.
  *
  * Two rules the shapes below follow:
  *
@@ -45,71 +51,6 @@ export function LoadingScreen({
     >
       <span className="sr-only">{label}</span>
       {children}
-    </div>
-  );
-}
-
-/** The hero band: copy column, booking bar, figures — and the picture. */
-export function HeroSkeleton() {
-  return (
-    /*
-     * The band's floor comes from the same token the real hero reads, so the
-     * two cannot drift — a skeleton that reserves a different height makes the
-     * page jump exactly when the content lands.
-     */
-    <section className="on-light relative min-h-[var(--glam-hero-band-min)] bg-[var(--glam-hero-ground)] lg:flex lg:items-center">
-      {/* The photograph's own column, in the arrangement the live band uses. */}
-      <div className="hero-picture pointer-events-none hidden lg:block">
-        <Skeleton className="h-full w-full rounded-none" />
-        <div
-          aria-hidden
-          className="hero-fade-wash absolute inset-y-0 left-0 w-[62%] bg-gradient-to-r from-[var(--glam-hero-ground)] from-45% to-transparent"
-        />
-      </div>
-
-      <div className="relative mx-auto w-full max-w-[var(--glam-page-max)] px-4 pb-7 pt-8 lg:py-10">
-        {/* Eyebrow, headline, lede. */}
-        <div className="max-w-[var(--glam-hero-col)]">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="mt-4 h-[127px] w-full max-w-[30rem] lg:h-[160px]" />
-          <Skeleton className="mt-5 h-24 w-full max-w-[28rem] lg:h-[72px]" />
-        </div>
-
-        {/* The booking control, which stacks below `sm` and sits on one row
-            above it — 214px against 90, measured on the live band. */}
-        <Skeleton className="mt-6 h-[214px] w-full max-w-[var(--glam-hero-col)] rounded-glam lg:h-[90px]" />
-
-        {/* Trust figures, and the review button beside them. */}
-        <div className="mt-5 flex max-w-[var(--glam-hero-col)] flex-wrap items-center gap-x-7 gap-y-3">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-4 w-36" />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/** A browse rail: its heading, and a row of tiles at the tiles' own ratio. */
-export function RailSkeleton({
-  cards = 4,
-  aspect = "aspect-[4/3]",
-}: {
-  cards?: number;
-  aspect?: string;
-}) {
-  return (
-    <div className="pt-14 sm:pt-16">
-      <Skeleton className="h-6 w-56" />
-      <Skeleton className="mt-2 h-4 w-80" />
-      <div className="mt-4 flex gap-3 overflow-hidden">
-        {Array.from({ length: cards }, (_, index) => (
-          <div key={index} className="w-[220px] shrink-0 sm:w-[250px]">
-            <Skeleton className={`${aspect} w-full rounded-glam`} />
-            <Skeleton className="mt-2 h-4 w-24" />
-            <Skeleton className="mt-1.5 h-3 w-16" />
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
