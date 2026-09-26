@@ -179,6 +179,12 @@ model Provider {
   /// the catalogue can grow without a migration; unknown values are dropped
   /// on read, never rendered raw.
   amenities        String[]  @default([])
+  /// The guided About, one column per prompt — see
+  /// lib/domain/about-sections.ts. Kept apart from `bio` so a vendor who
+  /// wrote free text before this form existed keeps it.
+  specialisesIn    String    @default("")
+  whatToExpect     String    @default("")
+  howToFindMe      String    @default("")
   /// The vendor's full base postcode and its coordinates. PRIVATE: used only
   /// for distance. Publicly a vendor is shown at their outward code.
   basePostcode     String    @default("")

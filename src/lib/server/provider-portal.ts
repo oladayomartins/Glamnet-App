@@ -41,6 +41,9 @@ export async function updateStorefrontProfile(
     name?: string;
     phone?: string;
     bio?: string;
+    specialisesIn?: string;
+    whatToExpect?: string;
+    howToFindMe?: string;
     slug?: string;
     instagramHandle?: string;
     tiktokHandle?: string;
@@ -118,6 +121,9 @@ export async function updateStorefrontProfile(
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
       ...(input.bio !== undefined ? { bio: input.bio.trim() } : {}),
+      ...(input.specialisesIn !== undefined ? { specialisesIn: input.specialisesIn.trim() } : {}),
+      ...(input.whatToExpect !== undefined ? { whatToExpect: input.whatToExpect.trim() } : {}),
+      ...(input.howToFindMe !== undefined ? { howToFindMe: input.howToFindMe.trim() } : {}),
       ...(input.slug !== undefined ? { slug: input.slug } : {}),
       ...(input.instagramHandle !== undefined ? { instagramHandle: cleanHandle(input.instagramHandle) } : {}),
       ...(input.tiktokHandle !== undefined ? { tiktokHandle: cleanHandle(input.tiktokHandle) } : {}),

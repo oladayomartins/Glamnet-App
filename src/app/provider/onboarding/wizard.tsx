@@ -32,6 +32,7 @@ import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
 import { MapView } from "@/components/map-view";
 import { formatPostcode } from "@/lib/domain/postcode";
 import { VENDOR_AMENITIES } from "@/lib/domain/vendor-tags";
+import { aboutPrompts } from "@/lib/domain/about-sections";
 import { WelcomeIntro } from "./welcome";
 import { BioLink } from "@/components/bio-link";
 import { BrandImage } from "@/components/brand-image";
@@ -45,6 +46,9 @@ interface Profile {
   name: string;
   phone: string;
   bio: string;
+  specialisesIn: string;
+  whatToExpect: string;
+  howToFindMe: string;
   slug: string;
   instagramHandle: string;
   tiktokHandle: string;
@@ -300,6 +304,9 @@ export function OnboardingWizard(props: {
           send("/api/provider/profile", "PATCH", {
             slug: profile.slug,
             bio: profile.bio,
+            specialisesIn: profile.specialisesIn,
+            whatToExpect: profile.whatToExpect,
+            howToFindMe: profile.howToFindMe,
             instagramHandle: profile.instagramHandle,
             tiktokHandle: profile.tiktokHandle,
           }),
@@ -637,7 +644,7 @@ export function OnboardingWizard(props: {
                   ) : null}
                 </Field>
                 <Field
-                  label="Bio"
+                  label="Introduction"
                   hint={
                     bioShort > 0
                       ? `${bioShort} more ${bioShort === 1 ? "character" : "characters"} to go · at least 20`
@@ -647,11 +654,32 @@ export function OnboardingWizard(props: {
                   <textarea
                     value={profile.bio}
                     onChange={(e) => set("bio", e.target.value.slice(0, 1000))}
-                    rows={4}
-                    placeholder="What you specialise in, and what clients love about your work."
+                    rows={3}
+                    placeholder="A line or two about you and your work."
                     className={`${inputClass} py-3`}
                   />
                 </Field>
+
+                {/* The rest of the About, as three questions rather than one
+                    blank box. A vendor answering "what happens at an
+                    appointment?" writes something useful; the same vendor
+                    facing an empty Bio field writes a fragment or nothing. */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-ink">
+                    Answer these and your About page writes itself
+                  </p>
+                  {aboutPrompts().map((prompt) => (
+                    <Field key={prompt.key} label={prompt.prompt} hint="Optional">
+                      <textarea
+                        value={profile[prompt.key]}
+                        onChange={(e) => set(prompt.key, e.target.value.slice(0, 600))}
+                        rows={2}
+                        placeholder={prompt.example}
+                        className={`${inputClass} py-3`}
+                      />
+                    </Field>
+                  ))}
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Instagram">
                     <span className="relative block">

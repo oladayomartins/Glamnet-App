@@ -142,6 +142,9 @@ export async function getStorefront(slug: string) {
       workspaceSector: true,
       travelsToClients: true,
       amenities: true,
+      specialisesIn: true,
+      whatToExpect: true,
+      howToFindMe: true,
       hub: {
         select: { id: true, city: true, sector: true, travelFeeMinor: true, latitude: true, longitude: true },
       },

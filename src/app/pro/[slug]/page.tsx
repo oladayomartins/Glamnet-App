@@ -20,6 +20,7 @@ import { Card, EmptyState, SectionTitle } from "@/components/ui";
 import { SectionNav, type SectionLink } from "@/components/section-nav";
 import { describeDayHours } from "@/lib/domain/opening-hours";
 import { vendorTags } from "@/lib/domain/vendor-tags";
+import { aboutSections } from "@/lib/domain/about-sections";
 import { formatDay } from "@/lib/format";
 import { siteUrl } from "@/lib/site";
 import { StorefrontBooking } from "./storefront-booking";
@@ -104,6 +105,9 @@ export default async function StorefrontPage({
 
   // What this vendor is, at a glance: where they work and whether they come
   // to you, then whatever they have told us about the space.
+  // The guided About, skipping whatever the vendor left blank.
+  const about = aboutSections(store);
+
   const tags = vendorTags({
     workspaceType: store.workspaceType,
     travelsToClients: store.travelsToClients,
@@ -324,6 +328,23 @@ export default async function StorefrontPage({
         >
           About {store.name}
         </SectionTitle>
+
+        {about.length > 0 ? (
+          <div className="mb-4 grid gap-4 sm:grid-cols-3">
+            {about.map((section) => (
+              <div key={section.key}>
+                <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                  {section.heading}
+                </h3>
+                {/* whitespace-pre-line so a vendor's own line breaks survive;
+                    the field is a textarea, and they use them. */}
+                <p className="mt-1.5 whitespace-pre-line text-[15px] text-ink-muted">
+                  {section.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Card className="p-4">

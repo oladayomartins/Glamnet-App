@@ -119,6 +119,10 @@ export const storefrontProfileSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   phone: z.string().trim().max(30).optional(),
   bio: z.string().max(1_000).optional(),
+  /** The guided About — see lib/domain/about-sections.ts. */
+  specialisesIn: z.string().max(600).optional(),
+  whatToExpect: z.string().max(600).optional(),
+  howToFindMe: z.string().max(600).optional(),
   slug: z.string().trim().toLowerCase().max(40).optional(),
   instagramHandle: z.string().max(120).optional(),
   tiktokHandle: z.string().max(120).optional(),
