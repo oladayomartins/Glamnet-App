@@ -57,6 +57,8 @@ export interface StorefrontService {
   kind: "SERVICE" | "ADDON";
   priceMinor: number;
   durationMinutes: number;
+  /** Pinned by the vendor to lead their storefront menu. */
+  isFeatured: boolean;
 }
 
 export function workspaceLabel(type: string): string {
@@ -77,6 +79,7 @@ function menuFrom(
   links: {
     priceMinor: number | null;
     durationMinutes: number | null;
+    isFeatured: boolean;
     service: {
       id: string;
       name: string;
@@ -99,6 +102,7 @@ function menuFrom(
       kind: link.service.kind === "ADDON" ? ("ADDON" as const) : ("SERVICE" as const),
       priceMinor: link.priceMinor ?? link.service.priceMinor,
       durationMinutes: link.durationMinutes ?? link.service.durationMinutes,
+      isFeatured: link.isFeatured,
     }))
     .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
 }
@@ -106,6 +110,7 @@ function menuFrom(
 const SERVICE_SELECT = {
   priceMinor: true,
   durationMinutes: true,
+  isFeatured: true,
   service: {
     select: {
       id: true,

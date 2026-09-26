@@ -220,6 +220,10 @@ model ProviderService {
   priceMinor      Int?
   /// The vendor's own duration; null uses the catalogue duration.
   durationMinutes Int?
+  /// Pinned to the front of the storefront menu. With none pinned the
+  /// storefront leads with the cheapest services instead — see
+  /// lib/domain/featured-menu.ts.
+  isFeatured      Boolean @default(false)
   provider        Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
   service         Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 

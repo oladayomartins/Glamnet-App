@@ -67,6 +67,8 @@ interface CatalogueItem {
 
 interface MenuEntry {
   serviceId: string;
+  /** Pinned to the front of the storefront menu. */
+  isFeatured?: boolean;
   priceMinor: number | null;
   durationMinutes: number | null;
 }
@@ -566,6 +568,22 @@ export function OnboardingWizard(props: {
                                   onDecrease={() => editEntry(item.id, { durationMinutes: Math.max(15, minutes - 15) })}
                                   onIncrease={() => editEntry(item.id, { durationMinutes: Math.min(720, minutes + 15) })}
                                 />
+                                {/* Add-ons cannot lead a menu: nobody books
+                                    one on its own, so a pinned add-on would
+                                    take a slot a bookable service needs. */}
+                                {item.kind !== "ADDON" ? (
+                                  <label className="col-span-2 inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink">
+                                    <input
+                                      type="checkbox"
+                                      checked={entry.isFeatured === true}
+                                      onChange={(event) =>
+                                        editEntry(item.id, { isFeatured: event.target.checked })
+                                      }
+                                      className="size-4 accent-[var(--glam-rose-700)]"
+                                    />
+                                    Show this first on my storefront
+                                  </label>
+                                ) : null}
                               </div>
                             ) : null}
                           </li>

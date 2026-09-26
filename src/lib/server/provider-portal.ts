@@ -142,7 +142,12 @@ export async function updateStorefrontProfile(
 /** Replace the vendor's menu: which services, at what price and duration. */
 export async function replaceMenu(
   providerId: string,
-  items: { serviceId: string; priceMinor?: number | null; durationMinutes?: number | null }[],
+  items: {
+    serviceId: string;
+    priceMinor?: number | null;
+    durationMinutes?: number | null;
+    isFeatured?: boolean;
+  }[],
 ) {
   const ids = [...new Set(items.map((item) => item.serviceId))];
   const known = await prisma.service.count({ where: { id: { in: ids }, isActive: true } });
@@ -157,6 +162,9 @@ export async function replaceMenu(
         serviceId: item.serviceId,
         priceMinor: item.priceMinor ?? null,
         durationMinutes: item.durationMinutes ?? null,
+        // Only a bookable service can lead the menu: a pinned add-on would
+        // take a featured slot nobody can book on its own.
+        isFeatured: item.isFeatured === true,
       })),
     }),
   ]);

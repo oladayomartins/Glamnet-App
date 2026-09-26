@@ -93,6 +93,7 @@ export default async function OnboardingPage({
         serviceId: link.serviceId,
         priceMinor: link.priceMinor,
         durationMinutes: link.durationMinutes,
+        isFeatured: link.isFeatured,
       }))}
       documents={provider.documents.map((document) => ({
         id: document.id,

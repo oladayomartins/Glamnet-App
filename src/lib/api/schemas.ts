@@ -145,6 +145,8 @@ export const menuSchema = z.object({
         serviceId: z.string().min(1),
         priceMinor: z.number().int().min(0).max(1_000_000).nullable().optional(),
         durationMinutes: z.number().int().min(5).max(720).nullable().optional(),
+        /** Pinned to the front of the storefront menu. */
+        isFeatured: z.boolean().optional(),
       }),
     )
     .max(100),

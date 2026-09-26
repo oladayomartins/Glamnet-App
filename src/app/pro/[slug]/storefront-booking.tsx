@@ -9,6 +9,7 @@ import { AddressFields, EMPTY_ADDRESS, addressComplete, formatAddress, type Addr
 import { CardHold } from "@/components/card-hold";
 import { CancellationTerms } from "@/components/cancellation-terms";
 import { crossSellFor, menuGroup, menuGroups } from "@/lib/domain/specialty-hubs";
+import { featuredMenu } from "@/lib/domain/featured-menu";
 import { FREE_CANCELLATION_HOURS } from "@/lib/domain/cancellation";
 import { ukParts } from "@/lib/domain/uk-time";
 import { formatDuration, formatMoney, formatTime } from "@/lib/format";
@@ -111,6 +112,8 @@ export function StorefrontBooking({
   const firstName = providerName.trim().split(/\s+/)[0];
   const [basket, setBasket] = useState<string[]>([]);
   const [group, setGroup] = useState("All");
+  /** "See all" has been tapped. Resets whenever the category changes. */
+  const [expanded, setExpanded] = useState(false);
 
   const sheet = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState<"time" | "details" | null>(null);
@@ -144,7 +147,15 @@ export function StorefrontBooking({
   const services = menu.filter((item) => item.kind === "SERVICE");
   const addons = menu.filter((item) => item.kind === "ADDON");
   const groups = menuGroups(services.map((item) => item.category));
-  const shownServices = group === "All" ? services : services.filter((item) => menuGroup(item.category) === group);
+  const inGroup = group === "All" ? services : services.filter((item) => menuGroup(item.category) === group);
+
+  // A long menu pushes reviews, hours and everything else below three screens.
+  // Only the "All" tab collapses: picking a category is already the customer
+  // narrowing the list, and truncating their choice as well would hide the
+  // thing they just asked to see.
+  const lead = featuredMenu(inGroup);
+  const collapsible = group === "All" && !expanded && lead.hiddenCount > 0;
+  const shownServices = collapsible ? lead.featured : inGroup;
 
   // Each add-on is offered once, under the first added service in its own
   // category ("Goes well with…"). Add-ons with no service in their category
@@ -383,7 +394,10 @@ export function StorefrontBooking({
                 key={name}
                 type="button"
                 aria-pressed={group === name}
-                onClick={() => setGroup(name)}
+                onClick={() => {
+                  setGroup(name);
+                  setExpanded(false);
+                }}
                 className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold transition duration-[180ms] ${
                   group === name ? "border-ink bg-ink text-canvas" : "border-line bg-surface text-ink hover:border-accent-500"
                 }`}
@@ -392,6 +406,12 @@ export function StorefrontBooking({
               </button>
             ))}
           </nav>
+        ) : null}
+
+        {collapsible && lead.pinned ? (
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+            Featured
+          </p>
         ) : null}
 
         <ul className="divide-y divide-line">
@@ -435,6 +455,18 @@ export function StorefrontBooking({
               ))
             : null}
         </ul>
+
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-line bg-surface px-5 text-sm font-semibold text-ink transition duration-[180ms] ease-glam hover:border-accent-500"
+          >
+            {/* Counts only what this button reveals: add-ons live in their
+                own section below and are not hidden by it. */}
+            See all {inGroup.length} services
+          </button>
+        ) : null}
 
         {/* In-basket cross-sell for bridal and MUA work. */}
         {bridalWithoutNails && (crossSell.length > 0 || nearbyNails.length > 0) ? (
