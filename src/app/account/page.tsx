@@ -89,6 +89,25 @@ export default async function AccountPage({
       ? { lat: customer.latitude, lng: customer.longitude }
       : null;
   const nearby = home ? (await listDirectory({ near: home, radiusKm: milesToKm(10) })).slice(0, 4) : [];
+
+  // Saved vendors, newest first. Only live storefronts are listed: a vendor
+  // who has paused or been unapproved since cannot be booked, so linking to
+  // them would be a dead end wearing a heart.
+  const saved = customer
+    ? await prisma.savedVendor.findMany({
+        where: {
+          customerId: customer.id,
+          provider: { approvalStatus: "APPROVED", isAcceptingWork: true, slug: { not: null } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          provider: {
+            select: { id: true, name: true, slug: true, avatarUrl: true, workspaceSector: true, hub: { select: { city: true, sector: true } } },
+          },
+        },
+      })
+    : [];
   const firstName = (customer?.name ?? "").trim().split(/\s+/)[0] || "there";
   const nearQuery = customer?.postcode ? `&near=${encodeURIComponent(customer.postcode)}` : "";
 
@@ -130,6 +149,38 @@ export default async function AccountPage({
           ))}
         </div>
       </section>
+
+      {/* --- Saved ----------------------------------------------------------
+          Only rendered once there is something in it: an empty "Saved" shelf
+          on every visit is a reminder of a feature, not a use of one. */}
+      {saved.length > 0 ? (
+        <section>
+          <SectionTitle hint={`${saved.length} saved`}>Saved vendors</SectionTitle>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {saved.map(({ provider }) => (
+              <Link
+                key={provider.id}
+                href={`/pro/${provider.slug}`}
+                className="rounded-glam border border-line bg-surface p-3 transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:border-accent-500"
+              >
+                <GlamImage
+                  src={provider.avatarUrl}
+                  alt={provider.name}
+                  width={160}
+                  height={160}
+                  className="h-14 w-14 rounded-full object-cover"
+                />
+                <span className="mt-2 block truncate font-display text-[15px] font-bold leading-tight text-ink">
+                  {provider.name}
+                </span>
+                <span className="mt-0.5 block truncate text-xs text-ink-muted">
+                  {provider.hub.city} · {provider.workspaceSector || provider.hub.sector}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* --- Near you -------------------------------------------------------- */}
       {nearby.length > 0 ? (

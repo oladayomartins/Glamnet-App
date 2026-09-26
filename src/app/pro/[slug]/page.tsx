@@ -21,6 +21,8 @@ import { SectionNav, type SectionLink } from "@/components/section-nav";
 import { describeDayHours } from "@/lib/domain/opening-hours";
 import { vendorTags } from "@/lib/domain/vendor-tags";
 import { aboutSections } from "@/lib/domain/about-sections";
+import { SaveVendor } from "@/components/save-vendor";
+import { prisma } from "@/lib/server/prisma";
 import { formatDay } from "@/lib/format";
 import { siteUrl } from "@/lib/site";
 import { StorefrontBooking } from "./storefront-booking";
@@ -105,6 +107,15 @@ export default async function StorefrontPage({
 
   // What this vendor is, at a glance: where they work and whether they come
   // to you, then whatever they have told us about the space.
+  // Whether this customer has already saved the vendor. Only asked for a
+  // signed-in customer — nobody else can save, so nobody else needs the query.
+  const saved =
+    viewer?.role === "CUSTOMER" && viewer.customerId
+      ? (await prisma.savedVendor.count({
+          where: { customerId: viewer.customerId, providerId: store.id },
+        })) > 0
+      : false;
+
   // The guided About, skipping whatever the vendor left blank.
   const about = aboutSections(store);
 
@@ -174,6 +185,13 @@ export default async function StorefrontPage({
               {store.reviewCount} {store.reviewCount === 1 ? "review" : "reviews"})
             </span>
           )}
+          <SaveVendor
+            providerId={store.id}
+            initialSaved={saved}
+            canSave={viewer?.role === "CUSTOMER" && Boolean(viewer.customerId)}
+            signInHref={`/sign-in?next=${encodeURIComponent(`/pro/${slug}`)}`}
+          />
+
           {store.instagramHandle ? (
             <a
               href={`https://instagram.com/${store.instagramHandle}`}

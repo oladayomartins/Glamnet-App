@@ -128,6 +128,25 @@ model Customer {
   appUser   AppUser? @relation(fields: [appUserId], references: [id])
 
   bookings Booking[]
+  saved    SavedVendor[]
+}
+
+/// A vendor a customer has saved to come back to.
+///
+/// Bridal, locs and anything else booked weeks ahead is rarely booked on the
+/// first visit, so a customer needs somewhere to put a vendor they liked. The
+/// pair is the primary key: saving twice is the same as saving once, which
+/// makes the button idempotent without a read first.
+model SavedVendor {
+  customerId String
+  providerId String
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, providerId])
+  @@index([customerId, createdAt])
 }
 
 model Provider {
@@ -179,6 +198,7 @@ model Provider {
   /// the catalogue can grow without a migration; unknown values are dropped
   /// on read, never rendered raw.
   amenities        String[]  @default([])
+  savedBy          SavedVendor[]
   /// The guided About, one column per prompt — see
   /// lib/domain/about-sections.ts. Kept apart from `bio` so a vendor who
   /// wrote free text before this form existed keeps it.
