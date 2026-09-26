@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  CalendarBlank,
   CaretRight,
   MagnifyingGlass,
   MapPin,
@@ -13,6 +14,7 @@ import {
 import { Button } from "@/components/ui";
 import { formatDuration, formatMoney } from "@/lib/format";
 import { useTypedPlaceholder } from "@/components/use-typed-placeholder";
+import { whenOptions, type WhenOption } from "@/lib/domain/when-options";
 
 export interface ServiceArea {
   hubId: string;
@@ -85,6 +87,11 @@ export function BookingLauncher({
   const [area, setArea] = useState<ChosenArea | null>(null);
   const [resolving, setResolving] = useState(false);
   const [whereError, setWhereError] = useState<string | null>(null);
+
+  // The third field: which day. Empty means "Any time", which is the default
+  // on purpose — most customers have no fixed day, and forcing one would hide
+  // every vendor who is busy this afternoon but free all week.
+  const [when, setWhen] = useState("");
 
   const [whatText, setWhatText] = useState("");
   const [service, setService] = useState<ServiceOption | null>(null);
@@ -205,9 +212,13 @@ export function BookingLauncher({
     const q = service?.name ?? whatText.trim();
     if (q) params.set("q", q);
     if (chosen) params.set("location", chosen.sector);
+    if (when) params.set("date", when);
     setOpen(null);
     router.push(`/search${params.size ? `?${params.toString()}` : ""}`);
   };
+
+  // Built from the UK clock, like everything that decides availability.
+  const days = whenOptions(new Date());
 
   const canSearch = Boolean(whereText.trim() || whatText.trim());
   const coveredCities = [...new Map(areas.map((entry) => [entry.city, entry])).values()].slice(0, 6);
@@ -358,6 +369,20 @@ export function BookingLauncher({
           ) : null}
         </div>
 
+        <div className="hidden h-9 w-px shrink-0 bg-line sm:block" />
+
+        {/* When — a native select on purpose: on a phone this opens the OS
+            picker, which beats any custom list for fifteen dates. */}
+        <div className="min-w-0 sm:w-40">
+          <SelectField
+            label="When"
+            icon={<CalendarBlank size={17} weight="light" aria-hidden />}
+            value={when}
+            onChange={setWhen}
+            options={days}
+          />
+        </div>
+
         <Button type="submit" disabled={!canSearch || resolving} className="shrink-0 sm:ml-2 sm:w-auto">
           Find my glam
         </Button>
@@ -499,6 +524,50 @@ function InputField({
         />
       </span>
       {busy ? <SpinnerGap size={16} className="shrink-0 animate-spin text-ink-muted" aria-hidden /> : null}
+    </label>
+  );
+}
+
+/**
+ * The same shell as InputField, wrapped around a native <select>.
+ *
+ * Native rather than a custom dropdown because this list is fifteen dates and
+ * the control is on a phone: the OS picker is faster to use, scrolls properly,
+ * and is keyboard- and screen-reader-correct without any of it being rebuilt
+ * here.
+ */
+function SelectField({
+  label,
+  icon,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  options: WhenOption[];
+}) {
+  return (
+    <label className="focus-shell flex min-h-12 cursor-pointer items-center gap-2.5 rounded-glam-sm px-3 transition duration-[180ms] ease-glam hover:bg-sunken">
+      <span className="shrink-0 text-ink-muted">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-ink-muted">
+          {label}
+        </span>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="block w-full truncate bg-transparent text-[15px] font-semibold leading-tight text-ink outline-none"
+        >
+          {options.map((option) => (
+            <option key={option.value || "any"} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </span>
     </label>
   );
 }

@@ -128,7 +128,7 @@ export default async function SearchPage({
 
       <SearchFilters
         cities={cities}
-        initial={{ q, location, maxPrice, minRating, availableToday }}
+        initial={{ q, location, when: date, at, maxPrice, minRating, availableToday }}
       />
 
       <div className="pt-5">

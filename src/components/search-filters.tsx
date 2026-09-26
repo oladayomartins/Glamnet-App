@@ -4,13 +4,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FunnelSimple, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui";
+import { whenOptions } from "@/lib/domain/when-options";
 
 export interface SearchFilterValues {
   q: string;
   location: string;
+  /** The `date` parameter: "" for any day, else YYYY-MM-DD. */
+  when: string;
   maxPrice: string;
   minRating: string;
   availableToday: boolean;
+  /**
+   * The `at` parameter, if the customer arrived with one. Not editable here —
+   * it is carried so that changing a filter does not throw away the exact time
+   * they picked somewhere else.
+   */
+  at: string;
 }
 
 const PRICE_OPTIONS = [
@@ -61,16 +70,25 @@ export function SearchFilters({
 
   const activeCount = [
     initial.location,
+    initial.when,
     initial.maxPrice,
     initial.minRating,
     initial.availableToday ? "1" : "",
   ].filter(Boolean).length;
+
+  // Built once per render from the current clock, in UK time — see
+  // when-options.ts for why not the browser's.
+  const days = whenOptions(new Date());
 
   const apply = (next: SearchFilterValues) => {
     setValues(next);
     const params = new URLSearchParams();
     if (next.q.trim()) params.set("q", next.q.trim());
     if (next.location) params.set("location", next.location);
+    if (next.when) params.set("date", next.when);
+    // Carried, not edited. Rebuilding the query from scratch used to drop the
+    // customer's chosen time the moment they touched any other filter.
+    if (next.at) params.set("at", next.at);
     if (next.maxPrice) params.set("maxPrice", next.maxPrice);
     if (next.minRating) params.set("minRating", next.minRating);
     if (next.availableToday) params.set("availableToday", "1");
@@ -89,6 +107,18 @@ export function SearchFilters({
           className="min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 text-[15px] text-ink outline-none transition duration-[180ms] focus:border-brand-400"
         />
       </label>
+
+      <Select
+        label="When"
+        value={values.when}
+        onChange={(when) =>
+          // Choosing a day supersedes an exact time from a previous search,
+          // and "Available today" as well: three ways of saying when, two of
+          // them now stale, would filter each other down to nothing.
+          apply({ ...values, when, at: "", availableToday: false })
+        }
+        options={days}
+      />
 
       <Select
         label="Where"
