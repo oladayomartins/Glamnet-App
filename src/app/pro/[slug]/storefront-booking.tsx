@@ -10,6 +10,7 @@ import { CardHold } from "@/components/card-hold";
 import { CancellationTerms } from "@/components/cancellation-terms";
 import { crossSellFor, menuGroup, menuGroups } from "@/lib/domain/specialty-hubs";
 import { FREE_CANCELLATION_HOURS } from "@/lib/domain/cancellation";
+import { ukParts } from "@/lib/domain/uk-time";
 import { formatDuration, formatMoney, formatTime } from "@/lib/format";
 import {
   CURRENCY,
@@ -934,7 +935,7 @@ function groupSlots(slots: Slot[]): [string, Slot[]][] {
     ["Evening", []],
   ];
   for (const slot of slots) {
-    const hour = new Date(slot.startAt).getHours();
+    const hour = ukParts(new Date(slot.startAt)).hour;
     groups[hour < 12 ? 0 : hour < 17 ? 1 : 2][1].push(slot);
   }
   return groups.filter(([, group]) => group.length > 0);

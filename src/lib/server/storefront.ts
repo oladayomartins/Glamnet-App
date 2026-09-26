@@ -26,6 +26,7 @@ import { TRANSITION_BUFFER_MINUTES } from "@/lib/domain/constants";
 import type { BasketLine, ServiceLocation } from "@/lib/domain/types";
 import { boundingBox, byDistance, distanceKm, type LatLng } from "@/lib/domain/postcode";
 import { crossSellFor, type CrossSellCandidate } from "@/lib/domain/specialty-hubs";
+import { ukDateString } from "@/lib/domain/uk-time";
 
 /**
  * Vendor storefronts and the direct booking engine (Open Marketplace
@@ -315,7 +316,7 @@ export async function storefrontDays(
   const schedule = await loadProviderSchedule(providerId, start, addDays(start, days + 1));
   if (!schedule) return [];
   return summariseDays(start, days, durationMinutes, schedule, now).map((day) => ({
-    date: toLocalDateString(day.date),
+    date: ukDateString(day.date),
     status: day.status,
     firstStartAt: day.firstStartAt?.toISOString() ?? null,
   }));
@@ -332,11 +333,6 @@ export async function storefrontDaysForBasket(
   await releaseAbandonedCheckouts(providerId, now);
   const duration = menu.reduce((total, service) => total + service.durationMinutes, 0);
   return storefrontDays(providerId, duration, from, STOREFRONT_DAYS_AHEAD, now);
-}
-
-/** Local midnight as "YYYY-MM-DD", the shape the day picker sends back. */
-function toLocalDateString(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export interface StorefrontCheckoutRequest {

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { CalendarBlank, Lightning } from "@phosphor-icons/react/dist/ssr";
 import { BookingTypeTag, EmptyState, LifecycleChip } from "@/components/ui";
 import { formatDay, formatDuration, formatMoney, formatTime } from "@/lib/format";
+import { addDays, ukWeekday } from "@/lib/domain/availability";
+import { ukParts } from "@/lib/domain/uk-time";
 
 export interface CalendarEntry {
   id: string;
@@ -71,8 +73,10 @@ function DayView({
   calendar: CalendarPayload;
   availabilityHref: string;
 }) {
+  // Working hours are UK wall-clock times, so the weekday is the UK one too,
+  // whatever zone this browser is set to.
   const dayStart = new Date(calendar.from);
-  const dayOfWeek = dayStart.getDay();
+  const dayOfWeek = ukWeekday(dayStart);
 
   const shifts = calendar.workingWindows.filter(
     (window) => window.dayOfWeek === dayOfWeek,
@@ -375,15 +379,13 @@ function WeekView({
   const weekStart = new Date(calendar.from);
 
   const days = Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(weekStart);
-    day.setDate(day.getDate() + index);
-    const nextDay = new Date(day);
-    nextDay.setDate(nextDay.getDate() + 1);
+    const day = addDays(weekStart, index);
+    const nextDay = addDays(day, 1);
 
     return {
       date: day,
       isWorking: calendar.workingWindows.some(
-        (window) => window.dayOfWeek === day.getDay(),
+        (window) => window.dayOfWeek === ukWeekday(day),
       ),
       entries: calendar.entries.filter((entry) => {
         const startAt = new Date(entry.appointmentStartAt);
@@ -410,6 +412,7 @@ function WeekView({
               {day.date.toLocaleDateString("en-GB", {
                 weekday: "short",
                 day: "numeric",
+                timeZone: "Europe/London",
               })}
             </p>
             {!day.isWorking ? (
@@ -568,7 +571,18 @@ function EntryList({
 
 /** Minutes from local midnight of `dayStart` to `iso`. */
 function minutesInto(dayStart: Date, iso: string): number {
-  return (new Date(iso).getTime() - dayStart.getTime()) / 60_000;
+  // UK clock minutes, not elapsed minutes: on a clocks-change day 09:00 is
+  // 480 or 600 real minutes after midnight, but working hours say 540.
+  const at = new Date(iso);
+  const clock = ukParts(at);
+  const days = Math.round((Date.UTC(clock.year, clock.month - 1, clock.day) - ukDayUtc(dayStart)) / 86_400_000);
+  return days * 24 * 60 + clock.hour * 60 + clock.minute;
+}
+
+/** The UK calendar day of `at`, as a UTC midnight, for whole-day arithmetic. */
+function ukDayUtc(at: Date): number {
+  const day = ukParts(at);
+  return Date.UTC(day.year, day.month - 1, day.day);
 }
 
 /** Height of `[fromIso, toIso)` as a percentage of a `span`-minute timeline. */

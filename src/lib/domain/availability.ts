@@ -1,9 +1,10 @@
 import { SLOT_GRANULARITY_MINUTES, TRANSITION_BUFFER_MINUTES } from "./constants";
 import type { Interval } from "./types";
+import { ukAddDays, ukParts, ukStartOfDay, ukWallClock } from "./uk-time";
 
-/** A vendor's recurring weekly working window, in local wall-clock minutes. */
+/** A vendor's recurring weekly working window, in UK wall-clock minutes. */
 export interface WorkingWindow {
-  /** 0 = Sunday … 6 = Saturday, matching `Date#getDay`. */
+  /** 0 = Sunday … 6 = Saturday, as the UK calendar has it. */
   dayOfWeek: number;
   /** Minutes from midnight, e.g. 09:00 -> 540. */
   startMinute: number;
@@ -60,11 +61,14 @@ export function withinWorkingHours(
   window: Interval,
   workingWindows: readonly WorkingWindow[],
 ): boolean {
+  const dayStart = startOfLocalDay(window.startAt);
+  const weekday = ukParts(dayStart).weekday;
   return workingWindows.some((shift) => {
-    const dayStart = startOfLocalDay(window.startAt);
-    if (dayStart.getDay() !== shift.dayOfWeek) return false;
-    const shiftStart = addMinutes(dayStart, shift.startMinute);
-    const shiftEnd = addMinutes(dayStart, shift.endMinute);
+    if (weekday !== shift.dayOfWeek) return false;
+    // Via the wall clock, not minutes after midnight: on a clocks-change day
+    // 09:00 is not 540 minutes after midnight.
+    const shiftStart = atMinute(dayStart, shift.startMinute);
+    const shiftEnd = atMinute(dayStart, shift.endMinute);
     return (
       window.startAt.getTime() >= shiftStart.getTime() &&
       window.endAt.getTime() <= shiftEnd.getTime()
@@ -95,25 +99,37 @@ export function isProviderAvailable(
   return true;
 }
 
-/** Local midnight for the day containing `at`. */
+/**
+ * UK midnight for the UK day containing `at`.
+ *
+ * "Local" means the UK, not the server: production runs in UTC, and a
+ * server-local midnight there is 01:00 in the UK all summer.
+ */
 export function startOfLocalDay(at: Date): Date {
-  const day = new Date(at);
-  day.setHours(0, 0, 0, 0);
-  return day;
+  return ukStartOfDay(at);
 }
 
-/** Local midnight `days` after the day containing `at`. */
+/** The same UK clock time `days` calendar days after `at`. */
 export function addDays(at: Date, days: number): Date {
-  const next = new Date(at);
-  next.setDate(next.getDate() + days);
-  return next;
+  return ukAddDays(at, days);
 }
 
-/** Monday-based start of the week containing `at`. */
+/** Monday-based start of the UK week containing `at`. */
 export function startOfWeek(at: Date): Date {
   const day = startOfLocalDay(at);
-  const offset = (day.getDay() + 6) % 7;
+  const offset = (ukParts(day).weekday + 6) % 7;
   return addDays(day, -offset);
+}
+
+/** The UK weekday of `at`: 0 = Sunday … 6 = Saturday. */
+export function ukWeekday(at: Date): number {
+  return ukParts(at).weekday;
+}
+
+/** The instant the UK clock reads `minute` past midnight on `dayStart`'s day. */
+function atMinute(dayStart: Date, minute: number): Date {
+  const day = ukParts(dayStart);
+  return ukWallClock(day.year, day.month, day.day, minute);
 }
 
 export interface SlotOption {
@@ -173,7 +189,7 @@ export function buildDayGrid(
 export type DayStatus = "closed" | "full" | "free";
 
 export interface DaySummary {
-  /** Local midnight of the day. */
+  /** UK midnight of the day. */
   date: Date;
   /** closed: not a working day; full: working, but nothing fits; free: bookable. */
   status: DayStatus;
@@ -206,7 +222,8 @@ export function summariseDays(
 }
 
 function worksOn(schedule: ProviderSchedule, date: Date): boolean {
-  return schedule.workingWindows.some((window) => window.dayOfWeek === date.getDay());
+  const weekday = ukWeekday(date);
+  return schedule.workingWindows.some((window) => window.dayOfWeek === weekday);
 }
 
 /**

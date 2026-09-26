@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { addDays, addMinutes, startOfLocalDay } from "@/lib/domain/availability";
+import { addDays, startOfLocalDay, startOfWeek } from "@/lib/domain/availability";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 
 /** The three figures a vendor checks before anything else (§P-01). */
@@ -33,9 +33,9 @@ export async function getProviderToday(
   now = new Date(),
 ): Promise<ProviderToday | null> {
   const dayStart = startOfLocalDay(now);
-  const dayEnd = addMinutes(dayStart, 24 * 60);
+  const dayEnd = addDays(dayStart, 1);
   // Weeks start on Monday, as a UK diary does.
-  const weekStart = addDays(dayStart, -((dayStart.getDay() + 6) % 7));
+  const weekStart = startOfWeek(dayStart);
   const weekEnd = addDays(weekStart, 7);
 
   const [provider, weeksJobs, nextJob, broadcasts] = await Promise.all([
