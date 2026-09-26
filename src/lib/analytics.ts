@@ -361,6 +361,8 @@ export interface EventMap {
   vendor_application_submitted: Record<string, never>;
   /** A pro tapping accept on a broadcast; "failed" is usually another pro getting there first. */
   vendor_accept_booking: { outcome: "accepted" | "failed" };
+  /** A pro turning a broadcast down. */
+  vendor_decline_booking: { outcome: "declined" | "failed" };
   apply_promo_code: { coupon: string; success: boolean };
 }
 

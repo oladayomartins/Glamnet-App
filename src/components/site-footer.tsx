@@ -55,7 +55,7 @@ export function SiteFooter({
       the point of a dark footer is that it closes the page — one that turned
       pale in dark mode would stop doing that.
     */
-    <footer className="safe-bottom mt-20 bg-obsidian text-on-obsidian">
+    <footer data-site-footer className="safe-bottom mt-20 bg-obsidian text-on-obsidian">
       <div className="mx-auto w-full max-w-[var(--glam-page-max)] px-4 py-14">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div>

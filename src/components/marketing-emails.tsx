@@ -38,7 +38,7 @@ export function MarketingEmails({ initiallySubscribed }: { initiallySubscribed: 
         type="button"
         onClick={toggle}
         disabled={busy}
-        className="font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline disabled:opacity-50"
+        className="inline-flex min-h-11 items-center px-1 font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline disabled:opacity-50"
       >
         {busy ? "Saving…" : subscribed ? "Turn off" : "Turn on"}
       </button>
