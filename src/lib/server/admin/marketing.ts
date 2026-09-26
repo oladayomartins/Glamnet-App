@@ -5,6 +5,7 @@ import { sendEmails } from "../email";
 import { deleteImageKitFiles } from "../imagekit-admin";
 import { campaignEmail } from "@/lib/email/templates";
 import { siteUrl } from "@/lib/site";
+import { oneClickUrl, unsubscribeUrl } from "../unsubscribe";
 import { AdminError, audit, isLive, safeLink } from "./core";
 
 /**
@@ -96,14 +97,16 @@ export async function deleteCampaign(actorEmail: string, id: string) {
   await audit(actorEmail, "campaign.delete", { type: "Campaign", id }, current.name);
 }
 
-/** Everyone a campaign should reach by email, excluding suspended accounts. */
-export async function campaignRecipients(audience: Audience): Promise<string[]> {
+/**
+ * Everyone a campaign should reach by email: not suspended, and not opted
+ * out of marketing. Each comes with their own unsubscribe token.
+ */
+export async function campaignRecipients(audience: Audience): Promise<Array<{ email: string; token: string }>> {
   const roles = audience === "CUSTOMERS" ? ["CUSTOMER"] : audience === "VENDORS" ? ["PROVIDER"] : ["CUSTOMER", "PROVIDER"];
-  const users = await prisma.appUser.findMany({
-    where: { role: { in: roles }, suspendedAt: null },
-    select: { email: true },
-  });
-  return [...new Set(users.map((user) => user.email))];
+  return prisma.appUser.findMany({
+    where: { role: { in: roles }, suspendedAt: null, marketingOptOutAt: null },
+    select: { email: true, unsubscribeToken: true },
+  }).then((users) => users.map((user) => ({ email: user.email, token: user.unsubscribeToken })));
 }
 
 /**
@@ -125,12 +128,20 @@ export async function sendCampaignEmail(actorEmail: string, id: string) {
 
   const recipients = await campaignRecipients(campaign.audience as Audience);
   const ctaUrl = campaign.ctaUrl.startsWith("/") ? `${siteUrl()}${campaign.ctaUrl}` : campaign.ctaUrl;
-  const body = campaignEmail({
-    title: campaign.title,
-    message: campaign.message,
-    cta: campaign.ctaLabel && ctaUrl ? { label: campaign.ctaLabel, url: ctaUrl } : undefined,
-  });
-  const result = await sendEmails(recipients.map((to) => ({ to, ...body })));
+  const cta = campaign.ctaLabel && ctaUrl ? { label: campaign.ctaLabel, url: ctaUrl } : undefined;
+  // One message per person: each carries their own unsubscribe link.
+  const result = await sendEmails(
+    recipients.map((recipient) => ({
+      to: recipient.email,
+      ...campaignEmail({
+        title: campaign.title,
+        message: campaign.message,
+        cta,
+        unsubscribeUrl: unsubscribeUrl(recipient.token),
+        oneClickUrl: oneClickUrl(recipient.token),
+      }),
+    })),
+  );
 
   if (!result.ok) {
     // Nothing went out: release the claim so it can be retried.

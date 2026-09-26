@@ -46,7 +46,7 @@ export default function PrivacyPage() {
                 <><strong>To keep GLAMNET safe</strong> — checking pros, preventing fraud, and resolving disputes. Basis: our legitimate interests in a trustworthy marketplace, and our contract with you.</>,
                 <><strong>To keep records</strong> the law requires, such as financial records. Basis: legal obligation.</>,
                 <><strong>To send notifications</strong> to your device. Basis: your consent, which you can withdraw at any time by turning them off.</>,
-                <><strong>To tell you about GLAMNET</strong> — occasional updates and offers. Basis: legitimate interests for people who have used GLAMNET, or your consent. You can opt out any time by emailing {LEGAL.contactEmail}.</>,
+                <><strong>To tell you about GLAMNET</strong> — occasional updates and offers. Basis: legitimate interests for people who have used GLAMNET, or your consent. You can opt out any time with the unsubscribe link in any of these emails, from your account page, or by emailing {LEGAL.contactEmail}. Opting out doesn&rsquo;t affect emails about your bookings.</>,
               ]}
             />
           ),

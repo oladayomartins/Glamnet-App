@@ -33,6 +33,8 @@ export interface EmailBody {
   subject: string;
   html: string;
   text: string;
+  /** Extra headers, e.g. List-Unsubscribe on marketing email. */
+  headers?: Record<string, string>;
 }
 
 /** Minimal HTML escape — every interpolated value below is user-supplied. */
@@ -58,8 +60,10 @@ function shell(options: {
   body: string;
   cta?: { label: string; url: string };
   footerNote?: string;
+  /** Marketing email only: a visible way to opt out, in every message. */
+  unsubscribeUrl?: string;
 }): string {
-  const { preheader, tag, heading, body, cta, footerNote } = options;
+  const { preheader, tag, heading, body, cta, footerNote, unsubscribeUrl } = options;
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -86,7 +90,11 @@ function shell(options: {
     }
   </td></tr>
   <tr><td style="padding:18px 28px;border-top:1px solid ${BORDER};background:${CANVAS};">
-    <p style="margin:0;font-size:12px;line-height:1.6;color:${INK_MUTED};">${escapeHtml(footerNote ?? "You are receiving this because of activity on your GLAMNET account.")}</p>
+    <p style="margin:0;font-size:12px;line-height:1.6;color:${INK_MUTED};">${escapeHtml(footerNote ?? "You are receiving this because of activity on your GLAMNET account.")}${
+      unsubscribeUrl
+        ? ` <a href="${escapeHtml(unsubscribeUrl)}" style="color:${INK_MUTED};text-decoration:underline;">Unsubscribe</a>`
+        : ""
+    }</p>
   </td></tr>
 </table>
 </td></tr></table>
@@ -295,6 +303,10 @@ export function campaignEmail(input: {
   title: string;
   message: string;
   cta?: { label: string; url: string };
+  /** The recipient's own opt-out link (visible). */
+  unsubscribeUrl: string;
+  /** Where mail apps' one-click unsubscribe posts (RFC 8058). */
+  oneClickUrl: string;
 }): EmailBody {
   const paragraphs = input.message.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
   const html = shell({
@@ -302,15 +314,28 @@ export function campaignEmail(input: {
     heading: input.title,
     body: paragraphs.map(paragraph).join(""),
     cta: input.cta,
-    footerNote: "You are receiving this because you have a GLAMNET account.",
+    footerNote: "You are receiving this because you have a GLAMNET account. Don't want news and offers?",
+    unsubscribeUrl: input.unsubscribeUrl,
   });
   const text = textBlock([
     input.title,
     "",
     ...paragraphs.flatMap((block) => [block, ""]),
     input.cta ? `${input.cta.label}: ${input.cta.url}` : null,
+    "",
+    `Unsubscribe from GLAMNET news and offers: ${input.unsubscribeUrl}`,
   ]);
-  return { subject: input.title, html, text };
+  return {
+    subject: input.title,
+    html,
+    text,
+    // Lets Gmail, Yahoo and Apple Mail show their own "Unsubscribe" button,
+    // which Gmail and Yahoo require of bulk senders.
+    headers: {
+      "List-Unsubscribe": `<${input.oneClickUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  };
 }
 
 /**

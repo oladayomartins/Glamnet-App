@@ -73,6 +73,12 @@ model AppUser {
   /// Set by an admin to lock the account out. Checked on every request.
   suspendedAt     DateTime?
   suspendedReason String    @default("")
+  /// Set when the person unsubscribes from marketing email (campaigns).
+  /// Booking and account emails are unaffected: they are part of the service.
+  marketingOptOutAt DateTime?
+  /// Secret in every campaign email's unsubscribe link, so opting out needs
+  /// no sign-in. Random, and never shown anywhere else.
+  unsubscribeToken  String    @unique @default(dbgenerated("(gen_random_uuid())::text"))
 
   customer Customer?
   provider Provider?
