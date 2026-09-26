@@ -50,7 +50,17 @@ async function currentSubscription(): Promise<PushSubscription | null> {
  * Safari only allows web push for an app added to the home screen, so it
  * explains that instead of offering a button that can't work.
  */
-export function PushPrompt({ audience }: { audience: keyof typeof COPY }) {
+export function PushPrompt({
+  audience,
+  onlyWhenOff = false,
+}: {
+  audience: keyof typeof COPY;
+  /**
+   * Render nothing once notifications are on — for screens that should nag
+   * only while something needs doing, and leave switching off to settings.
+   */
+  onlyWhenOff?: boolean;
+}) {
   const [state, setState] = useState<State>("loading");
   const [error, setError] = useState<string | null>(null);
 
@@ -130,11 +140,16 @@ export function PushPrompt({ audience }: { audience: keyof typeof COPY }) {
   if (state === "loading" || state === "hidden") return null;
 
   if (state === "on") {
+    if (onlyWhenOff) return null;
     return (
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
         <Bell size={16} weight="fill" className="text-accent-700" aria-hidden />
         Notifications are on for this device.
-        <button type="button" onClick={turnOff} className="font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+        <button
+          type="button"
+          onClick={turnOff}
+          className="inline-flex min-h-11 items-center px-1 font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline"
+        >
           Turn off
         </button>
       </p>

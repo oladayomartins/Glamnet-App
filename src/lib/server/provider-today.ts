@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { addMinutes, startOfLocalDay } from "@/lib/domain/availability";
+import { addDays, addMinutes, startOfLocalDay } from "@/lib/domain/availability";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 
 /** The three figures a vendor checks before anything else (§P-01). */
@@ -17,6 +17,9 @@ export interface ProviderToday {
   /** Earnings from today's jobs, in pence. */
   todayEarningsMinor: number;
   todayJobCount: number;
+  /** Earnings from this week's jobs (Monday to Sunday), in pence. */
+  weekEarningsMinor: number;
+  weekJobCount: number;
   /**
    * Broadcasts accepted over broadcasts received, as a percentage, or null
    * when they have never been sent one — 0% would read as a judgement on a
@@ -31,8 +34,11 @@ export async function getProviderToday(
 ): Promise<ProviderToday | null> {
   const dayStart = startOfLocalDay(now);
   const dayEnd = addMinutes(dayStart, 24 * 60);
+  // Weeks start on Monday, as a UK diary does.
+  const weekStart = addDays(dayStart, -((dayStart.getDay() + 6) % 7));
+  const weekEnd = addDays(weekStart, 7);
 
-  const [provider, todaysJobs, nextJob, broadcasts] = await Promise.all([
+  const [provider, weeksJobs, nextJob, broadcasts] = await Promise.all([
     prisma.provider.findUnique({
       where: { id: providerId },
       select: { isAcceptingWork: true },
@@ -41,9 +47,9 @@ export async function getProviderToday(
       where: {
         providerId,
         status: { in: [...CALENDAR_HOLDING_STATUSES] },
-        appointmentStartAt: { gte: dayStart, lt: dayEnd },
+        appointmentStartAt: { gte: weekStart, lt: weekEnd },
       },
-      select: { providerEarningsMinor: true },
+      select: { providerEarningsMinor: true, appointmentStartAt: true },
     }),
     prisma.booking.findFirst({
       where: {
@@ -69,6 +75,9 @@ export async function getProviderToday(
 
   if (!provider) return null;
 
+  const todaysJobs = weeksJobs.filter(
+    (job) => job.appointmentStartAt >= dayStart && job.appointmentStartAt < dayEnd,
+  );
   const accepted = broadcasts.filter((row) => row.status === "ACCEPTED").length;
 
   return {
@@ -88,6 +97,11 @@ export async function getProviderToday(
       0,
     ),
     todayJobCount: todaysJobs.length,
+    weekEarningsMinor: weeksJobs.reduce(
+      (total, job) => total + job.providerEarningsMinor,
+      0,
+    ),
+    weekJobCount: weeksJobs.length,
     acceptanceRate:
       broadcasts.length === 0
         ? null

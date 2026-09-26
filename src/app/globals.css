@@ -418,6 +418,13 @@ time,
   font-variant-numeric: tabular-nums;
 }
 
+/* The vendor dashboard is a work tool: the customer footer ("Find a pro near
+   you", "Book a service") is clutter there. The footer stays data-free and in
+   the root layout; the vendor layout marks its pages instead. */
+body:has([data-vendor-app]) [data-site-footer] {
+  display: none;
+}
+
 /* Respect the PWA safe area on notched devices. */
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));

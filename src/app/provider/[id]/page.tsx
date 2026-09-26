@@ -5,16 +5,36 @@ import { requireUser } from "@/lib/auth/session";
 import { getProviderToday } from "@/lib/server/provider-today";
 import { ProviderDashboard } from "./dashboard";
 import { TodayStrip } from "./today-strip";
-import { VacationToggle } from "./vacation-toggle";
+import { AcceptingSwitch } from "./accepting-switch";
 import { BioLink } from "@/components/bio-link";
 import { siteUrl } from "@/lib/site";
 import { PushPrompt } from "@/components/push-prompt";
-import { MarketingEmails } from "@/components/marketing-emails";
 
 /** The dashboard reads live figures, so it must not be prerendered. */
 export const dynamic = "force-dynamic";
 
-/** Vendor PWA dashboard: calendar plus the broadcast inbox (spec §2, §6). */
+/** "Good morning" by the clock in the UK, where the vendors are. */
+function greeting(now = new Date()): string {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      hour: "numeric",
+      hourCycle: "h23",
+      timeZone: "Europe/London",
+    }).format(now),
+  );
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+/**
+ * Vendor PWA dashboard: calendar plus the broadcast inbox (spec §2, §6).
+ *
+ * Laid out in order of urgency, because on a phone every section costs a
+ * scroll: the booking switch, then requests (which expire in minutes), then
+ * today's numbers, the calendar, the bio link, and a way to settings. Push
+ * and email preferences live on the settings page, not here.
+ */
 export default async function ProviderPage({
   params,
 }: {
@@ -40,76 +60,94 @@ export default async function ProviderPage({
 
   if (!provider || !today) notFound();
 
+  const isOwner = viewer.providerId === id;
+  const firstName = provider.name.trim().split(/\s+/)[0];
+  // Hub names usually carry their sector already ("London RM9"), and
+  // "London RM9 · RM9" reads as a mistake.
+  const area = provider.hub.name.includes(provider.hub.sector)
+    ? provider.hub.name
+    : `${provider.hub.name} · ${provider.hub.sector}`;
+
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href="/provider"
-          className="tap-44 text-sm text-ink-muted hover:text-brand-700"
-        >
-          ← All vendors
-        </Link>
-        <h1 className="mt-1 font-display text-2xl font-bold text-ink">
-          {provider.name}
-        </h1>
-        <p className="text-sm text-ink-muted">
-          {provider.hub.name} · {provider.hub.sector} ·{" "}
-          {provider.rating.toFixed(1)}★ · {provider.completedBookings} completed
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+      <header>
+        {isOwner ? null : (
           <Link
-            href={`/provider/${provider.id}/availability`}
-            className="inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
+            href="/provider"
+            className="inline-flex min-h-11 items-center text-sm text-ink-muted hover:text-brand-700"
           >
-            Availability
-          </Link>
-          <Link
-            href="/provider/onboarding"
-            className="inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
-          >
-            Storefront
-          </Link>
-          <Link
-            href={`/provider/${provider.id}/earnings`}
-            className="inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
-          >
-            Earnings ledger
-          </Link>
-        </div>
-      </div>
-
-      {viewer.providerId === id ? (
-        <>
-          <PushPrompt audience="PROVIDER" />
-          <MarketingEmails
-            initiallySubscribed={
-              !(await prisma.appUser.findUnique({ where: { id: viewer.appUserId }, select: { marketingOptOutAt: true } }))
-                ?.marketingOptOutAt
-            }
-          />
-        </>
-      ) : null}
-
-      <div className="grid gap-3 md:grid-cols-2">
-        {provider.slug ? (
-          <BioLink origin={siteUrl().replace(/^https?:\/\//, "")} slug={provider.slug} />
-        ) : (
-          <Link
-            href="/provider/onboarding?step=storefront"
-            className="rounded-glam border border-dashed border-line p-4 text-sm text-ink-muted hover:border-accent-500"
-          >
-            Claim your storefront link to share in your Instagram and TikTok bio →
+            ← All vendors
           </Link>
         )}
-        <VacationToggle
-          accepting={provider.isAcceptingWork}
-          disabled={viewer.role !== "PROVIDER"}
-        />
-      </div>
+        <h1 className="font-display text-[28px] font-bold leading-tight text-ink">
+          {isOwner ? `${greeting()}, ${firstName}` : provider.name}
+        </h1>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+          {/* A rating before any completed job is the default, not a score. */}
+          {provider.completedBookings === 0 ? (
+            <span className="rounded-full bg-sunken px-2.5 py-0.5 text-xs font-bold text-accent-700 ring-1 ring-accent-500/40">
+              New on Glamnet
+            </span>
+          ) : null}
+          <span>{area}</span>
+          {provider.completedBookings > 0 ? (
+            <>
+              <span aria-hidden>·</span>
+              <span data-numeric>
+                {provider.rating.toFixed(1)}★ · {provider.completedBookings} completed
+              </span>
+            </>
+          ) : null}
+          <span aria-hidden>·</span>
+          <Link
+            href={provider.slug ? `/pro/${provider.slug}` : "/provider/onboarding?step=storefront"}
+            className="inline-flex min-h-11 items-center font-semibold text-ink hover:text-brand-700"
+          >
+            {provider.slug ? "View my storefront" : "Set up my storefront"}
+          </Link>
+        </div>
+      </header>
 
-      <TodayStrip providerId={provider.id} today={today} />
+      <AcceptingSwitch
+        providerId={provider.id}
+        initial={provider.isAcceptingWork}
+        disabled={!isOwner}
+      />
 
-      <ProviderDashboard providerId={provider.id} />
+      {/* Only while off: requests reach a vendor by notification, so this is
+          the one setting worth space on the dashboard. Turning it off again
+          lives on the settings page. */}
+      {isOwner ? <PushPrompt audience="PROVIDER" onlyWhenOff /> : null}
+
+      <ProviderDashboard providerId={provider.id} today={<TodayStrip today={today} />}>
+        <section id="bio-link" className="scroll-mt-20">
+          {provider.slug ? (
+            <BioLink origin={siteUrl().replace(/^https?:\/\//, "")} slug={provider.slug} />
+          ) : (
+            <Link
+              href="/provider/onboarding?step=storefront"
+              className="flex min-h-11 items-center rounded-glam border border-dashed border-line p-4 text-sm text-ink-muted hover:border-accent-500"
+            >
+              Claim your storefront link to share in your Instagram and TikTok bio →
+            </Link>
+          )}
+        </section>
+
+        <Link
+          href={`/provider/${provider.id}/settings`}
+          className="flex min-h-14 items-center justify-between gap-3 rounded-glam border border-line bg-surface px-4 py-3 transition duration-[180ms] hover:bg-sunken"
+        >
+          <span>
+            <span className="block font-semibold text-ink">Settings</span>
+            <span className="block text-sm text-ink-muted">
+              Notifications, emails, storefront and working hours
+            </span>
+          </span>
+          <span aria-hidden className="text-ink-muted">
+            →
+          </span>
+        </Link>
+      </ProviderDashboard>
     </div>
   );
 }

@@ -35,15 +35,22 @@ export function BioLink({ origin, slug }: { origin: string; slug: string }) {
 
   return (
     <div className="rounded-glam border border-accent-500/50 bg-sunken p-4">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent-700">
-        Your bio link · 0% commission
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[17px] font-bold text-ink">Your booking link</p>
+        <span className="rounded-full bg-metal px-3 py-1 text-xs font-bold text-metal-ink">
+          0% commission
+        </span>
+      </div>
+      <p className="mt-2 break-all text-[15px] font-semibold text-ink">{link}</p>
+      <p className="mt-1 text-sm text-ink-muted">
+        Clients who book through this link pay you with no marketplace commission — only the
+        2% card fee. Add it to your Instagram or TikTok bio.
       </p>
-      <p className="mt-1 break-all font-mono text-[15px] font-semibold text-ink">{link}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <button
           type="button"
           onClick={copy}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-metal px-5 text-sm font-bold text-metal-ink"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-metal px-5 text-sm font-bold text-metal-ink"
         >
           {copied ? <Check size={16} weight="bold" /> : <Copy size={16} weight="bold" />}
           {copied ? "Copied" : "Copy link"}
@@ -51,16 +58,12 @@ export function BioLink({ origin, slug }: { origin: string; slug: string }) {
         <button
           type="button"
           onClick={share}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-surface"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-surface px-5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-canvas"
         >
           <ShareNetwork size={16} weight="bold" />
           Share
         </button>
       </div>
-      <p className="mt-2 text-xs text-ink-muted">
-        Clients who book through this link pay you with no marketplace commission — only
-        the 2% card fee.
-      </p>
     </div>
   );
 }

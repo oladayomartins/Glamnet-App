@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Broadcast } from "@phosphor-icons/react";
-import { Button, Card, EmptyState, SectionTitle } from "@/components/ui";
+import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { ArrowClockwise, Broadcast } from "@phosphor-icons/react";
+import { Card, EmptyState, SectionTitle } from "@/components/ui";
 import { BroadcastTicket, type BroadcastRequest } from "./broadcast-ticket";
 import { ProviderCalendar, type CalendarPayload } from "./calendar";
 import { toDateInputValue } from "@/lib/format";
@@ -12,8 +13,20 @@ import { track } from "@/lib/analytics";
  * Ties the calendar and the request inbox together: accepting a request
  * reserves calendar time, so both panes refresh from the server on every
  * acceptance rather than trying to patch local state.
+ *
+ * The page reads top to bottom in order of urgency: requests first, then
+ * today's numbers (`today`), the calendar, and whatever the page passes as
+ * `children` (the bio link and settings).
  */
-export function ProviderDashboard({ providerId }: { providerId: string }) {
+export function ProviderDashboard({
+  providerId,
+  today,
+  children,
+}: {
+  providerId: string;
+  today: ReactNode;
+  children?: ReactNode;
+}) {
   const [view, setView] = useState<"day" | "week">("day");
   const [date, setDate] = useState(() => toDateInputValue(new Date()));
   const [calendar, setCalendar] = useState<CalendarPayload | null>(null);
@@ -79,6 +92,17 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
 
   const refresh = () => setReloadToken((token) => token + 1);
 
+  // A vendor comes back to this page by tapping a request notification, often
+  // after it has sat in a background tab for hours. Reload on return so the
+  // request they were told about is actually on screen.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setReloadToken((token) => token + 1);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+
   const accept = async (bookingId: string) => {
     setBusyId(bookingId);
     setError(null);
@@ -116,7 +140,7 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
         </p>
       ) : null}
 
-      <section>
+      <section id="requests" className="scroll-mt-20">
         <SectionTitle
           hint={
             requests.length === 0
@@ -130,10 +154,27 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
         {requests.length === 0 ? (
           <EmptyState
             icon={<Broadcast size={24} weight="light" />}
-            title="No open requests"
+            title="No requests yet"
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <a
+                  href="#bio-link"
+                  className="inline-flex min-h-11 items-center rounded-full bg-metal px-5 text-sm font-bold text-metal-ink"
+                >
+                  Share your booking link
+                </a>
+                <Link
+                  href={`/provider/${providerId}/availability`}
+                  className="inline-flex min-h-11 items-center rounded-full px-5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-sunken"
+                >
+                  Set your hours
+                </Link>
+              </div>
+            }
           >
-            New broadcasts appear here the moment a customer books in your
-            sector. Keep the page open — the acceptance window is short.
+            When a client nearby books your kind of service, we&rsquo;ll notify
+            you instantly — tap the notification to accept before the timer
+            runs out.
           </EmptyState>
         ) : (
           <div className="grid gap-3">
@@ -149,25 +190,27 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
         )}
       </section>
 
-      <section>
+      {today}
+
+      <section id="calendar" className="scroll-mt-20">
         <SectionTitle hint="Reserved time includes a 15-minute transition period">
           Your calendar
         </SectionTitle>
 
         <Card className="p-4">
-          <div className="mb-4 flex flex-wrap items-end gap-3">
-            <label className="block">
+          <div className="mb-4 flex items-end gap-2">
+            <label className="block min-w-0 flex-1 sm:flex-none">
               <span className="text-xs font-medium text-ink-muted">Date</span>
               <input
                 type="date"
                 value={date}
                 onChange={(event) => setDate(event.target.value)}
-                className="mt-1 block min-h-11 rounded-glam-sm border border-line bg-surface px-3 py-1.5 text-sm outline-none focus:border-brand-400"
+                className="mt-1 block min-h-11 w-full rounded-glam-sm border border-line bg-surface px-3 py-1.5 text-sm outline-none focus:border-brand-400"
               />
             </label>
 
             <div
-              className="inline-flex overflow-hidden rounded-glam-sm border border-line"
+              className="inline-flex shrink-0 overflow-hidden rounded-glam-sm border border-line"
               role="group"
               aria-label="Calendar view"
             >
@@ -188,18 +231,29 @@ export function ProviderDashboard({ providerId }: { providerId: string }) {
               ))}
             </div>
 
-            <Button variant="secondary" onClick={refresh}>
-              Refresh
-            </Button>
+            <button
+              type="button"
+              onClick={refresh}
+              aria-label="Refresh"
+              title="Refresh"
+              className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-glam-sm border border-line bg-surface text-ink transition duration-[180ms] hover:bg-sunken"
+            >
+              <ArrowClockwise size={18} aria-hidden />
+            </button>
           </div>
 
           {calendar ? (
-            <ProviderCalendar calendar={calendar} />
+            <ProviderCalendar
+              calendar={calendar}
+              availabilityHref={`/provider/${providerId}/availability`}
+            />
           ) : (
             <p className="text-sm text-ink-muted">Loading calendar…</p>
           )}
         </Card>
       </section>
+
+      {children}
     </div>
   );
 }
