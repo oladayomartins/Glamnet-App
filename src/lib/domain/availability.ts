@@ -170,6 +170,45 @@ export function buildDayGrid(
   return grid;
 }
 
+export type DayStatus = "closed" | "full" | "free";
+
+export interface DaySummary {
+  /** Local midnight of the day. */
+  date: Date;
+  /** closed: not a working day; full: working, but nothing fits; free: bookable. */
+  status: DayStatus;
+  /** The earliest bookable start that day, when there is one. */
+  firstStartAt: Date | null;
+}
+
+/**
+ * One vendor's next `days` days at a glance, for a day picker that greys out
+ * closed and full days and opens on the first free one.
+ */
+export function summariseDays(
+  from: Date,
+  days: number,
+  serviceDurationMinutes: number,
+  schedule: ProviderSchedule,
+  notBefore: Date,
+): DaySummary[] {
+  const start = startOfLocalDay(from);
+  return Array.from({ length: days }, (_, index) => {
+    const date = addDays(start, index);
+    const grid = buildDayGrid(date, serviceDurationMinutes, [schedule], notBefore);
+    const first = grid.find((slot) => slot.availableProviderIds.length > 0);
+    return {
+      date,
+      status: first ? "free" : grid.length === 0 && !worksOn(schedule, date) ? "closed" : "full",
+      firstStartAt: first ? first.startAt : null,
+    };
+  });
+}
+
+function worksOn(schedule: ProviderSchedule, date: Date): boolean {
+  return schedule.workingWindows.some((window) => window.dayOfWeek === date.getDay());
+}
+
 /**
  * Every start time on `date` that at least one vendor can serve for a basket
  * of `serviceDurationMinutes`.

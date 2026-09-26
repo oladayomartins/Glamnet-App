@@ -2,21 +2,33 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { citySlug } from "@/lib/domain/postcode";
 import { notFound } from "next/navigation";
-import { InstagramLogo, MapPin, SealCheck, Star, TiktokLogo } from "@phosphor-icons/react/dist/ssr";
-import { getStorefront, workspaceLabel } from "@/lib/server/storefront";
+import { Clock, InstagramLogo, MapPin, SealCheck, Star, TiktokLogo } from "@phosphor-icons/react/dist/ssr";
+import { getStorefront, storefrontDays, workspaceLabel } from "@/lib/server/storefront";
 import { getSessionUser } from "@/lib/auth/session";
 import { GlamImage } from "@/components/glam-image";
+import { LookbookCarousel } from "./lookbook-carousel";
+import { AreaMap } from "./area-map";
 import { Card, EmptyState, SectionTitle } from "@/components/ui";
 import { formatDay } from "@/lib/format";
 import { siteUrl } from "@/lib/site";
 import { StorefrontBooking } from "./storefront-booking";
 import { AdSlot } from "@/components/ad-slot";
-import { MapView } from "@/components/map-view";
 import { lookupOutcode } from "@/lib/server/geo";
 import { TrackEvent } from "@/components/analytics";
 import { CURRENCY, serviceItem } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
+
+/** "Mon 28 Sep, 09:00", in UK time whatever the server's clock. */
+const nextAvailableFormat = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "Europe/London",
+});
 
 type Params = Promise<{ slug: string }>;
 
@@ -59,10 +71,22 @@ export default async function StorefrontPage({
     : store.hub.latitude !== null && store.hub.longitude !== null
       ? { lat: store.hub.latitude, lng: store.hub.longitude }
       : null;
+  // Before the first review there is no score to show: the stored rating is
+  // only the default, and "5.0 · no reviews yet" reads as a mistake.
   const reviewAverage =
     store.reviews.length > 0
       ? store.reviews.reduce((sum, review) => sum + review.rating, 0) / store.reviews.length
-      : store.rating;
+      : null;
+
+  // "Next available", for the shortest service on the menu: whether this pro
+  // can fit the customer in at all, before they choose anything.
+  const shortest = Math.min(
+    ...store.menu.filter((item) => item.kind === "SERVICE").map((item) => item.durationMinutes),
+  );
+  const nextFree = Number.isFinite(shortest)
+    ? (await storefrontDays(store.id, shortest, new Date())).find((day) => day.firstStartAt)?.firstStartAt ?? null
+    : null;
+  const backHref = `/${citySlug(store.hub.city)}/salons`;
 
   return (
     <div data-page-width="wide" className="space-y-8 pb-6">
@@ -70,31 +94,11 @@ export default async function StorefrontPage({
           Only rendered once the vendor has uploaded looks: three empty
           frames would be the loudest thing on the page and say nothing. */}
       {store.lookbook.length > 0 ? (
-        <section aria-label="Lookbook">
-          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
-            {store.lookbook.map((image, index) => (
-              <figure
-                key={image.id}
-                className="relative aspect-[4/5] w-[78%] shrink-0 snap-center overflow-hidden rounded-glam-lg shadow-card sm:w-auto"
-              >
-                <GlamImage
-                  src={image.url}
-                  alt={image.caption || `Look ${index + 1} by ${store.name}`}
-                  width={640}
-                  height={800}
-                  sizes="(max-width: 640px) 78vw, 33vw"
-                  priority={index === 0}
-                  className="h-full w-full object-cover"
-                />
-                {image.caption ? (
-                  <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-obsidian/80 to-transparent p-3 text-sm text-on-obsidian">
-                    {image.caption}
-                  </figcaption>
-                ) : null}
-              </figure>
-            ))}
-          </div>
-        </section>
+        <LookbookCarousel
+          looks={store.lookbook.map((image) => ({ id: image.id, url: image.url, caption: image.caption }))}
+          providerName={store.name}
+          backHref={backHref}
+        />
       ) : null}
 
       {/* --- Identity ------------------------------------------------------ */}
@@ -114,26 +118,33 @@ export default async function StorefrontPage({
             <SealCheck size={24} weight="fill" className="text-accent-500" aria-label="Verified" />
           </h1>
         </div>
-        <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
-          <span className="flex items-center gap-1" data-numeric>
-            <Star size={14} weight="fill" className="text-accent-500" aria-hidden />
-            <span className="font-semibold text-ink">{reviewAverage.toFixed(1)}</span>
-            {store.reviews.length === 0
-              ? "· no reviews yet"
-              : `(${store.reviews.length} ${store.reviews.length === 1 ? "review" : "reviews"})`}
-          </span>
-          <span className="flex items-center gap-1">
-            <MapPin size={14} weight="light" aria-hidden />
-            {workspaceLabel(store.workspaceType)} · {store.sector}, {store.hub.city}
-          </span>
+        <p className="mt-2 flex items-center gap-1 text-sm text-ink-muted">
+          <MapPin size={14} weight="light" aria-hidden />
+          {workspaceLabel(store.workspaceType)} · {store.sector}, {store.hub.city}
+          {store.workspaceType !== "MOBILE" && store.travelsToClients ? " · Also travels to you" : ""}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {reviewAverage === null ? (
+            <span className="rounded-full bg-sunken px-3 py-1 text-xs font-bold text-accent-700 ring-1 ring-accent-500/40">
+              New on Glamnet
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-sm text-ink-muted" data-numeric>
+              <Star size={14} weight="fill" className="text-accent-500" aria-hidden />
+              <span className="font-semibold text-ink">{reviewAverage.toFixed(1)}</span>(
+              {store.reviews.length} {store.reviews.length === 1 ? "review" : "reviews"})
+            </span>
+          )}
           {store.instagramHandle ? (
             <a
               href={`https://instagram.com/${store.instagramHandle}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1 hover:text-accent-700"
+              aria-label={`Instagram, @${store.instagramHandle}`}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-sm font-semibold text-ink hover:border-accent-500"
             >
-              <InstagramLogo size={14} aria-hidden />@{store.instagramHandle}
+              <InstagramLogo size={16} aria-hidden />
+              Instagram
             </a>
           ) : null}
           {store.tiktokHandle ? (
@@ -141,13 +152,25 @@ export default async function StorefrontPage({
               href={`https://tiktok.com/@${store.tiktokHandle}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1 hover:text-accent-700"
+              aria-label={`TikTok, @${store.tiktokHandle}`}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-sm font-semibold text-ink hover:border-accent-500"
             >
-              <TiktokLogo size={14} aria-hidden />@{store.tiktokHandle}
+              <TiktokLogo size={16} aria-hidden />
+              TikTok
             </a>
           ) : null}
-        </p>
+        </div>
         {store.bio ? <p className="mt-4 max-w-2xl text-[15px] text-ink-muted">{store.bio}</p> : null}
+        <p className="mt-4 flex items-center gap-2.5 rounded-glam-sm border border-normal/30 bg-normal-soft p-3 text-sm text-ink">
+          <Clock size={20} className="shrink-0 text-normal-ink" aria-hidden />
+          {nextFree ? (
+            <span>
+              <span className="font-bold">Next available:</span> {nextAvailableFormat.format(new Date(nextFree))}
+            </span>
+          ) : (
+            <span>No free times in the next two weeks.</span>
+          )}
+        </p>
       </section>
 
       {/* --- Menu, calendar and checkout ---------------------------------- */}
@@ -187,13 +210,7 @@ export default async function StorefrontPage({
         <section>
           <SectionTitle hint="Area shown, not the address">Where</SectionTitle>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem] md:items-start">
-            <MapView
-              label={`${store.name}'s area`}
-              center={area}
-              zoom={13}
-              area={{ ...area, radiusM: 1_000 }}
-              className="h-60"
-            />
+            <AreaMap center={area} label={`${store.name}'s area`} />
             <p className="text-sm text-ink-muted">
               {store.workspaceType === "MOBILE"
                 ? `${store.name} travels to clients from ${store.sector}, ${store.hub.city}.`
@@ -243,7 +260,7 @@ export default async function StorefrontPage({
       <AdSlot slot="STOREFRONT_FOOTER" />
 
       <p className="text-center text-xs text-ink-muted">
-        <Link href={`/${citySlug(store.hub.city)}/salons`} className="hover:text-accent-700">
+        <Link href={backHref} className="inline-flex min-h-11 items-center hover:text-accent-700">
           ← More vendors in {store.hub.city}
         </Link>
       </p>

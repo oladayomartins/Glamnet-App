@@ -431,6 +431,12 @@ html:has([data-vendor-app]) {
   overscroll-behavior-y: contain;
 }
 
+/* A storefront's booking bar is fixed to the bottom of the screen; keep the
+   end of the page (reviews, footer) clear of it. */
+body:has([data-booking-bar]) {
+  padding-bottom: 5.5rem;
+}
+
 /* Respect the PWA safe area on notched devices. */
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));

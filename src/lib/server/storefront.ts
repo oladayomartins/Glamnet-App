@@ -12,6 +12,7 @@ import {
   isProviderAvailable,
   reservationWindow,
   startOfLocalDay,
+  summariseDays,
 } from "@/lib/domain/availability";
 import {
   basketDurationMinutes,
@@ -293,6 +294,49 @@ export async function storefrontSlots(
       };
     }),
   };
+}
+
+/** How far ahead the storefront's day picker looks. */
+export const STOREFRONT_DAYS_AHEAD = 14;
+
+/**
+ * The next `days` days for one vendor and one basket length: which are
+ * closed, which are full, and the first free start on each open one.
+ */
+export async function storefrontDays(
+  providerId: string,
+  durationMinutes: number,
+  from: Date,
+  days = STOREFRONT_DAYS_AHEAD,
+  now = new Date(),
+) {
+  const start = startOfLocalDay(from);
+  // One read for the whole range, with a day's slack for a late finish.
+  const schedule = await loadProviderSchedule(providerId, start, addDays(start, days + 1));
+  if (!schedule) return [];
+  return summariseDays(start, days, durationMinutes, schedule, now).map((day) => ({
+    date: toLocalDateString(day.date),
+    status: day.status,
+    firstStartAt: day.firstStartAt?.toISOString() ?? null,
+  }));
+}
+
+/** The day picker for a basket: its length comes from the vendor's own menu. */
+export async function storefrontDaysForBasket(
+  providerId: string,
+  serviceIds: string[],
+  from: Date,
+  now = new Date(),
+) {
+  const { menu } = await loadMenuFor(providerId, serviceIds);
+  await releaseAbandonedCheckouts(providerId, now);
+  const duration = menu.reduce((total, service) => total + service.durationMinutes, 0);
+  return storefrontDays(providerId, duration, from, STOREFRONT_DAYS_AHEAD, now);
+}
+
+/** Local midnight as "YYYY-MM-DD", the shape the day picker sends back. */
+function toLocalDateString(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export interface StorefrontCheckoutRequest {
