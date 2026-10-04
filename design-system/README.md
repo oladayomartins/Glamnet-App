@@ -1,6 +1,8 @@
 # GlamNet design system
 
-The implementation of **GlamNet Brand & UI Guide v1.2**, handed off from Claude Design.
+The implementation of **GlamNet Brand & UI Guide v1.3**, handed off from Claude Design.
+v1.3 replaces the pin mark with the supplied GN lockup as the logo; the pin
+stays on as the map marker.
 
 This is not a picture of a design system — it's the real one. Every specimen on
 the brand guide page is rendered by the same component the PWA imports, so the
@@ -22,7 +24,7 @@ npm run typecheck
 | `lib/tokens.ts` | Token tables behind the guide's CSS / Tailwind / JSON export panel. |
 | `lib/booking.ts` | The domain constants the UI must state truthfully (720 min, 15 min, £0.50) plus money and countdown formatting. |
 | `components/ui/` | Primitives — `Button`, `TextField`, `ChipGroup`, `Segmented`. |
-| `components/brand/` | `GlamNetPin`, `Wordmark`, `Lockup`. |
+| `components/brand/` | `Lockup` and `AppIcon` (the supplied GN artwork in `public/brand/`), `GlamNetPin` (the map marker). |
 | `components/booking/` | `DateStrip`, `SlotGrid`, `DurationSummary`, `PriceBreakdown`, `EmergencyNotice`, `BroadcastTicket`. |
 | `components/calendar/` | `ProviderCalendar` — day view with the transition hatch. |
 | `components/map/` | `ProximityMap`, `SectorMap`. |
@@ -44,7 +46,10 @@ Never swap two stylesheets: one variable set, two values.
 These come from the guide and are worth knowing before you extend anything:
 
 - **Metal is never body text**, and never a border. It is a fill, reserved for
-  the logo, the single primary action on a screen, selected states and totals.
+  the single primary action on a screen, selected states and totals.
+- **The logo is supplied artwork, not code.** Foil gold on dark grounds, the
+  deep-gold cut on light ones (foil gold is only ~1.9:1 on white). `Lockup`
+  picks the right cut for the theme.
 - **`--gn-emergency` is emergency only.** Signal red never appears for generic
   errors. And emergency is never signalled by colour alone — the word
   EMERGENCY and the bolt icon travel with it, everywhere.

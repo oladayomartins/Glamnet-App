@@ -6,7 +6,7 @@ import {
   ShieldCheck,
   Sparkle,
 } from "@phosphor-icons/react/dist/ssr";
-import { GlamNetPin, Wordmark } from "@/components/brand/logo";
+import { Lockup } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/guide/theme-toggle";
 import { ProximityMap } from "@/components/map/proximity-map";
 import { useTicker } from "@/lib/use-ticker";
@@ -23,13 +23,9 @@ export function GuideHeader() {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3.5 pt-6">
       <div className="flex flex-wrap items-center gap-3">
-        <GlamNetPin
-          size={32}
-          className="shadow-[0_6px_18px_oklch(0.76_0.085_32_/_0.3)]"
-        />
-        <Wordmark size={19} />
+        <Lockup height={30} />
         <div className="rounded-pill border border-line px-[9px] py-1 font-mono text-[10px] tracking-[0.08em] uppercase text-text-2">
-          Brand &amp; UI guide v1.2
+          Brand &amp; UI guide v1.3
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-4">

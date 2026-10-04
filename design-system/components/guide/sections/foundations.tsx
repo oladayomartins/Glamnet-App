@@ -1,5 +1,5 @@
 import { Eye, Prohibit } from "@phosphor-icons/react/dist/ssr";
-import { GlamNetPin, Lockup } from "@/components/brand/logo";
+import { AppIcon, Lockup } from "@/components/brand/logo";
 import { Card, CardLabel, Section } from "@/components/guide/section";
 import { RampSwatch, Swatch } from "@/components/guide/swatch";
 import { TokenExport } from "@/components/guide/token-export";
@@ -11,44 +11,40 @@ export function BrandMarksSection() {
       id="foundations"
       className="pt-[88px]"
       eyebrow="01 / Brand marks"
-      title="The mark is a pin that became a beauty dot."
+      title="The mark is GN, in foil gold."
       lede={
         <>
-          Location is the product. The mark is a map pin with a soft centre —
-          the meeting point of a provider and a customer. The metallic fill runs
-          135°, champagne into rose gold. Never rotate, outline, re-gradient or
-          re-letter it.
+          The lockup pairs the GN monogram tile with the GLAMNET wordmark, in
+          foil gold. It is supplied artwork: use the files in{" "}
+          <code>public/brand/</code> as they are, and never re-draw, re-colour,
+          outline or re-letter it. Foil gold is for dark grounds; light grounds
+          take the deep-gold cut so the mark keeps its contrast.
         </>
       }
     >
       <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))]">
-        <Card className="flex flex-col items-start gap-[18px] p-6">
-          <Lockup pinSize={36} wordSize={22} />
-          <CardLabel>Primary lockup</CardLabel>
-        </Card>
+        {/* Fixed obsidian in both modes: the foil gold's home ground. */}
+        <div className="flex flex-col items-start gap-[18px] rounded-card border border-line bg-[oklch(0.165_0.008_285)] p-6">
+          <Lockup height={34} ground="dark" />
+          <div className="font-mono text-[10px] tracking-[0.08em] uppercase text-[oklch(0.74_0.01_80)]">
+            Primary · foil gold on dark
+          </div>
+        </div>
 
-        <div className="flex flex-col items-start gap-[18px] rounded-card bg-metal p-6 text-metal-ink">
-          <Lockup pinSize={36} wordSize={22} variant="obsidian" />
-          <div className="font-mono text-[10px] tracking-[0.08em] uppercase text-[oklch(0.34_0.03_45)]">
-            Reverse · on metal
+        {/* Fixed white in both modes, to show the light-ground cut honestly. */}
+        <div className="flex flex-col items-start gap-[18px] rounded-card border border-line bg-white p-6">
+          <Lockup height={34} ground="light" />
+          <div className="font-mono text-[10px] tracking-[0.08em] uppercase text-[oklch(0.45_0.01_80)]">
+            Light grounds · deep gold, 3.6:1
           </div>
         </div>
 
         <Card className="flex flex-col items-start gap-[18px] p-6">
           <div className="flex items-center gap-3">
-            {/* The tile is fixed obsidian in both modes, so the counter dot is
-                pinned to obsidian too rather than following --gn-pin-inner. */}
-            <div className="flex size-[42px] items-center justify-center rounded-tile bg-[oklch(0.165_0.008_285)]">
-              <GlamNetPin
-                size={19}
-                dotClassName="bg-[oklch(0.165_0.008_285)]"
-              />
-            </div>
-            <div className="flex size-[42px] items-center justify-center rounded-full bg-rose-tint">
-              <GlamNetPin size={17} variant="rose" />
-            </div>
+            <AppIcon size={42} />
+            <AppIcon size={32} />
           </div>
-          <CardLabel>App icon · avatar fallback</CardLabel>
+          <CardLabel>App icon · favicon · avatar fallback</CardLabel>
         </Card>
 
         <Card tone="emergency" className="flex flex-col gap-2.5 p-5">
@@ -56,7 +52,8 @@ export function BrandMarksSection() {
             <Prohibit size={16} /> Never
           </div>
           <ul className="m-0 list-disc pl-[18px] text-[13px] leading-[1.7] text-emergency-ink">
-            <li>Flatten the metal to a single pink</li>
+            <li>Use foil gold on white (1.9:1, too faint)</li>
+            <li>Re-colour, outline or re-letter the mark</li>
             <li>Place the lockup on a busy photo</li>
             <li>Use &ldquo;Glamnet&rdquo; or &ldquo;Glam Net&rdquo; in UI</li>
             <li>Add a tagline inside the lockup</li>
@@ -65,8 +62,8 @@ export function BrandMarksSection() {
       </div>
 
       <div className="mt-3.5 font-mono text-[11px] leading-[1.6] text-text-2">
-        Clear space = height of the pin on all sides · minimum lockup width 96px
-        · minimum icon 32px
+        Clear space = height of the GN tile on all sides · minimum lockup width
+        120px · minimum icon 32px · the map pin is a marker, not the logo
       </div>
     </Section>
   );

@@ -234,3 +234,18 @@
     background-size: 200% 100%;
   }
 }
+
+/*
+ * The adaptive lockup (components/brand/logo.tsx): the deep-gold cut on light
+ * grounds, the foil gold on dark. Keyed on the same attribute as the tokens.
+ */
+.gn-logo-light-ground {
+  display: none;
+}
+[data-theme="light"] .gn-logo-light-ground {
+  display: block;
+}
+[data-theme="light"] .gn-logo-dark-ground {
+  display: none;
+}
+
