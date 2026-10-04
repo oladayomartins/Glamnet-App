@@ -757,3 +757,18 @@ html,
 body {
   overflow-x: clip;
 }
+
+/*
+ * The adaptive logo (src/components/brand.tsx): the deep-gold cut on the light
+ * header, the foil gold on the dark one. Keyed on the same attribute as the
+ * palette, so the right one is showing from first paint.
+ */
+.glam-logo-dark-ground {
+  display: none;
+}
+[data-theme="dark"] .glam-logo-light-ground {
+  display: none;
+}
+[data-theme="dark"] .glam-logo-dark-ground {
+  display: block;
+}

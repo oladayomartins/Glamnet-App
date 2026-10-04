@@ -156,7 +156,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 aria-label="GLAMNET home"
                 className="tap-44 flex items-center gap-2.5"
               >
-                <GlamNetLogo height={28} priority />
+                <GlamNetLogo height={28} priority adaptive />
               </Link>
               <nav className="flex items-center gap-1" aria-label="Main">
                 {/* The full link row from large screens; below that the links
