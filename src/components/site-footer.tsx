@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GlamNetPin } from "@/components/brand";
+import { GlamNetLogo } from "@/components/brand";
 import { SITE_NAME } from "@/lib/site";
 import { CookieSettingsButton } from "@/components/analytics";
 
@@ -59,12 +59,7 @@ export function SiteFooter({
       <div className="mx-auto w-full max-w-[var(--glam-page-max)] px-4 py-14">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div>
-            <div className="flex items-center gap-2.5">
-              <GlamNetPin dotClassName="bg-obsidian" />
-              <span className="text-lg font-bold tracking-[-0.03em]">
-                {SITE_NAME}
-              </span>
-            </div>
+            <GlamNetLogo height={30} />
             <p className="mt-4 max-w-xs text-sm text-on-obsidian-muted">
               The UK&rsquo;s marketplace for verified independent beauty
               pros — home salons, studios, chairs and mobile.

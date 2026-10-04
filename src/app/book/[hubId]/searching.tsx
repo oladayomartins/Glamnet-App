@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GlamNetPin } from "@/components/brand";
+import { GlamNetMark } from "@/components/brand";
 import { BookingTypeTag, Button } from "@/components/ui";
 import { BROADCAST_ACCEPTANCE_WINDOW_MINUTES } from "@/lib/domain/constants";
 
@@ -123,7 +123,7 @@ export function SearchingForProvider({
     <div className="py-16 text-center">
       {/* One pulsing element on the screen, and it is this. */}
       <span className="pulse-ring relative mx-auto flex h-16 w-16 items-center justify-center rounded-full text-brand-400">
-        <GlamNetPin size={34} dotClassName="bg-canvas" />
+        <GlamNetMark size={36} className="rounded-[9px]" />
       </span>
 
       <div className="mt-8">
