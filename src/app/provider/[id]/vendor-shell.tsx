@@ -136,7 +136,7 @@ function activeTab(pathname: string, base: string): TabKey {
     return "calendar";
   }
   if (pathname.startsWith(`${base}/earnings`)) return "earnings";
-  if (pathname.startsWith(`${base}/settings`)) return "profile";
+  if (pathname.startsWith(`${base}/settings`) || pathname.startsWith(`${base}/reviews`)) return "profile";
   return "home";
 }
 

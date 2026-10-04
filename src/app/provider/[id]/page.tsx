@@ -88,9 +88,13 @@ export default async function ProviderPage({
           {provider.completedBookings > 0 ? (
             <>
               <span aria-hidden>·</span>
-              <span data-numeric>
+              <Link
+                href={`/provider/${provider.id}/reviews`}
+                data-numeric
+                className="inline-flex min-h-11 items-center hover:text-brand-700"
+              >
                 {provider.rating.toFixed(1)}★ · {provider.completedBookings} completed
-              </span>
+              </Link>
             </>
           ) : null}
           <span aria-hidden>·</span>
