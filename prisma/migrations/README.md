@@ -53,8 +53,13 @@ database.
 
 ## Deploying
 
-`build` is `prisma migrate deploy && next build`, so every Vercel deployment
-applies the history before it serves anything from it.
+`build` runs `scripts/migrate-on-deploy.mjs` and then `next build`, so every
+production deployment applies the history before it serves anything from it.
+
+Preview builds skip the migration step (Vercel sets `VERCEL_ENV=preview`). A
+preview is an unmerged branch: applying its migrations would change whichever
+database Preview points at before the branch is accepted, and Preview has no
+`DIRECT_URL` anyway. Builds outside Vercel still migrate.
 
 It was `next build` alone, and that is how production broke on 2026-09-26.
 Four migrations sat in this folder unapplied while code that needed them went
