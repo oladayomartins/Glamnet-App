@@ -126,6 +126,31 @@ const SERVICE_SELECT = {
   },
 } as const;
 
+/**
+ * The little a storefront's link preview needs: who, where, and one photo.
+ * Kept apart from getStorefront, which also loads the menu, reviews and week,
+ * because a link preview is fetched by every app a link is pasted into.
+ */
+export async function getStorefrontCard(slug: string) {
+  const provider = await prisma.provider.findFirst({
+    where: { ...LIVE_VENDOR, slug },
+    select: {
+      name: true,
+      avatarUrl: true,
+      workspaceType: true,
+      workspaceSector: true,
+      hub: { select: { city: true, sector: true } },
+      lookbook: { orderBy: { position: "asc" }, take: 1, select: { url: true } },
+    },
+  });
+  if (!provider) return null;
+  return {
+    name: provider.name,
+    place: `${workspaceLabel(provider.workspaceType)} · ${provider.workspaceSector || provider.hub.sector}, ${provider.hub.city}`,
+    photoUrl: provider.lookbook[0]?.url || provider.avatarUrl || null,
+  };
+}
+
 export async function getStorefront(slug: string) {
   const provider = await prisma.provider.findFirst({
     where: { ...LIVE_VENDOR, slug },
