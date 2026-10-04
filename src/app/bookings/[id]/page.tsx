@@ -124,7 +124,9 @@ export default async function BookingPage({
           },
         ]
       : []),
-    { label: "Trust fee", amount: booking.trustFeeMinor, emphasis: false },
+    ...(booking.trustFeeMinor > 0
+      ? [{ label: "Trust fee", amount: booking.trustFeeMinor, emphasis: false }]
+      : []),
     ...(booking.tipMinor > 0
       ? [{ label: "Tip", amount: booking.tipMinor, emphasis: false }]
       : []),

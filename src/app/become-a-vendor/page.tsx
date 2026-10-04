@@ -24,6 +24,7 @@ import {
   CARD_PROCESSING_FEE_BPS,
   DISCOVERY_COMMISSION_BPS,
   decideCommission,
+  trustFeeFor,
   settle,
 } from "@/lib/domain/settlement";
 import { listCategories } from "@/lib/server/categories";
@@ -63,9 +64,16 @@ export default async function BecomeVendorPage() {
   const thresholdHours = Math.round(thresholdMinutes / 60);
 
   // Worked example on a £100 service, through the real settlement engine.
-  const example = { totalMinor: 10_000 + TRUST_FEE_MINOR, commissionableMinor: 10_000, trustFeeMinor: TRUST_FEE_MINOR, tipMinor: 0 };
-  const ruleA = settle({ ...example, commission: decideCommission({ source: "DIRECT_LINK", hasPriorBooking: false }) });
-  const ruleB = settle({ ...example, commission: decideCommission({ source: "MARKETPLACE", hasPriorBooking: false }) });
+  // Each example carries the trust fee its route charges the client.
+  const example = (source: "DIRECT_LINK" | "MARKETPLACE") => ({
+    totalMinor: 10_000 + trustFeeFor(source),
+    commissionableMinor: 10_000,
+    trustFeeMinor: trustFeeFor(source),
+    tipMinor: 0,
+    commission: decideCommission({ source, hasPriorBooking: false }),
+  });
+  const ruleA = settle(example("DIRECT_LINK"));
+  const ruleB = settle(example("MARKETPLACE"));
   const commissionPct = DISCOVERY_COMMISSION_BPS / 100;
   const cardFeePct = CARD_PROCESSING_FEE_BPS / 100;
 
@@ -314,7 +322,8 @@ export default async function BecomeVendorPage() {
         </div>
         <p className="mx-auto mt-5 max-w-2xl text-center text-sm text-ink-muted">
           Tips always go to you in full, and so does any travel fee when you visit a client at
-          home. The {formatMoney(TRUST_FEE_MINOR)} trust fee is paid by the client. After that
+          home. The {formatMoney(TRUST_FEE_MINOR)} trust fee is paid by the client, and only on
+          marketplace bookings: clients who book through your own link pay none. After that
           first booking, the same client is yours at 0% for good.
         </p>
       </Band>

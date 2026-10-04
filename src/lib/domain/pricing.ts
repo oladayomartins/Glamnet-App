@@ -54,6 +54,8 @@ export interface PricingInput {
   providerCommissionBps?: number;
   /** Vendor's share of the emergency surcharge, in bps. Default 70%. */
   providerEmergencyShareBps?: number;
+  /** The platform trust fee. Default £0.50; zero on a direct-link booking. */
+  trustFeeMinor?: number;
 }
 
 /**
@@ -169,18 +171,21 @@ export function priceBooking(
     });
   }
 
-  lines.push({
-    key: "trust",
-    label: "Trust fee",
-    amountMinor: TRUST_FEE_MINOR,
-  });
+  const trustFeeMinor = input.trustFeeMinor ?? TRUST_FEE_MINOR;
+  if (trustFeeMinor > 0) {
+    lines.push({
+      key: "trust",
+      label: "Trust fee",
+      amountMinor: trustFeeMinor,
+    });
+  }
 
   const totalMinor =
     subtotalMinor +
     travelFeeMinor +
     surcharge +
     otherSurchargesMinor +
-    TRUST_FEE_MINOR;
+    trustFeeMinor;
 
   // The vendor earns a share of the service work and of the surge, plus the
   // travel fee in full. The trust fee is a platform fee and is never shared.
@@ -200,7 +205,7 @@ export function priceBooking(
     travelFeeMinor,
     emergencySurchargeMinor: surcharge,
     otherSurchargesMinor,
-    trustFeeMinor: TRUST_FEE_MINOR,
+    trustFeeMinor,
     totalMinor,
     providerEarningsMinor,
     providerEmergencyEarningsMinor,

@@ -68,8 +68,9 @@ export default function TermsPage() {
             <>
               <p>
                 The price you see before you confirm is the full price. It is made up of the pro&rsquo;s price for each
-                service, any travel fee for home visits, and a {formatMoney(TRUST_FEE_MINOR)} trust fee per booking,
-                less any promo code.
+                service, any travel fee for home visits, and a {formatMoney(TRUST_FEE_MINOR)} trust fee on bookings
+                made through the GLAMNET marketplace (there is no trust fee when you book through a pro&rsquo;s own
+                link), less any promo code.
               </p>
               <p>
                 Bookings made at short notice (inside the emergency window shown on the booking screen) carry an
