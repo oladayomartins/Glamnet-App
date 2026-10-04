@@ -199,7 +199,7 @@ export function SignUpForm({
 
         <p className="text-center text-xs text-ink-muted">
           {isVendor
-            ? "Next: your link, menu and documents. Your storefront goes live once we have checked your insurance or licence."
+            ? "Next: your link, menu and documents. Your storefront goes live once we have checked your insurance, licence or certificate."
             : "Free to join. You only pay when you book, and your card is held until you're happy."}
         </p>
 

@@ -49,6 +49,7 @@ export async function updateStorefrontProfile(
     tiktokHandle?: string;
     workspaceType?: (typeof WORKSPACE_TYPES)[number];
     workspacePostcode?: string;
+    workspaceAddress?: string;
     travelsToClients?: boolean;
     amenities?: string[];
     avatar?: { url: string; fileId: string } | null;
@@ -129,6 +130,7 @@ export async function updateStorefrontProfile(
       ...(input.tiktokHandle !== undefined ? { tiktokHandle: cleanHandle(input.tiktokHandle) } : {}),
       ...(input.workspaceType !== undefined ? { workspaceType: input.workspaceType } : {}),
       ...(location ?? {}),
+      ...(input.workspaceAddress !== undefined ? { workspaceAddress: input.workspaceAddress.trim() } : {}),
       ...(input.travelsToClients !== undefined ? { travelsToClients: input.travelsToClients } : {}),
       // Normalised on the way in as well as on the way out: the column should
       // not accumulate values nothing can render.
@@ -272,8 +274,11 @@ export async function onboardingGaps(providerId: string): Promise<string[]> {
   if (!provider.workspaceSector) {
     gaps.push(provider.workspaceType === "MOBILE" ? "Add the postcode you travel from." : "Add your workspace postcode.");
   }
+  if (provider.workspaceType !== "MOBILE" && provider.workspaceAddress.trim() === "") {
+    gaps.push("Add your workspace's street address.");
+  }
   if (provider._count.services === 0) gaps.push("Add at least one service to your menu.");
-  if (provider._count.documents === 0) gaps.push("Upload your insurance certificate or licence.");
+  if (provider._count.documents === 0) gaps.push("Upload your insurance, licence or certificate.");
   // A linked bank is not needed to submit: it is needed to be *paid*, and
   // releasing a payment already refuses without one. Requiring it here left
   // pros stuck whenever bank linking itself was unavailable.

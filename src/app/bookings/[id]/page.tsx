@@ -40,7 +40,16 @@ export default async function BookingPage({
     include: {
       items: true,
       hub: true,
-      provider: { select: { name: true, rating: true } },
+      provider: {
+        select: {
+          name: true,
+          rating: true,
+          workspaceAddress: true,
+          basePostcode: true,
+          workspaceSector: true,
+          howToFindMe: true,
+        },
+      },
       events: { orderBy: { createdAt: "asc" } },
       completionPhotos: { orderBy: { position: "asc" } },
       promoCode: { select: { code: true } },
@@ -99,13 +108,40 @@ export default async function BookingPage({
     ? noShowAllowedFrom(booking, booking.serviceLocation === "VENDOR_PREMISES" ? null : arrivedAt)
     : null;
 
+  // Where the appointment happens, for the people allowed to know. A client
+  // gets the vendor's street address once their card is secured — not on a
+  // bare request, so the address cannot be harvested by booking and walking
+  // away. The vendor's own job view handles the client's address unlock.
+  const paid = !["NOT_STARTED", "PENDING_AUTHORISATION", "AUTHORISATION_FAILED"].includes(booking.paymentStatus);
+  const place = (() => {
+    if (atPremises) {
+      const provider = booking.provider;
+      if (!provider) return null;
+      const street = [provider.workspaceAddress, provider.basePostcode].filter(Boolean).join(", ");
+      const mayKnow = viewer.role === "ADMIN" || isTheProvider || (isTheCustomer && paid && !ended);
+      if (mayKnow && street) return { line: street, directions: provider.howToFindMe, map: true };
+      return {
+        line: `${provider.workspaceSector || booking.sector} — the full address shows here once your card is secured`,
+        directions: "",
+        map: false,
+      };
+    }
+    if ((isTheCustomer || viewer.role === "ADMIN") && booking.addressLine) {
+      return { line: booking.addressLine, directions: "", map: true };
+    }
+    return null;
+  })();
+
   const priceRows = [
     ...booking.items.map((item) => ({
       label: item.kind === "ADDON" ? `${item.name} (add-on)` : item.name,
       amount: item.priceMinor,
       emphasis: false,
     })),
-    { label: "Travel fee", amount: booking.travelFeeMinor, emphasis: false },
+    // Nobody travels to a workspace booking, so there is no travel line.
+    ...(atPremises && booking.travelFeeMinor === 0
+      ? []
+      : [{ label: "Travel fee", amount: booking.travelFeeMinor, emphasis: false }]),
     ...(booking.emergencySurchargeMinor > 0
       ? [
           {
@@ -215,6 +251,27 @@ export default async function BookingPage({
               </Row>
             ) : null}
           </dl>
+          {place ? (
+            <div className="mt-3 rounded-glam-sm bg-sunken p-3">
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                {atPremises ? "Where to go" : "Your address"}
+              </p>
+              <p className="mt-1 text-[15px] text-ink">{place.line}</p>
+              {place.directions ? (
+                <p className="mt-1 whitespace-pre-line text-sm text-ink-muted">{place.directions}</p>
+              ) : null}
+              {place.map ? (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.line)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand-700 hover:underline"
+                >
+                  Open in maps
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </Card>
 
         <Card className="p-4">

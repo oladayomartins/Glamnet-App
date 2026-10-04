@@ -54,6 +54,7 @@ interface Profile {
   tiktokHandle: string;
   workspaceType: string;
   workspacePostcode: string;
+  workspaceAddress: string;
   travelsToClients: boolean;
   amenities: string[];
   payoutsEnabled: boolean;
@@ -86,7 +87,7 @@ const STEPS = [
   { key: "storefront", label: "Link & bio", title: "Claim your link", lede: "This is the page you share in your bio — clients from it cost you 0% commission." },
   { key: "workspace", label: "Workspace", title: "Where do clients find you?", lede: "Only your postcode sector is ever shown publicly." },
   { key: "lookbook", label: "Lookbook", title: "Show your best work", lede: "Three transformations sell better than any description. Optional for now." },
-  { key: "compliance", label: "Documents", title: "Get verified", lede: "Upload your insurance or licence. We check it before your storefront goes live." },
+  { key: "compliance", label: "Documents", title: "Get verified", lede: "Upload your insurance, licence or certificate. We check it before your storefront goes live." },
   { key: "payouts", label: "Payouts", title: "Link your bank", lede: "Payments are released to you by your client's PIN, straight through Stripe." },
   { key: "review", label: "Go live", title: "Ready when you are", lede: "Here's everything in one place." },
 ] as const;
@@ -266,9 +267,10 @@ export function OnboardingWizard(props: {
       case "menu":
         return chosenItems.some((item) => item.kind !== "ADDON") ? null : "Add at least one service to your menu.";
       case "workspace":
-        return formatPostcode(profile.workspacePostcode)
+        if (!formatPostcode(profile.workspacePostcode)) return "Enter the full postcode you work from, like S10 2HN.";
+        return profile.workspaceType === "MOBILE" || profile.workspaceAddress.trim().length >= 3
           ? null
-          : "Enter the full postcode you work from, like S10 2HN.";
+          : "Add your workspace's street address, so booked clients can find you.";
       case "storefront":
         if (slugState === "checking") return "Checking your link — one moment.";
         if (slugState !== "free") return "Choose an available storefront link.";
@@ -317,6 +319,7 @@ export function OnboardingWizard(props: {
           send("/api/provider/profile", "PATCH", {
             workspaceType: profile.workspaceType,
             workspacePostcode: profile.workspacePostcode,
+            workspaceAddress: profile.workspaceType === "MOBILE" ? "" : profile.workspaceAddress,
             travelsToClients: profile.workspaceType === "MOBILE" ? true : profile.travelsToClients,
             amenities: profile.amenities,
           }),
@@ -343,7 +346,9 @@ export function OnboardingWizard(props: {
     specialties: hubs.length > 0,
     menu: chosenItems.some((item) => item.kind !== "ADDON"),
     storefront: Boolean(profile.slug) && profile.bio.trim().length >= 20,
-    workspace: Boolean(formatPostcode(profile.workspacePostcode)),
+    workspace:
+      Boolean(formatPostcode(profile.workspacePostcode)) &&
+      (profile.workspaceType === "MOBILE" || profile.workspaceAddress.trim().length >= 3),
     lookbook: looks.some((look) => look !== null),
     compliance: props.documents.length > 0,
     payouts: profile.payoutsEnabled,
@@ -729,6 +734,22 @@ export function OnboardingWizard(props: {
                     );
                   })}
                 </div>
+                {profile.workspaceType !== "MOBILE" ? (
+                  <label className="block">
+                    <span className="text-sm font-semibold text-ink">Street address</span>
+                    <input
+                      value={profile.workspaceAddress}
+                      maxLength={200}
+                      autoComplete="street-address"
+                      placeholder="e.g. Flat 2, 14 Ecclesall Road"
+                      onChange={(e) => set("workspaceAddress", e.target.value)}
+                      className={inputClass}
+                    />
+                    <span className="mt-1 block text-xs text-ink-muted">
+                      Private. Only a client with a paid booking at your workspace sees it, with a map pin.
+                    </span>
+                  </label>
+                ) : null}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <PostcodeField
                     label={profile.workspaceType === "MOBILE" ? "The postcode you travel from" : "Your workspace postcode"}
@@ -873,7 +894,11 @@ export function OnboardingWizard(props: {
                     ))}
                   </ul>
                 ) : null}
-                <div className="flex flex-wrap gap-2">
+                <p className="text-sm text-ink-muted">
+                  Upload at least one: your public liability insurance, a practitioner licence, or a beauty
+                  qualification certificate. Pick which one you&rsquo;re uploading, then add the file.
+                </p>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="What are you uploading?">
                   {DOCUMENT_KINDS.map(([kind, label]) => (
                     <button
                       key={kind}
@@ -948,7 +973,7 @@ export function OnboardingWizard(props: {
                       ["Menu with at least one service", done.menu, "menu"],
                       ["Storefront link and bio", done.storefront, "storefront"],
                       ["Workspace", done.workspace, "workspace"],
-                      ["Insurance or licence uploaded", done.compliance, "compliance"],
+                      ["Insurance, licence or certificate uploaded", done.compliance, "compliance"],
                       ["Bank linked for payouts (needed before you're paid)", done.payouts, "payouts"],
                     ] as const
                   ).map(([label, finished, target], at) => {

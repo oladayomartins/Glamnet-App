@@ -70,6 +70,7 @@ export default async function OnboardingPage({
         tiktokHandle: provider.tiktokHandle,
         workspaceType: provider.workspaceType,
         workspacePostcode: provider.basePostcode || provider.workspaceSector,
+        workspaceAddress: provider.workspaceAddress,
         travelsToClients: provider.travelsToClients,
         amenities: provider.amenities,
         payoutsEnabled: provider.payoutsEnabled,

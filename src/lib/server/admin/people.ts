@@ -27,7 +27,7 @@ export async function decideVendor(
 
   if (decision === "APPROVED" && provider._count.documents === 0) {
     throw new AdminError(
-      "This vendor has not uploaded any insurance or licence documents yet.",
+      "This vendor has not uploaded any insurance, licence or certificate yet.",
     );
   }
   if (decision === "SUSPENDED" && provider.approvalStatus !== "APPROVED") {

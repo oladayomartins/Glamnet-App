@@ -208,6 +208,9 @@ model Provider {
   /// The vendor's full base postcode and its coordinates. PRIVATE: used only
   /// for distance. Publicly a vendor is shown at their outward code.
   basePostcode     String    @default("")
+  /// Street address of the workspace (salon, room or chair). PRIVATE: shown
+  /// only to a client with a paid booking there, never on the storefront.
+  workspaceAddress String    @default("")
   latitude         Float?
   longitude        Float?
   /// Set when the vendor finishes the onboarding wizard.
