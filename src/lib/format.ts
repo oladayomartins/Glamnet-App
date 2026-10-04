@@ -57,13 +57,15 @@ export function formatDay(value: Date | string): string {
     return "Tomorrow";
   }
 
-  return date.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: UK_TIME_ZONE,
-  });
+  // Built from parts rather than toLocaleDateString: ICU versions disagree on
+  // the punctuation ("Wed 1 Apr" in Node, "Wed, 1 Apr" in Chrome), and a
+  // client component rendered on both then fails hydration.
+  const parts = ukParts(date);
+  return `${WEEKDAYS[parts.weekday]} ${parts.day} ${MONTHS[parts.month - 1]}`;
 }
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "Today, 18:00" — the format the spec uses on the vendor broadcast. */
 export function formatDayTime(value: Date | string): string {

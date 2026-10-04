@@ -71,6 +71,15 @@ export default async function VendorSettingsPage({
             </span>
             <span aria-hidden className="text-ink-muted">→</span>
           </Link>
+          <Link href={`/provider/${provider.id}/reviews`} className={ROW}>
+            <span>
+              <span className="block font-semibold text-ink">Reviews</span>
+              <span className="block text-sm text-ink-muted">
+                Read what clients said and reply publicly
+              </span>
+            </span>
+            <span aria-hidden className="text-ink-muted">→</span>
+          </Link>
           {provider.slug ? (
             <Link href={`/pro/${provider.slug}`} className={ROW}>
               <span className="font-semibold text-ink">View my storefront</span>

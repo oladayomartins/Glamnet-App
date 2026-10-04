@@ -23,6 +23,12 @@ import { PushPrompt } from "@/components/push-prompt";
 import { CancelBooking, CancelTooLate } from "./cancel-booking";
 import { quoteCustomerCancellation, noShowAllowedFrom, PROVIDER_CANCELLABLE } from "@/lib/domain/cancellation";
 import { formatAppointment } from "@/lib/server/notifications";
+import { messagingOpen } from "@/lib/domain/messaging";
+import { rescheduleBlocker } from "@/lib/domain/reschedule";
+import { pendingReschedule } from "@/lib/server/reschedule";
+import { BookingMessages } from "./booking-messages";
+import { ReschedulePanel } from "./reschedule-panel";
+import { ReviewReplyForm } from "@/components/review-reply-form";
 
 /**
  * Customer-facing booking record. Shows the classification and the surcharge
@@ -53,6 +59,12 @@ export default async function BookingPage({
       events: { orderBy: { createdAt: "asc" } },
       completionPhotos: { orderBy: { position: "asc" } },
       promoCode: { select: { code: true } },
+      customer: { select: { name: true } },
+      messages: {
+        orderBy: { createdAt: "asc" },
+        take: 500,
+        select: { id: true, senderRole: true, body: true, createdAt: true },
+      },
     },
   });
 
@@ -120,8 +132,16 @@ export default async function BookingPage({
       const street = [provider.workspaceAddress, provider.basePostcode].filter(Boolean).join(", ");
       const mayKnow = viewer.role === "ADMIN" || isTheProvider || (isTheCustomer && paid && !ended);
       if (mayKnow && street) return { line: street, directions: provider.howToFindMe, map: true };
+      // The vendor's own job: nothing to wait for, only an address to add.
+      if (isTheProvider) {
+        return provider.workspaceAddress
+          ? null
+          : { line: "Add your workspace's street address in setup, so clients can find you.", directions: "", map: false };
+      }
       return {
-        line: `${provider.workspaceSector || booking.sector} — the full address shows here once your card is secured`,
+        line: mayKnow
+          ? `${provider.workspaceSector || booking.sector} — ask ${provider.name} for the exact address in Messages below`
+          : `${provider.workspaceSector || booking.sector} — the full address shows here once your card is secured`,
         directions: "",
         map: false,
       };
@@ -131,6 +151,17 @@ export default async function BookingPage({
     }
     return null;
   })();
+
+  // Messages and moving the appointment are between the two people on it.
+  const party: "CUSTOMER" | "PROVIDER" | null = isTheCustomer ? "CUSTOMER" : isTheProvider ? "PROVIDER" : null;
+  const otherName = isTheCustomer
+    ? (booking.provider?.name ?? "your vendor")
+    : booking.customer.name.split(/\s+/)[0] || "your client";
+  const threadOpen = messagingOpen(booking, now);
+  const showThread =
+    booking.providerId !== null && (party !== null || viewer.role === "ADMIN") && (threadOpen || booking.messages.length > 0);
+  const rescheduleOffer = pendingReschedule(booking);
+  const mayReschedule = party !== null && rescheduleBlocker(booking) === null;
 
   const priceRows = [
     ...booking.items.map((item) => ({
@@ -371,6 +402,16 @@ export default async function BookingPage({
         </Card>
       ) : null}
 
+      {party && (rescheduleOffer || mayReschedule) ? (
+        <ReschedulePanel
+          bookingId={booking.id}
+          viewerRole={party}
+          otherName={otherName}
+          pending={rescheduleOffer}
+          canSuggest={mayReschedule}
+        />
+      ) : null}
+
       {cancelQuote?.allowed ? (
         <CancelBooking
           bookingId={booking.id}
@@ -439,6 +480,16 @@ export default async function BookingPage({
         />
       ) : null}
 
+      {showThread ? (
+        <BookingMessages
+          bookingId={booking.id}
+          viewerRole={party ?? "ADMIN"}
+          otherName={otherName}
+          initial={booking.messages.map((message) => ({ ...message, createdAt: message.createdAt.toISOString() }))}
+          open={party !== null && threadOpen}
+        />
+      ) : null}
+
       {isTheCustomer && awaitingReview && booking.provider ? (
         <ReviewForm bookingId={booking.id} providerName={booking.provider.name} />
       ) : null}
@@ -460,14 +511,24 @@ export default async function BookingPage({
 
       {booking.rating ? (
         <Card className="p-4">
-          <SectionTitle hint={`${booking.rating}/5`}>Your review</SectionTitle>
+          <SectionTitle hint={`${booking.rating}/5`}>{isTheCustomer ? "Your review" : "Client's review"}</SectionTitle>
           {booking.reviewNote ? (
             <p className="text-[15px] text-ink">{booking.reviewNote}</p>
           ) : (
             <p className="text-[15px] text-ink-muted">
-              You rated this {booking.rating} out of 5 without writing anything.
+              {isTheCustomer ? "You" : "They"} rated this {booking.rating} out of 5 without writing anything.
             </p>
           )}
+          {isTheProvider ? (
+            <ReviewReplyForm bookingId={booking.id} initialReply={booking.reviewReply} />
+          ) : booking.reviewReply ? (
+            <div className="mt-3 rounded-glam-sm border-l-2 border-accent-500 bg-sunken p-3">
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                Reply from {booking.provider?.name ?? "your vendor"}
+              </p>
+              <p className="mt-1 whitespace-pre-line text-sm text-ink">{booking.reviewReply}</p>
+            </div>
+          ) : null}
         </Card>
       ) : null}
 

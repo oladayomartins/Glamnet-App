@@ -184,3 +184,17 @@ export const cancelSchema = z.object({
   /** The fee the customer saw and agreed to; refused if it has since gone up. */
   acceptedFeeMinor: z.number().int().min(0).optional(),
 });
+
+export const messageSchema = z.object({
+  body: z.string().trim().min(1).max(1_000),
+});
+
+export const rescheduleSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("propose"), startAt: z.iso.datetime({ offset: true }) }),
+  z.object({ action: z.literal("accept") }),
+  z.object({ action: z.literal("decline") }),
+]);
+
+export const reviewReplySchema = z.object({
+  reply: z.string().max(1_000),
+});

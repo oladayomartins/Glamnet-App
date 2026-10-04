@@ -351,6 +351,14 @@ export default async function StorefrontPage({
                     </span>
                   </div>
                   {review.note ? <p className="mt-2 text-[15px] text-ink">{review.note}</p> : null}
+                  {review.reply ? (
+                    <div className="mt-3 rounded-glam-sm border-l-2 border-accent-500 bg-sunken p-3">
+                      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
+                        Reply from {store.name}
+                      </p>
+                      <p className="mt-1 whitespace-pre-line text-sm text-ink">{review.reply}</p>
+                    </div>
+                  ) : null}
                 </Card>
               </li>
             ))}
