@@ -17,7 +17,8 @@ export default function manifest(): MetadataRoute.Manifest {
     // them together with the tokens.
     background_color: "#121212",
     theme_color: "#121212",
-    // PNGs rendered from app/icon.svg: installing (and so push on iPhone)
+    // The "GN" tile, cut from the brand favicon (see public/brand/): installing
+    // (and so push on iPhone)
     // needs raster icons, and "maskable" lets Android crop to its own shape.
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

@@ -14,11 +14,13 @@ import { DEFAULT_RADIUS_MILES, RADIUS_MILES } from "@/lib/domain/postcode";
 export function LocationFilter({
   basePath,
   hub,
+  space,
   near,
   radius,
 }: {
   basePath: string;
   hub: string | null;
+  space: string | null;
   near: string | null;
   radius: number;
 }) {
@@ -29,6 +31,7 @@ export function LocationFilter({
   const go = (postcode: string | null, withinMiles = miles) => {
     const search = new URLSearchParams();
     if (hub) search.set("hub", hub);
+    if (space) search.set("space", space);
     if (postcode) {
       search.set("near", postcode);
       search.set("radius", String(withinMiles));

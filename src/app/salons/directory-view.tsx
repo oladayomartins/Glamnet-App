@@ -10,6 +10,7 @@ import { GlamImage } from "@/components/glam-image";
 import { EmptyState } from "@/components/ui";
 import { formatMoney } from "@/lib/format";
 import { DEFAULT_RADIUS_MILES, RADIUS_MILES, formatMiles, milesToKm } from "@/lib/domain/postcode";
+import { WORKSPACE_FILTERS, parseWorkspaceFilter } from "@/lib/domain/workspace-filter";
 import { LocationFilter } from "./location-filter";
 import { DirectoryMap } from "./directory-map";
 
@@ -17,6 +18,8 @@ export interface DirectoryQuery {
   hub?: string;
   near?: string;
   radius?: string;
+  /** Kind of space, or "comes-to-you" — see workspace-filter.ts. */
+  space?: string;
   /** The old ?sector= links keep working. */
   sector?: string;
 }
@@ -26,7 +29,8 @@ export interface DirectoryQuery {
  *
  * /salons covers the whole UK; /[city]/salons is the same view for one city.
  * Category tiles filter it; a postcode (typed, suggested or from the phone's
- * location) sorts it nearest first within a radius, and a map shows where
+ * location) sorts it nearest first within a radius, a row of chips narrows it
+ * to one kind of space (or pros who come to you), and a map shows where
  * everyone is — by area only, never by address. Everything is in the URL.
  */
 export async function DirectoryView({
@@ -48,18 +52,22 @@ export async function DirectoryView({
   const radiusMiles = RADIUS_MILES.includes(Number(query.radius) as (typeof RADIUS_MILES)[number])
     ? Number(query.radius)
     : DEFAULT_RADIUS_MILES;
+  const space = parseWorkspaceFilter(query.space);
 
   const vendors = await listDirectory({
     city,
     hubName: hub?.name,
     near: place,
     radiusKm: place ? milesToKm(radiusMiles) : null,
+    space,
   });
 
-  const hrefWith = (next: { hub?: string | null }) => {
+  const hrefWith = (next: { hub?: string | null; space?: string | null }) => {
     const search = new URLSearchParams();
     const hubValue = next.hub === undefined ? hub?.slug : next.hub;
     if (hubValue) search.set("hub", hubValue);
+    const spaceValue = next.space === undefined ? space?.slug : next.space;
+    if (spaceValue) search.set("space", spaceValue);
     if (place) {
       search.set("near", place.postcode ?? place.outcode);
       search.set("radius", String(radiusMiles));
@@ -118,6 +126,7 @@ export async function DirectoryView({
       <LocationFilter
         basePath={basePath}
         hub={hub?.slug ?? null}
+        space={space?.slug ?? null}
         near={place ? (place.postcode ?? place.outcode) : nearText || null}
         radius={radiusMiles}
       />
@@ -127,6 +136,27 @@ export async function DirectoryView({
         </p>
       ) : null}
 
+      {/* --- Kind of space -------------------------------------------------- */}
+      <nav aria-label="Where it happens" className="-mt-4 flex flex-wrap gap-2">
+        {[{ slug: null, label: "Anywhere" }, ...WORKSPACE_FILTERS].map((option) => {
+          const active = (space?.slug ?? null) === option.slug;
+          return (
+            <Link
+              key={option.slug ?? "any"}
+              href={hrefWith({ space: option.slug })}
+              aria-current={active ? "page" : undefined}
+              className={`tap-44 inline-flex min-h-9 items-center rounded-full border px-3.5 text-sm font-medium transition duration-[180ms] ease-glam ${
+                active
+                  ? "border-accent-500 bg-accent-500 text-metal-ink"
+                  : "border-line bg-surface text-ink-muted hover:border-accent-500 hover:text-ink"
+              }`}
+            >
+              {option.label}
+            </Link>
+          );
+        })}
+      </nav>
+
       <AdSlot slot="DIRECTORY_TOP" />
 
       {vendors.length === 0 ? (
@@ -134,7 +164,11 @@ export async function DirectoryView({
           {place
             ? `No verified pros within ${radiusMiles} miles of ${place.postcode ?? place.outcode} yet.`
             : "No verified pros here yet."}{" "}
-          {place && radiusMiles < 25 ? (
+          {space ? (
+            <Link href={hrefWith({ space: null })} className="font-semibold text-accent-700">
+              Show every kind of space
+            </Link>
+          ) : place && radiusMiles < 25 ? (
             <Link href={`${hrefWith({})}`.replace(`radius=${radiusMiles}`, "radius=25")} className="font-semibold text-accent-700">
               Search within 25 miles
             </Link>
@@ -143,7 +177,7 @@ export async function DirectoryView({
               See every category
             </Link>
           ) : null}
-          {city && !place && !hub ? (
+          {city && !place && !hub && !space ? (
             <span className="mt-4 block">
               Pros are joining {city} now.{" "}
               <Link href="/become-a-vendor" className="font-semibold text-accent-700">

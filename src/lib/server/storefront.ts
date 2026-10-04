@@ -28,6 +28,7 @@ import type { BasketLine, ServiceLocation } from "@/lib/domain/types";
 import { boundingBox, byDistance, distanceKm, type LatLng } from "@/lib/domain/postcode";
 import { crossSellFor, type CrossSellCandidate } from "@/lib/domain/specialty-hubs";
 import { ukDateString } from "@/lib/domain/uk-time";
+import { workspaceWhere, type WorkspaceFilter } from "@/lib/domain/workspace-filter";
 
 /**
  * Vendor storefronts and the direct booking engine (Open Marketplace
@@ -638,6 +639,7 @@ export async function listDirectory(input: {
   hubName?: string | null;
   near?: LatLng | null;
   radiusKm?: number | null;
+  space?: WorkspaceFilter | null;
 }): Promise<DirectoryVendor[]> {
   const box = input.near && input.radiusKm ? boundingBox(input.near, input.radiusKm) : null;
   const providers = await prisma.provider.findMany({
@@ -658,6 +660,8 @@ export async function listDirectory(input: {
       ...(input.hubName
         ? { services: { some: { service: { category: input.hubName, isActive: true } } } }
         : {}),
+      // Its own AND, since the radius above already uses the top-level OR.
+      ...(input.space ? { AND: [workspaceWhere(input.space)] } : {}),
     },
     select: {
       id: true,

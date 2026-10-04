@@ -29,6 +29,13 @@ const METAL_INK = "#180F0D";
 const EMERGENCY = "#D0342C"; // --glam-emergency
 const ON_BRAND = "#FDFCF8";
 
+/**
+ * The lockup, served trimmed and at 2× from ImageKit. An absolute URL, since a
+ * mail client cannot reach the app's /public folder by a relative path; the
+ * alt text keeps the brand name legible when images are blocked.
+ */
+const LOGO_URL = "https://ik.imagekit.io/glamnetapp/Glamnetapp%20logo?tr=t-true,w-360";
+
 export interface EmailBody {
   subject: string;
   html: string;
@@ -73,7 +80,7 @@ function shell(options: {
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:${SURFACE};border:1px solid ${BORDER};border-radius:18px;overflow:hidden;">
   <tr><td style="background:${METAL_INK};padding:20px 28px;">
-    <span style="font-size:17px;font-weight:700;letter-spacing:0.22em;color:${CHAMPAGNE};">GLAMNET</span>
+    <img src="${LOGO_URL}" width="180" height="32" alt="GLAMNET" style="display:block;border:0;height:32px;width:180px;font-size:17px;font-weight:700;letter-spacing:0.22em;color:${CHAMPAGNE};">
   </td></tr>
   <tr><td style="padding:28px;">
     ${

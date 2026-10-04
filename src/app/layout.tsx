@@ -6,7 +6,7 @@ import {
 } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-import { GlamNetPin } from "@/components/brand";
+import { GlamNetLogo } from "@/components/brand";
 import { getSessionUser } from "@/lib/auth/session";
 import { SiteFooter } from "@/components/site-footer";
 import {
@@ -156,12 +156,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 aria-label="GLAMNET home"
                 className="tap-44 flex items-center gap-2.5"
               >
-                <GlamNetPin />
-                {/* The wordmark is set tight, not letterspaced — the mark is
-                    never re-lettered. [§01] */}
-                <span className="text-xl font-bold tracking-[-0.03em] text-ink">
-                  GLAMNET
-                </span>
+                <GlamNetLogo height={28} priority />
               </Link>
               <nav className="flex items-center gap-1" aria-label="Main">
                 {/* The full link row from large screens; below that the links
