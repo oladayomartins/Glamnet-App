@@ -128,6 +128,7 @@ export const storefrontProfileSchema = z.object({
   tiktokHandle: z.string().max(120).optional(),
   workspaceType: z.enum(["HOME_SALON", "PRIVATE_ROOM", "CHAIR", "MOBILE"]).optional(),
   workspacePostcode: z.string().max(10).optional(),
+  workspaceAddress: z.string().trim().max(200).optional(),
   travelsToClients: z.boolean().optional(),
   /**
    * Amenity tags. Bounded but not enumerated here: unknown values are dropped

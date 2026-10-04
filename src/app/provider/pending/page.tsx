@@ -45,7 +45,7 @@ export default async function ProviderPendingPage() {
     const submitted = provider.onboardedAt !== null;
     const stages = [
       { title: "Storefront built", body: "Your menu, photos and link are saved.", state: submitted ? "done" : "now" },
-      { title: "Documents checked", body: "We check your insurance or licence — usually within 1–2 working days.", state: submitted ? "now" : "next" },
+      { title: "Documents checked", body: "We check your insurance, licence or certificate — usually within 1–2 working days.", state: submitted ? "now" : "next" },
       { title: "You're live", body: "Clients near you can find and book you, and we email you straight away.", state: "next" },
     ] as const;
     return (

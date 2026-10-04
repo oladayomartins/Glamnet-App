@@ -237,7 +237,7 @@ export default async function BecomeVendorPage() {
             edited afterwards — so your rating means something.
           </Feature>
           <Feature icon={<SealCheck size={20} weight="light" />} title="A verified, trusted profile">
-            Upload your insurance or licence once. When we have checked it you get the verified
+            Upload your insurance, licence or certificate once. When we have checked it you get the verified
             badge, and your storefront and calendar go live.
           </Feature>
         </div>

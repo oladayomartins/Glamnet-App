@@ -435,6 +435,23 @@ html:has([data-section-target]) {
 }
 
 /*
+ * Everything clickable shows the hand. Tailwind v4's preflight leaves buttons
+ * on the default arrow, which made tappable chips and icons read as static.
+ * Kept in the base layer so a utility (cursor-not-allowed, cursor-text) still
+ * wins where a component sets its own.
+ */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  input:is([type="checkbox"], [type="radio"], [type="file"], [type="submit"], [type="button"]):not(:disabled),
+  label:has(input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled)) {
+    cursor: pointer;
+  }
+}
+
+/*
  * A composite control — the search bar is a pill holding a text field, a
  * select and a button — draws ONE ring around the whole shell rather than
  * letting the bare field inside draw its own. The field has no border of its

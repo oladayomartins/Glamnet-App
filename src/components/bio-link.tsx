@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, ShareNetwork } from "@phosphor-icons/react";
+import { Check, Copy, InstagramLogo, ShareNetwork, TiktokLogo, WhatsappLogo } from "@phosphor-icons/react";
 
 /**
  * The unique landing link generator (Directory §C): the vendor's own
@@ -10,8 +10,19 @@ import { Check, Copy, ShareNetwork } from "@phosphor-icons/react";
  * Bookings through this link are Rule A — 0% marketplace commission — which
  * is the reason to share it, so the card says so.
  */
+/**
+ * Instagram and TikTok have no web "share a link" intent — a bio link can only
+ * be pasted in their own edit-profile screens. So these buttons copy the link
+ * first, then open that screen (the app, on a phone with it installed).
+ */
+const BIO_EDITORS = {
+  instagram: "https://www.instagram.com/accounts/edit/",
+  tiktok: "https://www.tiktok.com/profile",
+} as const;
+
 export function BioLink({ origin, slug }: { origin: string; slug: string }) {
   const [copied, setCopied] = useState(false);
+  const [pasteInto, setPasteInto] = useState<string | null>(null);
   const link = `${origin}/pro/${slug}`;
   const href = `https://${link}`;
 
@@ -20,9 +31,17 @@ export function BioLink({ origin, slug }: { origin: string; slug: string }) {
       await navigator.clipboard.writeText(href);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2_000);
+      return true;
     } catch {
       setCopied(false);
+      return false;
     }
+  };
+
+  const addToBio = (app: keyof typeof BIO_EDITORS, name: string) => {
+    // Open synchronously, inside the click, or the popup blocker steps in.
+    window.open(BIO_EDITORS[app], "_blank", "noopener,noreferrer");
+    void copy().then((ok) => setPasteInto(ok ? name : null));
   };
 
   const share = async () => {
@@ -63,7 +82,37 @@ export function BioLink({ origin, slug }: { origin: string; slug: string }) {
           <ShareNetwork size={16} weight="bold" />
           Share
         </button>
+        <button
+          type="button"
+          onClick={() => addToBio("instagram", "Instagram")}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-surface px-5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-canvas"
+        >
+          <InstagramLogo size={18} weight="bold" aria-hidden />
+          Add to Instagram
+        </button>
+        <button
+          type="button"
+          onClick={() => addToBio("tiktok", "TikTok")}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-surface px-5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-canvas"
+        >
+          <TiktokLogo size={18} weight="bold" aria-hidden />
+          Add to TikTok
+        </button>
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(`Book me on GLAMNET: ${href}`)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-surface px-5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-canvas sm:col-span-1"
+        >
+          <WhatsappLogo size={18} weight="bold" aria-hidden />
+          Send on WhatsApp
+        </a>
       </div>
+      {pasteInto ? (
+        <p role="status" className="mt-2 text-sm text-ink-muted">
+          Link copied — paste it into the Website or Links field of your {pasteInto} profile.
+        </p>
+      ) : null}
     </div>
   );
 }
