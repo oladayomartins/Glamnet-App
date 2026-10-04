@@ -106,7 +106,17 @@ describe("priceBooking (spec §5)", () => {
     expect(line?.amountMinor).toBe(2_500);
   });
 
-  it("always applies the £0.50 trust fee", () => {
+  it("waives the trust fee when asked, and leaves it off the price card", () => {
+    const price = priceBooking(
+      { basket, bookingType: "NORMAL", travelFeeMinor: 500, emergencyConfig: percentageConfig, trustFeeMinor: 0 },
+      NOW,
+    );
+    expect(price.trustFeeMinor).toBe(0);
+    expect(price.totalMinor).toBe(10_500);
+    expect(price.lines.some((line) => line.key === "trust")).toBe(false);
+  });
+
+  it("applies the £0.50 trust fee by default", () => {
     for (const bookingType of ["NORMAL", "EMERGENCY"] as const) {
       const price = priceBooking(
         { basket, bookingType, travelFeeMinor: 0, emergencyConfig: percentageConfig },

@@ -1,3 +1,4 @@
+import { TRUST_FEE_MINOR } from "./constants";
 import { applyBps } from "./pricing";
 
 /**
@@ -5,8 +6,8 @@ import { applyBps } from "./pricing";
  *
  *   Rule A — the direct link. The client came through the vendor's own
  *   /pro/:slug link, or has booked this vendor before. No marketplace
- *   commission: the vendor receives everything except the platform trust fee
- *   and a 2% card processing fee.
+ *   commission: the vendor receives everything except a 2% card processing
+ *   fee (and the platform trust fee, when the client was charged one).
  *
  *   Rule B — the discovery matrix. A new client found the vendor through
  *   GLAMNET's own marketplace (the directory or the emergency broadcast). A
@@ -26,6 +27,15 @@ export const BOOKING_SOURCES: readonly BookingSource[] = [
   "MARKETPLACE",
   "DIRECT_LINK",
 ];
+
+/**
+ * The client-paid trust fee for a booking. A client who arrives through the
+ * vendor's own link was brought by the vendor, not by GLAMNET, so they pay
+ * none; marketplace and emergency bookings pay the standard fee.
+ */
+export function trustFeeFor(source: BookingSource): number {
+  return source === "DIRECT_LINK" ? 0 : TRUST_FEE_MINOR;
+}
 
 /** Rule B: the acquisition commission on a first discovery booking. */
 export const DISCOVERY_COMMISSION_BPS = 3_000;

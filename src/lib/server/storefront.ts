@@ -22,7 +22,7 @@ import {
   resolveThresholdMinutes,
 } from "@/lib/domain/classification";
 import { priceBooking } from "@/lib/domain/pricing";
-import { decideCommission, type BookingSource } from "@/lib/domain/settlement";
+import { decideCommission, trustFeeFor, type BookingSource } from "@/lib/domain/settlement";
 import { TRANSITION_BUFFER_MINUTES } from "@/lib/domain/constants";
 import type { BasketLine, ServiceLocation } from "@/lib/domain/types";
 import { boundingBox, byDistance, distanceKm, type LatLng } from "@/lib/domain/postcode";
@@ -427,6 +427,7 @@ export async function quoteStorefront(
       travelFeeMinor:
         request.serviceLocation === "CUSTOMER_ADDRESS" ? provider.hub.travelFeeMinor : 0,
       emergencyConfig: config,
+      trustFeeMinor: trustFeeFor(request.source),
     },
     now,
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideCommission, settle } from "../settlement";
+import { decideCommission, settle, trustFeeFor } from "../settlement";
 
 describe("decideCommission (dual-commission protocol)", () => {
   it("Rule A: a direct link is never commissioned", () => {
@@ -75,5 +75,23 @@ describe("settle", () => {
       commission: decideCommission({ source: "MARKETPLACE", hasPriorBooking: false }),
     });
     expect(result.chargeMinor).toBe(10_550);
+  });
+});
+
+describe("trustFeeFor", () => {
+  it("charges no trust fee on a direct-link booking", () => {
+    expect(trustFeeFor("DIRECT_LINK")).toBe(0);
+  });
+
+  it("charges the standard £0.50 on marketplace and emergency bookings", () => {
+    expect(trustFeeFor("MARKETPLACE")).toBe(50);
+    expect(trustFeeFor("BROADCAST")).toBe(50);
+  });
+
+  it("leaves a direct-link vendor's payout unchanged apart from the card fee on 50p", () => {
+    const commission = decideCommission({ source: "DIRECT_LINK", hasPriorBooking: false });
+    const result = settle({ totalMinor: 10_000, commissionableMinor: 10_000, trustFeeMinor: 0, tipMinor: 0, commission });
+    expect(result.chargeMinor).toBe(10_000);
+    expect(result.providerPayoutMinor).toBe(10_000 - 200);
   });
 });
