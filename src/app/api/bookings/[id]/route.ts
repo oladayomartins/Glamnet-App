@@ -3,7 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { BookingError } from "@/lib/server/booking-service";
 import { getSessionUser } from "@/lib/auth/session";
-import { withoutPin } from "@/lib/api/redact";
+import { forVendor, withoutPin } from "@/lib/api/redact";
 import { expireUnansweredBroadcasts } from "@/lib/server/payment-flow";
 
 /** GET /api/bookings/:id — full booking record with lifecycle history. */
@@ -56,7 +56,14 @@ export async function GET(
       ...booking,
       addressLine: booking.addressUnlocked ? booking.addressLine : null,
     };
-    return NextResponse.json({ booking: isCustomer ? visible : withoutPin(visible) });
+    const isAdmin = viewer?.role === "ADMIN";
+    return NextResponse.json({
+      booking: isCustomer
+        ? visible
+        : isAdmin
+          ? withoutPin(visible)
+          : forVendor(visible, viewer?.providerId ?? null),
+    });
   } catch (error) {
     return errorResponse(error);
   }

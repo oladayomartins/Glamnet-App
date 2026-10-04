@@ -85,6 +85,9 @@ export function JobActions({
           it isn&rsquo;t sorted a day before the appointment, the booking is cancelled and you&rsquo;ll be told —
           please don&rsquo;t travel until this message has gone.
         </p>
+        {/* Still the vendor's to call off: the server allows it, and a vendor
+            who can no longer make the slot should not have to wait it out. */}
+        {mayCancel ? <VendorCancel bookingId={bookingId} onDone={() => router.refresh()} /> : null}
       </Card>
     );
   }

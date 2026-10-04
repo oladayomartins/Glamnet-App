@@ -100,7 +100,7 @@ export default async function StorefrontPage({
   const shortest = Math.min(
     ...store.menu.filter((item) => item.kind === "SERVICE").map((item) => item.durationMinutes),
   );
-  const nextFree = Number.isFinite(shortest)
+  const nextFree = store.isAcceptingWork && Number.isFinite(shortest)
     ? (await storefrontDays(store.id, shortest, new Date())).find((day) => day.firstStartAt)?.firstStartAt ?? null
     : null;
   const backHref = `/${citySlug(store.hub.city)}/salons`;
@@ -264,6 +264,7 @@ export default async function StorefrontPage({
       />
 
       <div id="services" data-section-target>
+      {store.isAcceptingWork ? (
       <StorefrontBooking
         slug={slug}
         providerName={store.name}
@@ -277,6 +278,24 @@ export default async function StorefrontPage({
         signedInAsCustomer={viewer?.role === "CUSTOMER"}
         vendorArea={area}
       />
+      ) : (
+        // Paused, not gone: the page stays up for the vendor's bio link, but
+        // nothing here can be booked until they switch bookings back on.
+        <Card className="p-5">
+          <p className="font-display text-lg font-bold text-ink">
+            {store.name} isn&rsquo;t taking new bookings right now
+          </p>
+          <p className="mt-1 text-sm text-ink-muted">
+            Save them to come back later, or find someone else nearby.
+          </p>
+          <Link
+            href={`/${citySlug(store.hub.city)}/salons`}
+            className="mt-3 inline-flex text-sm font-semibold text-accent-700"
+          >
+            See pros in {store.hub.city}
+          </Link>
+        </Card>
+      )}
       </div>
 
       {/* --- Where: the area only, never the address ---------------------- */}

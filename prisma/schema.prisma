@@ -441,6 +441,9 @@ model Booking {
   completionPin         String    @default("")
   completionPinIssuedAt DateTime?
   completionPinAttempts Int       @default(0)
+  /// New PINs issued after the first; capped (MAX_PIN_REISSUES) so the
+  /// attempt limit cannot be reset forever.
+  completionPinReissues Int       @default(0)
   escrowReleasedAt      DateTime?
   /// escrowReleasedAt + 24h. After it, the booking is closed_uncontestable.
   disputeWindowClosesAt DateTime?

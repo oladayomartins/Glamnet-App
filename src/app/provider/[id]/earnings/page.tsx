@@ -89,7 +89,11 @@ export default async function EarningsPage({
       grossMinor: booking.totalInvoicePriceMinor,
       surgeMinor: booking.providerEmergencyEarningsMinor,
       feeMinor,
-      netMinor: booking.providerEarningsMinor,
+      tipMinor: booking.tipMinor,
+      // What reaches the vendor's bank: their share plus the tip, which is
+      // theirs in full. providerEarningsMinor alone leaves the tip out, so
+      // "net" used to read lower than the payout actually sent.
+      netMinor: booking.providerEarningsMinor + booking.tipMinor,
     };
   });
 
@@ -169,7 +173,7 @@ export default async function EarningsPage({
           // The ledger is denser than the customer app is allowed to be; that
           // is deliberate, and it is the one place 13px is acceptable.
           <Card className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-[13px]">
+            <table className="w-full min-w-[800px] text-[13px]">
               <thead>
                 <tr className="border-b border-line text-left">
                   <Th>Date</Th>
@@ -178,6 +182,7 @@ export default async function EarningsPage({
                   <Th numeric>Gross</Th>
                   <Th numeric>Surge</Th>
                   <Th numeric>Fee</Th>
+                  <Th numeric>Tip</Th>
                   <Th numeric>Net</Th>
                 </tr>
               </thead>
@@ -212,6 +217,9 @@ export default async function EarningsPage({
                     </Td>
                     <Td mono numeric>
                       −{formatMoney(row.feeMinor)}
+                    </Td>
+                    <Td mono numeric>
+                      {row.tipMinor > 0 ? formatMoney(row.tipMinor) : "—"}
                     </Td>
                     <Td mono numeric strong>
                       {formatMoney(row.netMinor)}

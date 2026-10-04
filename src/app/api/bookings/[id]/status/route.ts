@@ -7,7 +7,7 @@ import { cancelBooking } from "@/lib/server/cancellations";
 import { BookingError } from "@/lib/server/booking-service";
 import type { AnyBookingStatus } from "@/lib/domain/types";
 import { requireApiRole } from "@/lib/auth/api-guard";
-import { withoutPin } from "@/lib/api/redact";
+import { forVendor, withoutPin } from "@/lib/api/redact";
 
 /**
  * Steps that move money or carry evidence, and so have their own endpoints:
@@ -31,6 +31,8 @@ export async function POST(
 
     const { id } = await params;
     const { status, note } = transitionSchema.parse(await request.json());
+    const redact = <T extends Parameters<typeof forVendor>[0]>(booking: T) =>
+      auth.user.role === "ADMIN" ? withoutPin(booking) : forVendor(booking, auth.user.providerId);
 
     if (DEDICATED_STEPS.has(status)) {
       throw new BookingError(
@@ -41,8 +43,13 @@ export async function POST(
     }
 
     // The vendor on *this* job, not any vendor: without this check one
-    // vendor could advance or cancel another's booking.
+    // vendor could advance or cancel another's booking. A PROVIDER login with
+    // no vendor profile has a null providerId, which would otherwise match
+    // every unassigned (null) booking.
     if (auth.user.role === "PROVIDER") {
+      if (!auth.user.providerId) {
+        throw new BookingError("Booking not found.", "NOT_FOUND", 404);
+      }
       const booking = await prisma.booking.findUnique({
         where: { id },
         select: { providerId: true },
@@ -58,7 +65,7 @@ export async function POST(
         auth.user.role === "PROVIDER" ? { role: "PROVIDER", providerId: auth.user.providerId! } : { role: "ADMIN" },
         { reason: note ?? "" },
       );
-      return NextResponse.json({ booking: withoutPin(cancelled) });
+      return NextResponse.json({ booking: redact(cancelled) });
     }
 
     const booking = await transitionBooking(
@@ -68,7 +75,7 @@ export async function POST(
       auth.user.role,
       note ?? "",
     );
-    return NextResponse.json({ booking: withoutPin(booking) });
+    return NextResponse.json({ booking: redact(booking) });
   } catch (error) {
     return errorResponse(error);
   }

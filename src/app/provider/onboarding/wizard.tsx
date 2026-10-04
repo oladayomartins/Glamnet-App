@@ -38,7 +38,7 @@ import { BioLink } from "@/components/bio-link";
 import { BrandImage } from "@/components/brand-image";
 import { DocumentUpload } from "@/components/document-upload";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
-import { slugify } from "@/lib/domain/storefront";
+import { slugDraft, slugify } from "@/lib/domain/storefront";
 import { categoryImagePath } from "@/lib/imagekit";
 import { formatDuration, formatMoney } from "@/lib/format";
 
@@ -207,8 +207,9 @@ export function OnboardingWizard(props: {
 
   // --- Link availability, checked as they type ------------------------------
   const onSlugChange = (raw: string) => {
+    // Shown as typed (a trailing hyphen survives); checked and saved trimmed.
+    set("slug", slugDraft(raw));
     const slug = slugify(raw);
-    set("slug", slug);
     if (slugTimer.current) clearTimeout(slugTimer.current);
     if (!slug) return setSlugState("idle");
     setSlugState("checking");
@@ -302,7 +303,7 @@ export function OnboardingWizard(props: {
       case "storefront":
         return run(() =>
           send("/api/provider/profile", "PATCH", {
-            slug: profile.slug,
+            slug: slugify(profile.slug),
             bio: profile.bio,
             specialisesIn: profile.specialisesIn,
             whatToExpect: profile.whatToExpect,

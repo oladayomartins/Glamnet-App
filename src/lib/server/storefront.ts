@@ -42,12 +42,21 @@ import { workspaceWhere, type WorkspaceFilter } from "@/lib/domain/workspace-fil
 /** How long an unpaid checkout may hold a slot before it is released. */
 export const CHECKOUT_HOLD_MINUTES = 30;
 
-/** Only these vendors have a live storefront and booking calendar. */
-const LIVE_VENDOR = {
+/**
+ * Vendors whose storefront page is up. A vendor who has paused new bookings
+ * keeps their page: it is the link in their bio, and a holiday should not
+ * break it. They only stop being bookable (LIVE_VENDOR).
+ */
+const PUBLISHED_VENDOR = {
   approvalStatus: "APPROVED",
   isVerified: true,
-  isAcceptingWork: true,
   slug: { not: null },
+} as const;
+
+/** Only these vendors take bookings and appear in the directory. */
+const LIVE_VENDOR = {
+  ...PUBLISHED_VENDOR,
+  isAcceptingWork: true,
 } as const;
 
 export interface StorefrontService {
@@ -133,7 +142,7 @@ const SERVICE_SELECT = {
  */
 export async function getStorefrontCard(slug: string) {
   const provider = await prisma.provider.findFirst({
-    where: { ...LIVE_VENDOR, slug },
+    where: { ...PUBLISHED_VENDOR, slug },
     select: {
       name: true,
       avatarUrl: true,
@@ -153,9 +162,10 @@ export async function getStorefrontCard(slug: string) {
 
 export async function getStorefront(slug: string) {
   const provider = await prisma.provider.findFirst({
-    where: { ...LIVE_VENDOR, slug },
+    where: { ...PUBLISHED_VENDOR, slug },
     select: {
       id: true,
+      isAcceptingWork: true,
       slug: true,
       name: true,
       bio: true,

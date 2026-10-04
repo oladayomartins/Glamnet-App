@@ -370,7 +370,9 @@ export default async function BookingPage({
           bookingId={booking.id}
           status={booking.status}
           serviceLocation={booking.serviceLocation}
-          addressLine={booking.addressLine}
+          // Props are serialised into the page, so the address is only sent
+          // once it is unlocked, not merely hidden on screen until then.
+          addressLine={booking.addressUnlocked ? booking.addressLine : ""}
           addressUnlocked={booking.addressUnlocked}
           paymentStatus={booking.paymentStatus}
           imageUploadsEnabled={isImageKitConfigured()}
