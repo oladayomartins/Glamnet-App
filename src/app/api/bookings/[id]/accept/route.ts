@@ -4,6 +4,7 @@ import { acceptSchema } from "@/lib/api/schemas";
 import { acceptBooking } from "@/lib/server/booking-service";
 import { requireApiRole } from "@/lib/auth/api-guard";
 import { requireOwnProvider } from "@/lib/auth/provider-guard";
+import { forVendor } from "@/lib/api/redact";
 
 /**
  * POST /api/bookings/:id/accept — a vendor takes the job.
@@ -28,7 +29,7 @@ export async function POST(
     if (denied) return denied;
 
     const booking = await acceptBooking(id, providerId);
-    return NextResponse.json({ booking });
+    return NextResponse.json({ booking: forVendor(booking, providerId) });
   } catch (error) {
     return errorResponse(error);
   }

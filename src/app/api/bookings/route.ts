@@ -5,7 +5,7 @@ import { createBookingSchema } from "@/lib/api/schemas";
 import { createBooking } from "@/lib/server/booking-service";
 import { startPayment } from "@/lib/server/payment-flow";
 import { requireApiRole } from "@/lib/auth/api-guard";
-import { withoutPin } from "@/lib/api/redact";
+import { forVendor, withoutPin } from "@/lib/api/redact";
 
 /**
  * GET /api/bookings?customerId=…&type=…&status=…
@@ -39,7 +39,12 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({
-      bookings: user.role === "CUSTOMER" ? bookings : bookings.map(withoutPin),
+      bookings:
+        user.role === "CUSTOMER"
+          ? bookings
+          : user.role === "ADMIN"
+            ? bookings.map(withoutPin)
+            : bookings.map((booking) => forVendor(booking, user.providerId)),
     });
   } catch (error) {
     return errorResponse(error);

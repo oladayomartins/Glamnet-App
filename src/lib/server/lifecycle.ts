@@ -46,6 +46,9 @@ export function canTransition(
   return nextStatusFor(from, serviceLocation) === to;
 }
 
+/** Payment states that mean the client's card is not held. */
+const UNPAID_PAYMENT_STATUSES = new Set(["PENDING_AUTHORISATION", "AUTHORISATION_FAILED"]);
+
 // Re-exported for callers that only need the plain chain.
 export { NEXT_STATUS };
 
@@ -70,6 +73,17 @@ export async function transitionBooking(
         `Cannot move a booking from ${from} to ${to}.`,
         "INVALID_TRANSITION",
         409,
+      );
+    }
+    // A job only moves forward once the client's card is secured. Without
+    // this a vendor could confirm a checkout whose card was never held (and
+    // that the abandoned-checkout sweep would then never release), or unlock
+    // the address and travel to a client whose card had failed.
+    if (UNPAID_PAYMENT_STATUSES.has(booking.paymentStatus) && to !== "CANCELLED") {
+      throw new BookingError(
+        "The client's card isn't secured yet, so this job can't move forward. It will once they have paid.",
+        "INVALID_TRANSITION",
+        402,
       );
     }
 

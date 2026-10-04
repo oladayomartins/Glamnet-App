@@ -15,6 +15,22 @@ export function slugify(input: string): string {
     .replace(/-+$/g, "");
 }
 
+/**
+ * A storefront link as someone is still typing it: the same rules as
+ * slugify, except a trailing hyphen is kept. slugify strips it, and running
+ * that on every keystroke turned "grace-" back into "grace" before the next
+ * word could be typed. Check and save with slugify(); show this.
+ */
+export function slugDraft(input: string): string {
+  return input
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+/g, "")
+    .slice(0, 40);
+}
+
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 
 /** Routes that must never be claimable as a storefront handle. */

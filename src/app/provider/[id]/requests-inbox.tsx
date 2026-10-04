@@ -23,6 +23,9 @@ export function RequestsInbox({ providerId }: { providerId: string }) {
   const router = useRouter();
   const [requests, setRequests] = useState<BroadcastRequest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Kept apart from action errors: a later successful poll clears a load
+  // failure, but must not wipe a "could not accept" the vendor needs to see.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   // Bumped to pull fresh data; the fetch itself lives in the effect below so
@@ -57,9 +60,10 @@ export function RequestsInbox({ providerId }: { providerId: string }) {
         );
         setRequests(sorted);
         publishRequestCount(sorted.length);
+        setLoadError(null);
       } catch (cause) {
         if (controller.signal.aborted) return;
-        setError(cause instanceof Error ? cause.message : "Could not load your requests.");
+        setLoadError(cause instanceof Error ? cause.message : "Could not load your requests.");
       }
     })();
 
@@ -111,12 +115,12 @@ export function RequestsInbox({ providerId }: { providerId: string }) {
         Booking requests
       </SectionTitle>
 
-      {error ? (
+      {(error ?? loadError) ? (
         <p
           role="alert"
           className="mb-3 rounded-glam border-l-4 border-warning bg-sunken p-3 text-sm text-ink"
         >
-          {error}
+          {error ?? loadError}
         </p>
       ) : null}
 

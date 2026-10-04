@@ -11,6 +11,7 @@ import {
   formatPin,
   isWellFormedPin,
   MAX_PIN_ATTEMPTS,
+  MAX_PIN_REISSUES,
   pinMatches,
   REQUIRED_COMPLETION_PHOTOS,
 } from "@/lib/domain/completion";
@@ -168,14 +169,27 @@ export async function reissuePin(bookingId: string, providerId: string, now = ne
   if (booking.status !== "COMPLETED") {
     throw new BookingError("There is no PIN to reissue.", "INVALID_TRANSITION", 409);
   }
-  await prisma.booking.update({
-    where: { id: bookingId },
+  // Conditional on the count, so parallel requests cannot all slip under it.
+  const reissued = await prisma.booking.updateMany({
+    where: {
+      id: bookingId,
+      status: "COMPLETED",
+      completionPinReissues: { lt: MAX_PIN_REISSUES },
+    },
     data: {
       completionPin: formatPin(randomInt(0, 10_000)),
       completionPinIssuedAt: now,
       completionPinAttempts: 0,
+      completionPinReissues: { increment: 1 },
     },
   });
+  if (reissued.count === 0) {
+    throw new BookingError(
+      "This job has used all its new PINs. Ask the client to contact GLAMNET support so we can release the payment.",
+      "INVALID_TRANSITION",
+      429,
+    );
+  }
 }
 
 /**
@@ -196,7 +210,18 @@ export async function releaseWithPin(
   if (booking.status !== "COMPLETED" || !booking.completionPin) {
     throw new BookingError("This job is not waiting for a PIN.", "INVALID_TRANSITION", 409);
   }
-  if (booking.completionPinAttempts >= MAX_PIN_ATTEMPTS) {
+  // Reserve the attempt before comparing, in one conditional write: reading
+  // the count and writing it back later let parallel guesses all see the same
+  // count and get far more than five tries between them.
+  const reserved = await prisma.booking.updateMany({
+    where: {
+      id: bookingId,
+      status: "COMPLETED",
+      completionPinAttempts: { lt: MAX_PIN_ATTEMPTS },
+    },
+    data: { completionPinAttempts: { increment: 1 } },
+  });
+  if (reserved.count === 0) {
     throw new BookingError(
       "Too many wrong attempts. Issue a new PIN to the customer.",
       "INVALID_TRANSITION",
@@ -205,12 +230,11 @@ export async function releaseWithPin(
   }
 
   if (!pinMatches(booking.completionPin, pin)) {
-    const attempts = booking.completionPinAttempts + 1;
-    await prisma.booking.update({
+    const { completionPinAttempts: attempts } = await prisma.booking.findUniqueOrThrow({
       where: { id: bookingId },
-      data: { completionPinAttempts: attempts },
+      select: { completionPinAttempts: true },
     });
-    const left = MAX_PIN_ATTEMPTS - attempts;
+    const left = Math.max(0, MAX_PIN_ATTEMPTS - attempts);
     throw new BookingError(
       left > 0
         ? `That PIN is not right. ${left} ${left === 1 ? "try" : "tries"} left.`
@@ -219,6 +243,13 @@ export async function releaseWithPin(
       422,
     );
   }
+
+  // The right PIN is not a guess: hand its reserved attempt back, so a retry
+  // after a card problem below never locks the client out.
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: { completionPinAttempts: { decrement: 1 } },
+  });
 
   if (booking.paymentStatus === "AUTHORISATION_FAILED" || booking.paymentStatus === "PENDING_AUTHORISATION") {
     throw new BookingError(

@@ -391,10 +391,12 @@ function WeekView({
         const startAt = new Date(entry.appointmentStartAt);
         return startAt >= day && startAt < nextDay;
       }),
-      blocks: calendar.blocks.filter((block) => {
-        const startAt = new Date(block.startAt);
-        return startAt >= day && startAt < nextDay;
-      }),
+      // Any overlap, not just the start: a Monday–Friday holiday belongs on
+      // every one of those days, and a block that began last week still
+      // covers this one.
+      blocks: calendar.blocks.filter(
+        (block) => new Date(block.startAt) < nextDay && new Date(block.endAt) > day,
+      ),
     };
   });
 

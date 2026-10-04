@@ -19,6 +19,14 @@ export const REQUIRED_COMPLETION_PHOTOS = 3;
 /** Wrong guesses allowed before the PIN is burned and must be reissued. */
 export const MAX_PIN_ATTEMPTS = 5;
 
+/**
+ * New PINs a vendor may issue for one job. Reissuing resets the guesses, so
+ * without a cap a script could reissue and guess until it hit the PIN and
+ * release the money without the client. Two reissues allow 15 guesses in all:
+ * room for a misheard number, a 0.15% chance for a guesser.
+ */
+export const MAX_PIN_REISSUES = 2;
+
 /** The dispute window after escrow release. */
 export const DISPUTE_WINDOW_HOURS = 24;
 
