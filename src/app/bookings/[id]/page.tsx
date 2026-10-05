@@ -29,6 +29,8 @@ import { pendingReschedule } from "@/lib/server/reschedule";
 import { BookingMessages } from "./booking-messages";
 import { ReschedulePanel } from "./reschedule-panel";
 import { ReviewReplyForm } from "@/components/review-reply-form";
+import { ClientNoteEditor } from "@/components/client-note-editor";
+import { clientNoteFor } from "@/lib/server/clients";
 
 /**
  * Customer-facing booking record. Shows the classification and the surcharge
@@ -49,6 +51,7 @@ export default async function BookingPage({
       provider: {
         select: {
           name: true,
+          slug: true,
           rating: true,
           workspaceAddress: true,
           basePostcode: true,
@@ -158,6 +161,8 @@ export default async function BookingPage({
     ? (booking.provider?.name ?? "your vendor")
     : booking.customer.name.split(/\s+/)[0] || "your client";
   const threadOpen = messagingOpen(booking, now);
+  // The vendor's own private note on this client, beside the job.
+  const clientNote = isTheProvider && booking.providerId ? await clientNoteFor(booking.providerId, booking.customerId) : null;
   const showThread =
     booking.providerId !== null && (party !== null || viewer.role === "ADMIN") && (threadOpen || booking.messages.length > 0);
   const rescheduleOffer = pendingReschedule(booking);
@@ -480,6 +485,26 @@ export default async function BookingPage({
         />
       ) : null}
 
+      {isTheProvider && clientNote !== null && !ended ? (
+        <Card className="p-4">
+          <SectionTitle
+            hint={
+              <Link href={`/provider/${booking.providerId}/clients/${booking.customerId}`} className="hover:text-brand-700">
+                Client history →
+              </Link>
+            }
+          >
+            Your notes on {booking.customer.name.split(/\s+/)[0] || "this client"}
+          </SectionTitle>
+          <ClientNoteEditor
+            customerId={booking.customerId}
+            clientName={booking.customer.name}
+            initialNote={clientNote}
+            compact
+          />
+        </Card>
+      ) : null}
+
       {showThread ? (
         <BookingMessages
           bookingId={booking.id}
@@ -530,6 +555,15 @@ export default async function BookingPage({
             </div>
           ) : null}
         </Card>
+      ) : null}
+
+      {isTheCustomer && booking.provider?.slug && ["REVIEWED", "PAYMENT_RELEASED"].includes(booking.status) ? (
+        <Link
+          href={`/pro/${booking.provider.slug}`}
+          className="flex min-h-12 items-center justify-center rounded-full bg-surface px-6 text-sm font-bold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken active:scale-[0.98]"
+        >
+          Book {booking.provider.name.split(/\s+/)[0]} again
+        </Link>
       ) : null}
 
       <Card className="p-4">

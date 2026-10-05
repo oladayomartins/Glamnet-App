@@ -198,3 +198,7 @@ export const rescheduleSchema = z.discriminatedUnion("action", [
 export const reviewReplySchema = z.object({
   reply: z.string().max(1_000),
 });
+
+export const clientNoteSchema = z.object({
+  note: z.string().max(2_000),
+});

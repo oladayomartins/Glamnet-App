@@ -10,16 +10,18 @@ import {
   House,
   Tray,
   UserCircle,
+  UsersThree,
   type IconProps,
 } from "@phosphor-icons/react";
 import { requestVendorRefresh, useRequestCountUpdates, useVendorRefresh } from "./vendor-events";
 
-type TabKey = "home" | "requests" | "calendar" | "earnings" | "profile";
+type TabKey = "home" | "requests" | "calendar" | "clients" | "earnings" | "profile";
 
 const TABS: { key: TabKey; label: string; icon: ComponentType<IconProps>; path: string }[] = [
   { key: "home", label: "Home", icon: House, path: "" },
   { key: "requests", label: "Requests", icon: Tray, path: "/requests" },
   { key: "calendar", label: "Calendar", icon: CalendarBlank, path: "/calendar" },
+  { key: "clients", label: "Clients", icon: UsersThree, path: "/clients" },
   { key: "earnings", label: "Earnings", icon: CurrencyGbp, path: "/earnings" },
   { key: "profile", label: "Profile", icon: UserCircle, path: "/settings" },
 ];
@@ -122,7 +124,7 @@ export function VendorShell({
 
       <nav
         aria-label="Vendor"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-line bg-surface/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
         {tabs("bottom")}
       </nav>
@@ -135,6 +137,7 @@ function activeTab(pathname: string, base: string): TabKey {
   if (pathname.startsWith(`${base}/calendar`) || pathname.startsWith(`${base}/availability`)) {
     return "calendar";
   }
+  if (pathname.startsWith(`${base}/clients`)) return "clients";
   if (pathname.startsWith(`${base}/earnings`)) return "earnings";
   if (pathname.startsWith(`${base}/settings`) || pathname.startsWith(`${base}/reviews`)) return "profile";
   return "home";
