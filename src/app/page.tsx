@@ -52,7 +52,6 @@ export const dynamic = "force-dynamic";
  */
 const CATEGORY_ICONS: Record<string, ReactNode> = {
   "Afro & Textured": <Scissors size={18} weight="light" />,
-  "European & Western": <Scissors size={18} weight="light" />,
   "MUA Glam & Asian Bridal": <PaintBrush size={18} weight="light" />,
   "Manicures & Pedicures": <Hand size={18} weight="light" />,
   "Massage & Wellness": <Heart size={18} weight="light" />,
@@ -290,18 +289,19 @@ export default async function MarketingPage() {
                 aria-hidden
                 className="breathe h-2 w-2 rounded-full bg-normal"
               />
-              The UK&rsquo;s beauty marketplace
+              The UK&rsquo;s marketplace for the Black and Asian beauty community
             </p>
 
             {/* 800, which is heavier than Instrument Sans could go at all —
                 the reason the display family exists. */}
             <h1 className="mt-4 font-display text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
-              Find trusted beauty pros for every occasion
+              Beauty pros who know your hair, your skin, your culture
             </h1>
 
             <p className="mt-5 max-w-lg text-base text-ink-muted">
-              Braids, bridal glam, BIAB and massage from verified independent
-              pros — at their home salon, studio or chair, or at your door.
+              Braids, twists, Asian bridal, gele, BIAB and massage from
+              verified independent pros who specialise in Black and Asian
+              beauty — at their home salon, studio or chair, or at your door.
               Real availability, one honest price, paid only when you&rsquo;re
               happy.
             </p>

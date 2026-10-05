@@ -34,7 +34,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Become a vendor",
   description:
-    "Claim a free storefront for your beauty business. 0% commission on clients from your own link, a calendar that cannot double-book, and payment released by your client's PIN.",
+    "Claim a free storefront on the UK's marketplace for the Black and Asian beauty community. 0% commission on clients from your own link, a calendar that cannot double-book, and payment released by your client's PIN.",
 };
 
 const SIGN_UP = "/sign-up?role=vendor";
@@ -87,14 +87,15 @@ export default async function BecomeVendorPage() {
         />
         <Container className="relative py-20 text-center sm:py-28">
           <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-accent-700">
-            For independent hair, beauty &amp; wellness pros
+            For Black and Asian hair, beauty &amp; wellness pros
           </p>
           <h1 className="mx-auto mt-4 max-w-3xl font-display text-[2.5rem] font-extrabold leading-[1.05] tracking-[-0.035em] text-ink sm:text-6xl">
             Get booked by clients who value what you do.
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-base text-ink-muted sm:text-lg">
-            GLAMNET gives your home salon, private room or chair a storefront of its own — your
-            looks, your menu, your prices and a calendar clients can book straight into.
+            GLAMNET is the UK&rsquo;s marketplace for the Black and Asian beauty community. Give
+            your home salon, private room or chair a storefront of its own — your looks, your
+            menu, your prices and a calendar clients can book straight into.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <CtaLink href={SIGN_UP}>Claim my free storefront page</CtaLink>
@@ -383,9 +384,9 @@ export default async function BecomeVendorPage() {
             client who found you through GLAMNET.
           </Faq>
           <Faq q="Who are the clients on GLAMNET?">
-            People near you, anywhere in the UK, looking for a specific craft — protective styling,
-            bridal and gele, BIAB, blow-dries, sports massage — who want to see your work and your
-            prices before they book.
+            The Black and Asian beauty community near you, anywhere in the UK, looking for a
+            specific craft — protective styling, Asian bridal and gele, BIAB, sports massage — who
+            want to see your work and your prices before they book.
           </Faq>
           <Faq q="What kinds of services can I list?">
             Anything across our hubs:{" "}

@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "GLAMNET",
     short_name: "GLAMNET",
     description:
-      "Find and book verified independent beauty pros — home salons, private rooms and chairs — or get one to you at short notice.",
+      "The UK's marketplace for the Black and Asian beauty community — find and book verified pros at their home salon, private room or chair, or get one to you at short notice.",
     start_url: "/",
     id: "/",
     scope: "/",
