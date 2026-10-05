@@ -789,3 +789,22 @@ body {
 [data-theme="dark"] .glam-logo-dark-ground {
   display: block;
 }
+
+/*
+ * The printable earnings statement: only the sheet goes to paper — no site
+ * header, footer or vendor tabs — on white, whatever the app theme.
+ */
+@media print {
+  body:has([data-print-statement]) {
+    background: #fff;
+  }
+  body:has([data-print-statement]) header:not([data-print-statement] header),
+  body:has([data-print-statement]) [data-site-footer],
+  body:has([data-print-statement]) nav,
+  body:has([data-print-statement]) nextjs-portal {
+    display: none !important;
+  }
+  @page {
+    margin: 14mm;
+  }
+}

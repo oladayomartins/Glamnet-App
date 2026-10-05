@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Receipt } from "@phosphor-icons/react/dist/ssr";
+import { DownloadSimple, Printer, Receipt } from "@phosphor-icons/react/dist/ssr";
 import { prisma } from "@/lib/server/prisma";
 import { requireUser } from "@/lib/auth/session";
 import {
@@ -10,20 +10,10 @@ import {
   SectionTitle,
 } from "@/components/ui";
 import { formatDay, formatMoney, formatTime } from "@/lib/format";
+import { vendorLedger } from "@/lib/server/vendor-ledger";
+import { KIND_LABELS, PERIOD_LABELS, parsePeriod, periodRange, type PeriodKey } from "@/lib/domain/ledger";
 
 export const dynamic = "force-dynamic";
-
-/** Periods the ledger can be read over. */
-const PERIODS = {
-  "7": { label: "Last 7 days", days: 7 },
-  "30": { label: "Last 30 days", days: 30 },
-  "90": { label: "Last 90 days", days: 90 },
-} as const;
-
-type PeriodKey = keyof typeof PERIODS;
-
-/** A booking counts towards earnings once the work is done, not when accepted. */
-const EARNED_STATUSES = ["COMPLETED", "REVIEWED", "PAYMENT_RELEASED"];
 
 /**
  * The vendor earnings ledger (§P-06).
@@ -32,6 +22,10 @@ const EARNED_STATUSES = ["COMPLETED", "REVIEWED", "PAYMENT_RELEASED"];
  * businesses to the vendor: emergency work pays more per hour and costs more
  * in disruption, and a single blended figure hides both facts. Every emergency
  * row carries the type tag for the same reason.
+ *
+ * The rows come from domain/ledger.ts, shared with the CSV download and the
+ * printable statement, so all three always add up to the same total. Late
+ * cancellation and missed-appointment fees the vendor was paid are rows too.
  */
 export default async function EarningsPage({
   params,
@@ -49,54 +43,20 @@ export default async function EarningsPage({
   const viewer = await requireUser(`/provider/${id}/earnings`);
   if (viewer.role !== "ADMIN" && viewer.providerId !== id) redirect("/forbidden");
 
-  const period: PeriodKey =
-    rawPeriod === "7" || rawPeriod === "30" || rawPeriod === "90"
-      ? rawPeriod
-      : "30";
+  const period: PeriodKey = parsePeriod(rawPeriod);
+  const range = periodRange(period);
 
-  const since = new Date();
-  since.setDate(since.getDate() - PERIODS[period].days);
-
-  const [provider, bookings] = await Promise.all([
+  const [provider, rows] = await Promise.all([
     prisma.provider.findUnique({
       where: { id },
       select: { id: true, name: true },
     }),
-    prisma.booking.findMany({
-      where: {
-        providerId: id,
-        status: { in: EARNED_STATUSES },
-        appointmentStartAt: { gte: since },
-      },
-      orderBy: { appointmentStartAt: "desc" },
-      include: { items: { select: { name: true } } },
-    }),
+    vendorLedger(id, range.from, range.to),
   ]);
 
   if (!provider) notFound();
 
-  const rows = bookings.map((booking) => {
-    // The platform's cut is whatever the customer paid less what the vendor
-    // takes: commission on the service work plus the unshared trust fee.
-    const feeMinor =
-      booking.totalInvoicePriceMinor - booking.providerEarningsMinor;
-
-    return {
-      id: booking.id,
-      bookingType: booking.bookingType,
-      startAt: booking.appointmentStartAt,
-      services: booking.items.map((item) => item.name).join(" + "),
-      grossMinor: booking.totalInvoicePriceMinor,
-      surgeMinor: booking.providerEmergencyEarningsMinor,
-      feeMinor,
-      tipMinor: booking.tipMinor,
-      // What reaches the vendor's bank: their share plus the tip, which is
-      // theirs in full. providerEarningsMinor alone leaves the tip out, so
-      // "net" used to read lower than the payout actually sent.
-      netMinor: booking.providerEarningsMinor + booking.tipMinor,
-    };
-  });
-
+  const isOwner = viewer.providerId === id;
   const emergencyRows = rows.filter((row) => row.bookingType === "EMERGENCY");
   const normalRows = rows.filter((row) => row.bookingType !== "EMERGENCY");
   const sumNet = (entries: typeof rows) =>
@@ -115,12 +75,12 @@ export default async function EarningsPage({
           Earnings
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
-          {provider.name} · completed work only
+          {provider.name} · completed work and cancellation fees
         </p>
       </div>
 
       <nav className="flex flex-wrap gap-2" aria-label="Period">
-        {(Object.keys(PERIODS) as PeriodKey[]).map((key) => (
+        {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map((key) => (
           <Link
             key={key}
             href={`/provider/${provider.id}/earnings?period=${key}`}
@@ -131,7 +91,7 @@ export default async function EarningsPage({
                 : "bg-surface text-ink-muted ring-1 ring-line hover:text-ink"
             }`}
           >
-            {PERIODS[key].label}
+            {PERIOD_LABELS[key]}
           </Link>
         ))}
       </nav>
@@ -151,8 +111,30 @@ export default async function EarningsPage({
         />
       </div>
 
+      {isOwner ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* A plain link: the browser downloads the file itself. */}
+          <a
+            href={`/api/provider/earnings/export?period=${period}`}
+            download
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-5 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
+          >
+            <DownloadSimple size={16} weight="bold" aria-hidden />
+            Download CSV
+          </a>
+          <Link
+            href={`/provider/${provider.id}/earnings/statement?period=${period}`}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-5 text-sm font-semibold text-ink ring-1 ring-line transition duration-[180ms] hover:bg-sunken"
+          >
+            <Printer size={16} weight="bold" aria-hidden />
+            Statement (PDF)
+          </Link>
+          <span className="text-xs text-ink-muted">{range.label} · for your records or tax return</span>
+        </div>
+      ) : null}
+
       <section>
-        <SectionTitle hint={`${rows.length} jobs`}>Completed jobs</SectionTitle>
+        <SectionTitle hint={`${rows.length} ${rows.length === 1 ? "entry" : "entries"}`}>Completed jobs</SectionTitle>
 
         {rows.length === 0 ? (
           <EmptyState
@@ -167,7 +149,8 @@ export default async function EarningsPage({
               </Link>
             }
           >
-            A job appears here once you have marked it complete.
+            A job appears here once you have marked it complete, and so does any late-cancellation or
+            missed-appointment fee you&rsquo;re paid.
           </EmptyState>
         ) : (
           // The ledger is denser than the customer app is allowed to be; that
@@ -197,7 +180,7 @@ export default async function EarningsPage({
                         href={`/bookings/${row.id}`}
                         className="font-medium text-ink hover:text-brand-700"
                       >
-                        {formatDay(row.startAt)} {formatTime(row.startAt)}
+                        {formatDay(row.at)} {formatTime(row.at)}
                       </Link>
                       {row.bookingType === "EMERGENCY" ? (
                         <span className="ml-2 align-middle">
@@ -207,22 +190,29 @@ export default async function EarningsPage({
                     </Td>
                     <Td mono>{row.id.slice(-8)}</Td>
                     <Td>
-                      <span className="text-ink-muted">{row.services}</span>
+                      <span className="text-ink-muted">
+                        {row.kind === "JOB" ? row.services : `${KIND_LABELS[row.kind]} · ${row.services}`}
+                      </span>
                     </Td>
                     <Td mono numeric>
-                      {formatMoney(row.grossMinor)}
+                      {formatMoney(row.priceMinor)}
                     </Td>
                     <Td mono numeric emphasis={row.surgeMinor > 0}>
                       {row.surgeMinor > 0 ? formatMoney(row.surgeMinor) : "—"}
                     </Td>
                     <Td mono numeric>
-                      −{formatMoney(row.feeMinor)}
+                      −{formatMoney(row.commissionMinor + row.cardFeeMinor + row.bookingFeeMinor)}
                     </Td>
                     <Td mono numeric>
                       {row.tipMinor > 0 ? formatMoney(row.tipMinor) : "—"}
                     </Td>
                     <Td mono numeric strong>
                       {formatMoney(row.netMinor)}
+                      {row.deductionMinor > 0 ? (
+                        <span className="block text-[11px] font-normal text-ink-muted">
+                          after −{formatMoney(row.deductionMinor)} dispute
+                        </span>
+                      ) : null}
                     </Td>
                   </tr>
                 ))}
