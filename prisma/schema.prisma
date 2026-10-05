@@ -227,6 +227,11 @@ model Provider {
   /// Promoted by an admin: listed first in the directory and on the home page.
   isFeatured Boolean @default(false)
 
+  /// Secret for the vendor's calendar feed (/api/calendar/:token), which
+  /// Google, Apple and Outlook calendars subscribe to. Null when sync is off;
+  /// replaced when the vendor resets the link, which cuts off the old one.
+  calendarToken String? @unique
+
   services     ProviderService[]
   availability ProviderAvailability[]
   timeOff      ProviderTimeOff[]
