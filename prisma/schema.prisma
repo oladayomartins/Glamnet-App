@@ -776,6 +776,8 @@ model AdminAuditLog {
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
+  /// A person's or booking's admin history.
+  @@index([targetId])
 }
 
 /// A discount code customers enter at checkout. GLAMNET-funded: it comes out

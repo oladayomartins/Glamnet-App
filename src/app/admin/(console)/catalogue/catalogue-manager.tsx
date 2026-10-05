@@ -6,6 +6,7 @@ import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import { Button, Card, EmptyState, Pill, SectionTitle } from "@/components/ui";
 import { ErrorNote, LiveSwitch, fieldClass } from "../_components/bits";
 import { useAdminAction } from "../_components/use-admin-action";
+import { ListFilter, matches } from "../_components/list-filter";
 
 interface Category {
   id: string;
@@ -43,7 +44,10 @@ export function CatalogueManager({ categories, services }: { categories: Categor
   // A category being deleted that still has services: where they go.
   const [deleting, setDeleting] = useState<{ id: string; moveTo: string } | null>(null);
 
-  const shown = filter === "ALL" ? services : services.filter((service) => service.category === filter);
+  const [query, setQuery] = useState("");
+  const shown = services.filter(
+    (service) => (filter === "ALL" || service.category === filter) && matches(query, service.name, service.description, service.category),
+  );
 
   return (
     <div className="space-y-10">
@@ -209,6 +213,9 @@ export function CatalogueManager({ categories, services }: { categories: Categor
           Services
         </SectionTitle>
 
+        <div className="mb-3">
+          <ListFilter value={query} onChange={setQuery} placeholder="Find a service" count={shown.length} />
+        </div>
         <div className="mb-3 flex flex-wrap gap-1.5">
           {["ALL", ...categories.map((category) => category.name)].map((name) => (
             <button
@@ -239,7 +246,7 @@ export function CatalogueManager({ categories, services }: { categories: Categor
 
         <Card className="mt-3 divide-y divide-line">
           {shown.length === 0 ? (
-            <p className="p-4 text-sm text-ink-muted">No services in this category yet.</p>
+            <p className="p-4 text-sm text-ink-muted">{query.trim() ? `No services match “${query.trim()}”.` : "No services in this category yet."}</p>
           ) : (
             shown.map((service) =>
               editingService === service.id ? (

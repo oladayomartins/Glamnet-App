@@ -7,6 +7,7 @@ import { ErrorNote, fieldClass } from "../_components/bits";
 import { fromLocalInput, shortDate, toLocalInput } from "../_components/date-input";
 import { SchedulePill } from "../_components/schedule-pill";
 import { useAdminAction } from "../_components/use-admin-action";
+import { ListFilter, matches } from "../_components/list-filter";
 
 type Audience = "ALL" | "CUSTOMERS" | "VENDORS";
 
@@ -45,6 +46,8 @@ export function CampaignManager({
   const { run, busy, error } = useAdminAction();
   const [editing, setEditing] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const shown = campaigns.filter((campaign) => matches(query, campaign.name, campaign.title, campaign.message));
 
   const send = async (campaign: Campaign) => {
     const count = audienceSizes[campaign.audience];
@@ -84,7 +87,9 @@ export function CampaignManager({
         </EmptyState>
       ) : null}
 
-      {campaigns.map((campaign) =>
+      {campaigns.length > 0 ? <ListFilter value={query} onChange={setQuery} placeholder="Find a campaign" count={shown.length} /> : null}
+
+      {shown.map((campaign) =>
         editing === campaign.id ? (
           <CampaignForm
             key={campaign.id}
