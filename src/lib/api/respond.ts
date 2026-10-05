@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import { BookingError } from "@/lib/server/booking-service";
 import { AdminError } from "@/lib/server/admin/core";
+import { PromotionError } from "@/lib/server/promotions";
 
 /** Serialise a thrown error into a stable JSON error envelope. */
 export function errorResponse(error: unknown) {
@@ -13,7 +14,7 @@ export function errorResponse(error: unknown) {
     );
   }
 
-  if (error instanceof AdminError) {
+  if (error instanceof AdminError || error instanceof PromotionError) {
     return NextResponse.json(
       { error: { code: error.code, message: error.message } },
       { status: error.status },

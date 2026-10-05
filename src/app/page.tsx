@@ -24,6 +24,9 @@ import { getMarketingData } from "@/lib/server/marketing";
 import { BlockHeading } from "@/components/ui";
 import { BookingLauncher } from "@/components/booking-launcher";
 import { FeaturedProviders } from "@/components/featured-providers";
+import { ProviderCard } from "@/components/provider-card";
+import { promotedProviderIds } from "@/lib/server/promotions";
+import { rotate } from "@/lib/domain/promotions";
 import { DiscoveryRail } from "@/components/discovery-rail";
 import { discoveryVendors } from "@/lib/server/discovery";
 import { qualifyingRows } from "@/lib/domain/discovery-rows";
@@ -130,6 +133,7 @@ export default async function MarketingPage() {
     viewer,
   ] =
     await Promise.all([getMarketingData(), getPricingContext(), getSessionUser()]);
+  const spotlightIds = await promotedProviderIds("HOME_SPOTLIGHT");
 
   // Discovery rows. Each is dropped rather than padded when its query comes
   // back short — see lib/domain/discovery-rows.ts for why a thin "Trending"
@@ -167,6 +171,14 @@ export default async function MarketingPage() {
     freeTonight: provider.freeTonight,
     specialities: provider.specialities,
   }));
+
+  // Paid home-page spotlight. Its own row, apart from "Featured pros", which
+  // promises it is never ranked by payment. Fresh order on every visit so
+  // everyone who bought it gets turns at the front.
+  const spotlight = rotate(
+    cards.filter((card) => spotlightIds.has(card.id)),
+    cards.length,
+  );
 
   return (
     // `full` hands the whole width to the page, which then contains its own
@@ -478,6 +490,19 @@ export default async function MarketingPage() {
             providers={cards}
             categories={categories.map((category) => category.name)}
           />
+        </Container>
+      ) : null}
+
+      {spotlight.length > 0 ? (
+        <Container className="pt-14 sm:pt-16">
+          <BlockHeading title="Sponsored pros" lede="Vetted pros who pay to be shown here." />
+          <Rail label="Sponsored pros">
+            {spotlight.map((provider) => (
+              <div key={provider.id} className="w-[220px] shrink-0 snap-start sm:w-[250px]">
+                <ProviderCard provider={provider} />
+              </div>
+            ))}
+          </Rail>
         </Container>
       ) : null}
 

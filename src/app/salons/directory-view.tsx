@@ -208,7 +208,11 @@ export async function DirectoryView({
                       sizes="(max-width: 640px) 100vw, 33vw"
                       className="h-full w-full object-cover"
                     />
-                    {vendor.isFeatured ? (
+                    {vendor.sponsored ? (
+                      <span className="absolute right-3 top-3 rounded-full bg-accent-500 px-2.5 py-1 text-xs font-bold text-metal-ink">
+                        Sponsored
+                      </span>
+                    ) : vendor.isFeatured ? (
                       <span className="absolute right-3 top-3 rounded-full bg-accent-500 px-2.5 py-1 text-xs font-bold text-metal-ink">
                         Featured
                       </span>
@@ -257,7 +261,7 @@ export async function DirectoryView({
                 name: vendor.name,
                 sector: vendor.sector,
                 area: vendor.area,
-                isFeatured: vendor.isFeatured,
+                isFeatured: vendor.isFeatured || vendor.sponsored,
                 priceLabel: vendor.fromMinor !== null ? `from ${formatMoney(vendor.fromMinor)}` : "",
               }))}
             />
