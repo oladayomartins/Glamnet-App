@@ -81,6 +81,13 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
   // Every check comes before any money moves: a ruling refused halfway, after
   // the refund or the hold had gone through, would leave the customer paid
   // and the booking still saying DISPUTED.
+  // Stripe allows one refund per booking here (its idempotency key is the
+  // booking), so one already given from the booking page can't be topped up.
+  if (plan.stage === "RELEASED" && plan.refundMinor > 0 && booking.refundedMinor > 0) {
+    throw new AdminError(
+      `${formatMoney(booking.refundedMinor)} has already been refunded on this booking. Rule with no further refund, or refund the rest in the Stripe dashboard.`,
+    );
+  }
   if (plan.stage === "RELEASED" && plan.clawbackMinor > 0 && !booking.transferId) {
     throw new AdminError("There's no transfer to the vendor on record to recover from.");
   }
