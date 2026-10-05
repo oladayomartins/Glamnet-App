@@ -52,6 +52,6 @@ export const config = {
   // font or an icon is wasted work on every page load. Stripe's webhooks
   // carry no session either, and nor do ad view and click counts.
   matcher: [
-    "/((?!_next/static|_next/image|api/webhooks|api/unsubscribe|api/ads/|sw.js|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|api/webhooks|api/unsubscribe|api/ads/|sw.js|offline.html|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

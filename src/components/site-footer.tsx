@@ -44,6 +44,7 @@ export function SiteFooter({
       links: [
         { href: "/account", label: "Your bookings" },
         { href: "/how-it-works", label: "Emergency bookings" },
+        { href: "/install", label: "Get the app" },
       ],
     },
   ];

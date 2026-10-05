@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121212">
+<title>You're offline · GLAMNET</title>
+<!--
+  Served by the service worker when a page can't be reached. Self-contained on
+  purpose: no app layout (it would freeze whoever was signed in when it was
+  cached), no fonts or scripts from the network (there isn't one).
+-->
+<style>
+  :root { color-scheme: dark light; --bg: #121212; --ink: #f4f1ea; --muted: #b5b0a6; --gold: #d9b061; --line: #2a2a2a; }
+  @media (prefers-color-scheme: light) { :root { --bg: #fbfaf7; --ink: #26242b; --muted: #6b6870; --line: #e6e2da; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 26rem; text-align: center; }
+  img { width: 72px; height: 72px; border-radius: 18px; }
+  h1 { margin: 20px 0 8px; font-size: 1.5rem; letter-spacing: -0.02em; }
+  p { margin: 0 0 12px; color: var(--muted); }
+  strong { color: var(--ink); }
+  button { margin-top: 12px; min-height: 44px; padding: 0 24px; border: 0; border-radius: 999px; font: inherit; font-weight: 700;
+           color: #1b1712; background: linear-gradient(135deg, #f1d9a0, var(--gold) 55%, #b98d3e); cursor: pointer; }
+  .note { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 0.875rem; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/icon-192.png" alt="GLAMNET">
+  <h1>You're offline</h1>
+  <p>GLAMNET needs a connection to show pros, prices and times, so this page can't load right now.</p>
+  <p><strong>Nothing has been booked or changed while you were offline.</strong> If you were part-way through a booking, start it again once you're back online.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+  <p class="note">This page reloads by itself when your connection comes back.</p>
+</main>
+<script>
+  window.addEventListener("online", function () { location.reload(); });
+</script>
+</body>
+</html>
