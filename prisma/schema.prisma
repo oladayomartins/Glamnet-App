@@ -180,7 +180,7 @@ model Provider {
   hub   Hub    @relation(fields: [hubId], references: [id])
 
   // --- Storefront (Open Marketplace Directory §B, §C) ---------------------
-  /// Public storefront handle: glamnet.co/pro/:slug. Null until the vendor
+  /// Public storefront handle: glamnetapp.com/pro/:slug. Null until the vendor
   /// claims one in the onboarding wizard.
   slug             String?       @unique
   phone            String        @default("")

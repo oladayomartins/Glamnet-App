@@ -1,8 +1,8 @@
-/** Vendor storefront handles: glamnet.co/pro/:slug (Directory §C). */
+/** Vendor storefront handles: glamnetapp.com/pro/:slug (Directory §C). */
 
 /**
  * Storefront slug: lowercase, hyphenated, 3–40 characters, no leading or
- * trailing hyphen. Used as glamnet.co/pro/:slug.
+ * trailing hyphen. Used as glamnetapp.com/pro/:slug.
  */
 export function slugify(input: string): string {
   return input

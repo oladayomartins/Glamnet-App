@@ -218,7 +218,7 @@ export default async function BecomeVendorPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Feature icon={<Storefront size={20} weight="light" />} title="A storefront that sells for you">
             Your three best transformations, your bio and socials, and a menu with your own prices
-            and times — at glamnet.co/pro/your-name.
+            and times — at glamnetapp.com/pro/your-name.
           </Feature>
           <Feature icon={<LinkIcon size={20} weight="light" />} title="0% commission on your link">
             Put your link in your Instagram or TikTok bio. Clients who book through it — and every
