@@ -83,7 +83,7 @@ export default async function EarningsStatementPage({
             <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">Prepared for</dt>
             <dd className="mt-0.5 font-semibold">{provider.name}</dd>
             <dd className="text-ink-muted">{provider.email}</dd>
-            {provider.slug ? <dd className="text-ink-muted">glamnet.co/pro/{provider.slug}</dd> : null}
+            {provider.slug ? <dd className="text-ink-muted">glamnetapp.com/pro/{provider.slug}</dd> : null}
             <dt className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">Issued</dt>
             <dd>{longDate.format(now)}</dd>
           </dl>

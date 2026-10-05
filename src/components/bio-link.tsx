@@ -5,7 +5,7 @@ import { Check, Copy, InstagramLogo, ShareNetwork, TiktokLogo, WhatsappLogo } fr
 
 /**
  * The unique landing link generator (Directory §C): the vendor's own
- * glamnet.co/pro/:slug, ready to paste into an Instagram or TikTok bio.
+ * glamnetapp.com/pro/:slug, ready to paste into an Instagram or TikTok bio.
  *
  * Bookings through this link are Rule A — 0% marketplace commission — which
  * is the reason to share it, so the card says so.
