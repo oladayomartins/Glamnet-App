@@ -59,7 +59,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 /**
  * A vendor's storefront blade (Open Marketplace Directory §B):
- * glamnet.co/pro/:username.
+ * glamnetapp.com/pro/:username.
  *
  * Lookbook, menu, calendar and reviews for one named vendor, and a booking
  * that goes to that vendor alone. The same page serves the vendor's own bio
