@@ -298,7 +298,14 @@ export default async function MarketingPage() {
               Beauty pros who know your hair, your skin, your culture
             </h1>
 
-            <p className="mt-5 max-w-lg text-base text-ink-muted">
+            {/* Two lengths. On a phone the full paragraph pushes the search
+                bar off the first screen, so phones get the specialisms only;
+                the promises it drops are on the page further down. */}
+            <p className="mt-5 max-w-lg text-base text-ink-muted sm:hidden">
+              Braids, Asian bridal, gele, nails and massage from verified pros
+              who specialise in Black and Asian beauty.
+            </p>
+            <p className="mt-5 hidden max-w-lg text-base text-ink-muted sm:block">
               Braids, twists, Asian bridal, gele, BIAB and massage from
               verified independent pros who specialise in Black and Asian
               beauty — at their home salon, studio or chair, or at your door.
