@@ -77,16 +77,17 @@ export default async function HowItWorksPage() {
       <section>
         <Card className="border-l-4 border-l-emergency p-5">
           <h2 className="font-display text-xl font-semibold text-ink">
-            What counts as an emergency booking?
+            Need someone at short notice?
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-            Any appointment starting within {thresholdHours} hours of when you
-            book it. Short notice is harder to staff, so it carries
+            You can book an appointment that starts within {thresholdHours}{" "}
+            hours. Short notice is harder to staff, so these bookings carry
             {config
               ? ` a ${describeSurcharge(config.surchargeType, config.surchargeValue)} rate`
               : " a higher rate"}
-            . You will see it named on screen, as its own line in the price,
-            before you authorise payment — never afterwards.
+            . At checkout it is marked as an emergency booking and shown as its
+            own line in the price, before you authorise payment — never
+            afterwards.
           </p>
         </Card>
       </section>
