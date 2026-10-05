@@ -127,8 +127,9 @@ model Customer {
   appUserId String?  @unique
   appUser   AppUser? @relation(fields: [appUserId], references: [id])
 
-  bookings Booking[]
-  saved    SavedVendor[]
+  bookings    Booking[]
+  saved       SavedVendor[]
+  vendorNotes ProviderClientNote[]
 }
 
 /// A vendor a customer has saved to come back to.
@@ -233,6 +234,7 @@ model Provider {
   broadcasts   BookingBroadcast[]
   lookbook     ProviderLookbookImage[]
   documents    ProviderDocument[]
+  clientNotes  ProviderClientNote[]
 
   @@index([hubId])
   @@index([approvalStatus])
@@ -240,6 +242,22 @@ model Provider {
 
 /// Which services a provider is qualified to deliver, and at what price on
 /// their own storefront.
+/// A vendor's private note about one of their clients — allergies, the lash
+/// length they like, a patch-test date. Only that vendor ever sees it; the
+/// client does not, and neither does any other vendor.
+model ProviderClientNote {
+  id         String   @id @default(cuid())
+  providerId String
+  customerId String
+  note       String   @default("")
+  updatedAt  DateTime @updatedAt
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, customerId])
+}
+
 model ProviderService {
   providerId      String
   serviceId       String
