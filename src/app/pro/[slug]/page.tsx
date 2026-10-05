@@ -243,6 +243,8 @@ export default async function StorefrontPage({
         </p>
       </section>
 
+      <AdSlot slot="STOREFRONT_TOP" city={store.hub.city} />
+
       <SectionNav sections={sections} />
 
       {/* --- Menu, calendar and checkout ---------------------------------- */}
@@ -450,7 +452,7 @@ export default async function StorefrontPage({
         </div>
       </section>
 
-      <AdSlot slot="STOREFRONT_FOOTER" />
+      <AdSlot slot="STOREFRONT_FOOTER" city={store.hub.city} />
 
       <p className="text-center text-xs text-ink-muted">
         <Link href={backHref} className="inline-flex min-h-11 items-center hover:text-accent-700">

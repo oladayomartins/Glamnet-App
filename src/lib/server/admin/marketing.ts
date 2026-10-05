@@ -6,6 +6,24 @@ import { deleteImageKitFiles } from "../imagekit-admin";
 import { campaignEmail } from "@/lib/email/templates";
 import { siteUrl } from "@/lib/site";
 import { oneClickUrl, unsubscribeUrl } from "../unsubscribe";
+import {
+  AD_ALIGN_KEYS,
+  AD_DEVICE_KEYS,
+  AD_FIT_KEYS,
+  AD_HEIGHT,
+  AD_LIST_POSITION,
+  AD_SIZE_KEYS,
+  AD_SLOT_KEYS,
+  AD_TEXT_POSITION_KEYS,
+  AD_WIDTH,
+  sizeDimensions,
+  type AdAlign,
+  type AdDevice,
+  type AdFit,
+  type AdSize,
+  type AdSlot,
+  type AdTextPosition,
+} from "@/lib/domain/ad-layout";
 import { AdminError, audit, isLive, safeLink } from "./core";
 
 /**
@@ -194,15 +212,10 @@ export async function liveBanners(viewer: "CUSTOMER" | "PROVIDER" | "ADMIN" | nu
 
 // --- Ad placements --------------------------------------------------------------
 
-export const AD_SLOTS = {
-  HOME_BANNER: { label: "Home page banner", hint: "Wide banner under the home page hero" },
-  DIRECTORY_TOP: { label: "Directory — top", hint: "Above the vendor list on /[city]/salons" },
-  STOREFRONT_FOOTER: { label: "Storefront footer", hint: "Under the reviews on every /pro page" },
-} as const;
-export type AdSlot = keyof typeof AD_SLOTS;
+export { AD_SLOTS, type AdSlot } from "@/lib/domain/ad-layout";
 
 const adInput = z.object({
-  slot: z.enum(Object.keys(AD_SLOTS) as [AdSlot, ...AdSlot[]]),
+  slot: z.enum(AD_SLOT_KEYS),
   title: z.string().trim().min(2).max(80),
   subtitle: z.string().trim().max(160).default(""),
   imageUrl: z.string().trim().max(500).default(""),
@@ -213,23 +226,62 @@ const adInput = z.object({
   endsAt: dateField,
   isActive: z.boolean().default(true),
   priority: z.number().int().min(0).max(100).default(0),
+  size: z.enum(AD_SIZE_KEYS).default("BANNER"),
+  width: z.number().int().min(AD_WIDTH.min).max(AD_WIDTH.max).default(1400),
+  height: z.number().int().min(AD_HEIGHT.min).max(AD_HEIGHT.max).default(400),
+  align: z.enum(AD_ALIGN_KEYS).default("CENTER"),
+  textPosition: z.enum(AD_TEXT_POSITION_KEYS).default("BOTTOM_LEFT"),
+  imageFit: z.enum(AD_FIT_KEYS).default("COVER"),
+  device: z.enum(AD_DEVICE_KEYS).default("ALL"),
+  listPosition: z.number().int().min(AD_LIST_POSITION.min).max(AD_LIST_POSITION.max).default(4),
+  targetCity: z.string().trim().max(80).default(""),
 });
 
+/**
+ * A preset size always stores the preset's dimensions, whatever the request
+ * said, so the stored width and height are the ones the site draws.
+ */
+function withDimensions<T extends { size?: AdSize; width?: number; height?: number }>(
+  input: T,
+  current?: { size: string; width: number; height: number },
+): T {
+  const size = input.size ?? (current?.size as AdSize | undefined);
+  if (!size) return input;
+  const { width, height } = sizeDimensions(size, {
+    width: input.width ?? current?.width ?? 1400,
+    height: input.height ?? current?.height ?? 400,
+  });
+  return { ...input, size, width, height };
+}
+
+/** A headline hidden over an image is fine; hidden over nothing is a blank box. */
+function checkVisible(textPosition: string, imageUrl: string) {
+  if (textPosition === "HIDDEN" && !imageUrl) {
+    throw new AdminError("Add a banner image, or show the headline: an ad with neither would be an empty box.", 422);
+  }
+}
+
 export async function createAd(actorEmail: string, raw: unknown) {
-  const { startsAt, endsAt, linkUrl, ...rest } = adInput.parse(raw);
+  const { startsAt, endsAt, linkUrl, ...rest } = withDimensions(adInput.parse(raw));
   checkWindow(startsAt, endsAt);
+  checkVisible(rest.textPosition, rest.imageUrl);
   const ad = await prisma.adPlacement.create({
     data: { ...rest, linkUrl: safeLink(linkUrl), ...(startsAt ? { startsAt } : {}), endsAt: endsAt ?? null },
   });
-  await audit(actorEmail, "ad.create", { type: "AdPlacement", id: ad.id }, `${ad.title} (${ad.slot})`);
+  await audit(actorEmail, "ad.create", { type: "AdPlacement", id: ad.id }, `${ad.title} (${ad.slot}, ${ad.width}×${ad.height})`);
   return ad;
 }
 
 export async function updateAd(actorEmail: string, id: string, raw: unknown) {
-  const { startsAt, endsAt, linkUrl, ...rest } = patchSchema(adInput).parse(raw);
   const current = await prisma.adPlacement.findUnique({ where: { id } });
   if (!current) throw new AdminError("That ad no longer exists.", 404, "NOT_FOUND");
+  const parsed = patchSchema(adInput).parse(raw);
+  const { startsAt, endsAt, linkUrl, ...rest } =
+    parsed.size !== undefined || parsed.width !== undefined || parsed.height !== undefined
+      ? withDimensions(parsed, current)
+      : parsed;
   checkWindow(startsAt ?? current.startsAt, endsAt === undefined ? current.endsAt : endsAt);
+  checkVisible(rest.textPosition ?? current.textPosition, rest.imageUrl ?? current.imageUrl);
   const ad = await prisma.adPlacement.update({
     where: { id },
     data: {
@@ -242,7 +294,28 @@ export async function updateAd(actorEmail: string, id: string, raw: unknown) {
   if (rest.imageFileId !== undefined && current.imageFileId && current.imageFileId !== rest.imageFileId) {
     await deleteImageKitFiles([current.imageFileId]);
   }
-  await audit(actorEmail, "ad.update", { type: "AdPlacement", id }, ad.title);
+  const action =
+    rest.isActive === true && !current.isActive
+      ? "ad.activate"
+      : rest.isActive === false && current.isActive
+        ? "ad.pause"
+        : "ad.update";
+  await audit(actorEmail, action, { type: "AdPlacement", id }, ad.title);
+  return ad;
+}
+
+/** A copy of an ad, paused, for running a variant or the same ad in another slot. */
+export async function duplicateAd(actorEmail: string, id: string) {
+  const current = await prisma.adPlacement.findUnique({ where: { id } });
+  if (!current) throw new AdminError("That ad no longer exists.", 404, "NOT_FOUND");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- dropped on purpose
+  const { id: _id, createdAt, updatedAt, impressions, clicks, imageFileId, ...copy } = current;
+  const ad = await prisma.adPlacement.create({
+    // The image file stays owned by the original: deleting either ad must not
+    // delete the other's picture, so the copy shares the URL but not the file id.
+    data: { ...copy, title: `${current.title} (copy)`.slice(0, 80), isActive: false, imageFileId: "" },
+  });
+  await audit(actorEmail, "ad.duplicate", { type: "AdPlacement", id: ad.id }, `${ad.title} from ${id}`);
   return ad;
 }
 
@@ -250,7 +323,11 @@ export async function deleteAd(actorEmail: string, id: string) {
   const current = await prisma.adPlacement.findUnique({ where: { id } });
   if (!current) throw new AdminError("That ad no longer exists.", 404, "NOT_FOUND");
   await prisma.adPlacement.delete({ where: { id } });
-  if (current.imageFileId) await deleteImageKitFiles([current.imageFileId]);
+  if (current.imageFileId) {
+    // A duplicate may still be showing this picture.
+    const shared = await prisma.adPlacement.count({ where: { imageUrl: current.imageUrl } });
+    if (shared === 0) await deleteImageKitFiles([current.imageFileId]);
+  }
   await audit(actorEmail, "ad.delete", { type: "AdPlacement", id }, current.title);
 }
 
@@ -260,30 +337,70 @@ export interface LiveAd {
   subtitle: string;
   imageUrl: string;
   hasLink: boolean;
+  width: number;
+  height: number;
+  align: AdAlign;
+  textPosition: AdTextPosition;
+  imageFit: AdFit;
+  device: AdDevice;
+  listPosition: number;
 }
 
 /**
- * The ad to show in a slot right now, counting the impression.
+ * What to show in a slot right now: one ad for phones and one for computers,
+ * which are usually the same ad. Ads aimed at one kind of device compete only
+ * there, so a computers-only ad never leaves phones with an empty slot.
+ *
+ * Views are not counted here: the ad counts itself once it is actually on
+ * screen (see AdView), which keeps a write off every page render and means an
+ * ad hidden on this device is not counted as seen.
+ *
  * Never throws: an ad slot is decoration, not a reason for a page to fail.
  */
-export async function adForSlot(slot: AdSlot): Promise<LiveAd | null> {
+export async function adsForSlot(slot: AdSlot, options: { city?: string | null } = {}): Promise<LiveAd[]> {
   try {
     const now = new Date();
-    const ad = await prisma.adPlacement.findFirst({
+    const city = options.city?.trim() ?? "";
+    const rows = await prisma.adPlacement.findMany({
       where: {
         slot,
         isActive: true,
         startsAt: { lte: now },
-        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+        AND: [
+          { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+          { OR: [{ targetCity: "" }, ...(city ? [{ targetCity: { equals: city, mode: "insensitive" as const } }] : [])] },
+        ],
       },
+      // Fewest views first rotates ads of equal priority. A city's own ad
+      // beats a nationwide one at the same priority.
       orderBy: [{ priority: "desc" }, { impressions: "asc" }],
+      take: 20,
     });
-    if (!ad || !isLive(ad, now)) return null;
-    // Ordering by fewest impressions rotates ads of equal priority.
-    await prisma.adPlacement.update({ where: { id: ad.id }, data: { impressions: { increment: 1 } } });
-    return { id: ad.id, title: ad.title, subtitle: ad.subtitle, imageUrl: ad.imageUrl, hasLink: Boolean(ad.linkUrl) };
+    const live = rows
+      .filter((ad) => isLive(ad, now))
+      .sort((a, b) => b.priority - a.priority || Number(Boolean(b.targetCity)) - Number(Boolean(a.targetCity)));
+    const mobile = live.find((ad) => ad.device !== "DESKTOP");
+    const desktop = live.find((ad) => ad.device !== "MOBILE");
+    const picked = mobile && desktop && mobile.id === desktop.id ? [{ ...mobile, device: "ALL" }] : [
+      ...(mobile ? [{ ...mobile, device: desktop ? "MOBILE" : mobile.device }] : []),
+      ...(desktop ? [{ ...desktop, device: mobile ? "DESKTOP" : desktop.device }] : []),
+    ];
+    return picked.map((ad) => ({
+      id: ad.id,
+      title: ad.title,
+      subtitle: ad.subtitle,
+      imageUrl: ad.imageUrl,
+      hasLink: Boolean(ad.linkUrl),
+      width: ad.width,
+      height: ad.height,
+      align: ad.align as AdAlign,
+      textPosition: ad.textPosition as AdTextPosition,
+      imageFit: ad.imageFit as AdFit,
+      device: ad.device as AdDevice,
+      listPosition: ad.listPosition,
+    }));
   } catch (cause) {
     console.error("[ads] slot lookup failed", cause);
-    return null;
+    return [];
   }
 }

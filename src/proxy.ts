@@ -37,8 +37,12 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // Touching getUser() is what performs the refresh and rewrites the cookie.
-  await supabase.auth.getUser();
+  // Touching the session is what performs the refresh and rewrites the
+  // cookie. getClaims() refreshes an expired token and verifies the JWT's
+  // signature locally against the project's published keys, where getUser()
+  // made a round trip to Supabase on every request — on top of the one the
+  // page itself makes. Pages still call getUser() for the authoritative check.
+  await supabase.auth.getClaims();
 
   return response;
 }
@@ -46,8 +50,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Skip static assets and image optimisation: refreshing a session for a
   // font or an icon is wasted work on every page load. Stripe's webhooks
-  // carry no session either.
+  // carry no session either, and nor do ad view and click counts.
   matcher: [
-    "/((?!_next/static|_next/image|api/webhooks|api/unsubscribe|sw.js|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|api/webhooks|api/unsubscribe|api/ads/|sw.js|favicon.ico|icon.svg|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
