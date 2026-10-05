@@ -49,7 +49,8 @@ export function DocumentReview({ providerId, documents }: { providerId: string; 
     const ok = await run(doc.id, `/api/admin/providers/${providerId}/documents/${doc.id}`, "PATCH", {
       status,
       note: status === "APPROVED" && !note.trim() ? "" : note.trim(),
-      expiresAt: expiry ? new Date(`${expiry}T23:59:59Z`).toISOString() : null,
+      // Midday UTC is the same calendar day in UK winter and summer time.
+      expiresAt: expiry ? new Date(`${expiry}T12:00:00Z`).toISOString() : null,
     });
     if (ok) setOpen(null);
   };

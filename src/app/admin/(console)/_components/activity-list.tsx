@@ -62,7 +62,7 @@ export function ActivityList({ entries, empty }: { entries: AdminAuditLog[]; emp
               <span className="font-semibold text-ink">{describe(entry.action)}</span>
             )}
             {/* Wraps rather than truncating: the summary is often the reason. */}
-            <span className="min-w-0 flex-1 break-words text-ink-muted">{entry.summary}</span>
+            <span className="order-last w-full break-words text-ink-muted sm:order-none sm:w-auto sm:min-w-0 sm:flex-1">{entry.summary}</span>
             <span className="font-mono text-[11px] text-ink-muted">
               {entry.actorEmail} · {TIME.format(entry.createdAt)}
             </span>
