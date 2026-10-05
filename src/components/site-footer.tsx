@@ -43,7 +43,7 @@ export function SiteFooter({
       heading: "Bookings",
       links: [
         { href: "/account", label: "Your bookings" },
-        { href: "/how-it-works", label: "Emergency bookings" },
+        { href: "/how-it-works", label: "Short-notice bookings" },
         { href: "/install", label: "Get the app" },
       ],
     },
@@ -91,9 +91,8 @@ export function SiteFooter({
 
         <div className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-on-obsidian-muted sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © {new Date().getFullYear()} {SITE_NAME}. Emergency bookings are
-            short-notice appointments; the surcharge is always shown before
-            payment.
+            © {new Date().getFullYear()} {SITE_NAME}. Any short-notice rate is
+            always shown before payment.
           </p>
           <nav aria-label="Legal" className="flex flex-wrap gap-x-4 gap-y-1">
             {[
