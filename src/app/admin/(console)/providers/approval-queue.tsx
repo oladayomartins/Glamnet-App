@@ -35,11 +35,31 @@ const TONE: Record<string, "positive" | "muted" | "neutral"> = {
 };
 
 export function ApprovalQueue({ providers, emptyMessage }: { providers: QueueProvider[]; emptyMessage: string }) {
-  const { run, busy, error } = useAdminAction();
+  const { run, busy, error, setError } = useAdminAction();
   const [notes, setNotes] = useState<Record<string, string>>({});
 
-  const decide = (id: string, decision: Decision) =>
-    run(`${id}:${decision}`, `/api/admin/providers/${id}/approval`, "POST", { decision, note: notes[id] ?? "" });
+  const decide = async (id: string, decision: Decision) => {
+    const note = (notes[id] ?? "").trim();
+    const name = providers.find((provider) => provider.id === id)?.name ?? "this vendor";
+    // Rejections and suspensions go to the vendor with this note as the
+    // reason; an empty one tells them nothing they can fix.
+    if ((decision === "REJECTED" || decision === "SUSPENDED") && note.length < 5) {
+      setError(`Write a short reason in the note before ${decision === "REJECTED" ? "rejecting" : "suspending"} ${name} — they see it.`);
+      return;
+    }
+    const question =
+      decision === "APPROVED"
+        ? `Approve ${name}? Their storefront goes live and they can take bookings.`
+        : decision === "REJECTED"
+          ? `Reject ${name}'s application? They are emailed your note.`
+          : decision === "SUSPENDED"
+            ? `Suspend ${name}? Their storefront comes off the marketplace straight away.`
+            : null;
+    if (question && !window.confirm(question)) return;
+    if (await run(`${id}:${decision}`, `/api/admin/providers/${id}/approval`, "POST", { decision, note })) {
+      setNotes((current) => ({ ...current, [id]: "" }));
+    }
+  };
   const feature = (id: string, isFeatured: boolean) =>
     run(`${id}:feature`, `/api/admin/providers/${id}`, "PATCH", { isFeatured });
 

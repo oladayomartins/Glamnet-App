@@ -55,6 +55,9 @@ model Service {
 
   providers    ProviderService[]
   bookingItems BookingItem[]
+
+  /// Category renames, deletes and counts look services up by name.
+  @@index([category])
 }
 
 /// Links a Supabase Auth user to their role and profile in this database.
@@ -524,6 +527,9 @@ model Booking {
   @@index([customerId, providerId])
   @@index([settlementStatus, disputeWindowClosesAt])
   @@index([paymentStatus, appointmentStartAt])
+  /// Finance, the Overview and the admin bookings list all range over this.
+  @@index([bookingCreatedAt])
+  @@index([cancelledAt])
 }
 
 /// One of the three mandatory photos of the finished work, taken by the

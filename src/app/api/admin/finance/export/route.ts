@@ -3,6 +3,7 @@ import { requireApiRole } from "@/lib/auth/api-guard";
 import { errorResponse } from "@/lib/api/respond";
 import { prisma } from "@/lib/server/prisma";
 import { resolveRange } from "@/lib/server/admin/ranges";
+import { audit } from "@/lib/server/admin/core";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,9 @@ export async function GET(request: Request) {
       orderBy: { bookingCreatedAt: "asc" },
       include: { provider: { select: { name: true } }, customer: { select: { name: true } } },
     });
+
+    // Customer names leave the platform in this file: record who took it.
+    await audit(auth.user.email, "finance.export", { type: "Booking" }, `${bookings.length} bookings, ${range.from.toISOString().slice(0, 10)} to ${range.to.toISOString().slice(0, 10)}`);
 
     const header = [
       "booking_id", "created_at", "appointment_at", "status", "payment_status", "settlement_status",

@@ -43,7 +43,7 @@ export default async function AdminProvidersPage({
       : {}),
   };
 
-  const [providers, counts] = await Promise.all([
+  const [providers, counts, unfinished] = await Promise.all([
     prisma.provider.findMany({
       where,
       // Finished applications first: an unfinished wizard is not yet asking
@@ -57,6 +57,7 @@ export default async function AdminProvidersPage({
       },
     }),
     prisma.provider.groupBy({ by: ["approvalStatus"], _count: true }),
+    prisma.provider.count({ where: { approvalStatus: "PENDING", onboardedAt: null } }),
   ]);
   const countFor = (key: Tab) =>
     key === "ALL"
@@ -111,7 +112,15 @@ export default async function AdminProvidersPage({
               }`}
             >
               {label}
-              <span className="font-mono text-[11px] opacity-70">{countFor(key)}</span>
+              {/* Pending counts finished applications, as the Overview does;
+                  wizards still in progress are listed but not waiting on you. */}
+              <span
+                className="font-mono text-[11px] opacity-70"
+                title={key === "PENDING" && unfinished > 0 ? `${unfinished} more still setting up` : undefined}
+              >
+                {key === "PENDING" ? countFor(key) - unfinished : countFor(key)}
+                {key === "PENDING" && unfinished > 0 ? ` +${unfinished} setting up` : ""}
+              </span>
             </Link>
           ))}
         </nav>

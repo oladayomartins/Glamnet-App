@@ -30,75 +30,61 @@ function percentage(part: number, whole: number): number {
   return Math.round((part / whole) * 1_000) / 10;
 }
 
-function sumMinor(rows: { totalInvoicePriceMinor: number }[]): number {
-  return rows.reduce((total, row) => total + row.totalInvoicePriceMinor, 0);
-}
-
 /**
  * Compute the admin reporting figures.
  *
- * Reads whole booking rows rather than aggregating in SQL: the dataset is small
- * for this build, and keeping the arithmetic in one readable place matters more
- * than query efficiency until volume justifies otherwise.
+ * Aggregated in the database: one grouped sum over bookings by type and
+ * status, and counts plus an average over broadcasts. This used to read every
+ * booking and every broadcast row into memory on each visit to the Bookings
+ * page, which grew with the business.
  */
 export async function buildEmergencyReport(): Promise<EmergencyReport> {
-  const bookings = await prisma.booking.findMany({
-    select: {
-      bookingType: true,
-      status: true,
-      totalInvoicePriceMinor: true,
-      emergencySurchargeMinor: true,
-      providerEarningsMinor: true,
-      providerEmergencyEarningsMinor: true,
-    },
-  });
+  const [groups, broadcastsSent, broadcastsAccepted, acceptance] = await Promise.all([
+    prisma.booking.groupBy({
+      by: ["bookingType", "status"],
+      _count: true,
+      _sum: { totalInvoicePriceMinor: true, emergencySurchargeMinor: true, providerEarningsMinor: true },
+    }),
+    prisma.bookingBroadcast.count(),
+    prisma.bookingBroadcast.count({ where: { status: "ACCEPTED" } }),
+    prisma.$queryRaw<Array<{ minutes: number | null }>>`
+      SELECT (AVG(EXTRACT(EPOCH FROM ("respondedAt" - "sentAt"))) / 60)::float8 AS minutes
+      FROM "BookingBroadcast"
+      WHERE "status" = 'ACCEPTED' AND "respondedAt" IS NOT NULL
+    `,
+  ]);
 
-  const emergency = bookings.filter((row) => row.bookingType === "EMERGENCY");
-  const normal = bookings.filter((row) => row.bookingType === "NORMAL");
+  const tally = (type: "EMERGENCY" | "NORMAL", statuses?: string[]) =>
+    groups
+      .filter((row) => row.bookingType === type && (!statuses || statuses.includes(row.status)))
+      .reduce(
+        (total, row) => ({
+          count: total.count + row._count,
+          revenueMinor: total.revenueMinor + (row._sum.totalInvoicePriceMinor ?? 0),
+          surchargeMinor: total.surchargeMinor + (row._sum.emergencySurchargeMinor ?? 0),
+          earningsMinor: total.earningsMinor + (row._sum.providerEarningsMinor ?? 0),
+        }),
+        { count: 0, revenueMinor: 0, surchargeMinor: 0, earningsMinor: 0 },
+      );
 
-  const broadcasts = await prisma.bookingBroadcast.findMany({
-    select: { status: true, sentAt: true, respondedAt: true },
-  });
-  const accepted = broadcasts.filter((row) => row.status === "ACCEPTED");
-
-  const acceptanceDurations = accepted
-    .filter((row) => row.respondedAt !== null)
-    .map((row) => (row.respondedAt!.getTime() - row.sentAt.getTime()) / 60_000);
-
-  const averageMinutesToAcceptance =
-    acceptanceDurations.length === 0
-      ? null
-      : Math.round(
-          (acceptanceDurations.reduce((total, value) => total + value, 0) /
-            acceptanceDurations.length) *
-            10,
-        ) / 10;
-
-  const cancelled = (rows: typeof bookings) =>
-    rows.filter((row) => row.status === "CANCELLED").length;
+  const totalBookings = groups.reduce((total, row) => total + row._count, 0);
+  const emergency = tally("EMERGENCY");
+  const normal = tally("NORMAL");
+  const minutes = acceptance[0]?.minutes;
 
   return {
-    totalBookings: bookings.length,
-    normalBookings: normal.length,
-    emergencyBookings: emergency.length,
-    emergencyBookingPercentage: percentage(emergency.length, bookings.length),
-    emergencyRevenueMinor: sumMinor(emergency),
-    emergencySurchargeRevenueMinor: emergency.reduce(
-      (total, row) => total + row.emergencySurchargeMinor,
-      0,
-    ),
-    normalRevenueMinor: sumMinor(normal),
-    emergencyProviderEarningsMinor: emergency.reduce(
-      (total, row) => total + row.providerEarningsMinor,
-      0,
-    ),
-    providerAcceptanceRate: percentage(accepted.length, broadcasts.length),
-    averageMinutesToAcceptance,
-    emergencyCancellationRate: percentage(cancelled(emergency), emergency.length),
-    normalCancellationRate: percentage(cancelled(normal), normal.length),
-    emergencyFulfilmentRate: percentage(
-      emergency.filter((row) => FULFILLED.includes(row.status)).length,
-      emergency.length,
-    ),
+    totalBookings,
+    normalBookings: normal.count,
+    emergencyBookings: emergency.count,
+    emergencyBookingPercentage: percentage(emergency.count, totalBookings),
+    emergencyRevenueMinor: emergency.revenueMinor,
+    emergencySurchargeRevenueMinor: emergency.surchargeMinor,
+    normalRevenueMinor: normal.revenueMinor,
+    emergencyProviderEarningsMinor: emergency.earningsMinor,
+    providerAcceptanceRate: percentage(broadcastsAccepted, broadcastsSent),
+    averageMinutesToAcceptance: minutes === null || minutes === undefined ? null : Math.round(Number(minutes) * 10) / 10,
+    emergencyCancellationRate: percentage(tally("EMERGENCY", ["CANCELLED"]).count, emergency.count),
+    normalCancellationRate: percentage(tally("NORMAL", ["CANCELLED"]).count, normal.count),
+    emergencyFulfilmentRate: percentage(tally("EMERGENCY", FULFILLED).count, emergency.count),
   };
 }

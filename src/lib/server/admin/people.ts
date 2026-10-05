@@ -21,9 +21,16 @@ export async function decideVendor(
 ) {
   const provider = await prisma.provider.findUnique({
     where: { id: providerId },
-    include: { _count: { select: { documents: true } } },
+    include: { _count: { select: { documents: true } }, appUser: { select: { suspendedAt: true } } },
   });
   if (!provider) throw new AdminError("That vendor no longer exists.", 404, "NOT_FOUND");
+
+  if (decision === "APPROVED" && !provider.onboardedAt && provider.approvalStatus === "PENDING") {
+    throw new AdminError("This vendor has not finished setting up their storefront yet.");
+  }
+  if (decision === "APPROVED" && provider.appUser?.suspendedAt) {
+    throw new AdminError("This vendor's login is suspended. Reinstate the account on the Accounts page first.");
+  }
 
   if (decision === "APPROVED" && provider._count.documents === 0) {
     throw new AdminError(
@@ -84,6 +91,16 @@ export async function setVendorFeatured(actorEmail: string, providerId: string, 
   await audit(actorEmail, featured ? "vendor.feature" : "vendor.unfeature", { type: "Provider", id: providerId }, provider.name);
 }
 
+/**
+ * The note an account suspension leaves on the storefront it takes offline.
+ * Reinstating the account looks for it, so only a storefront that went
+ * offline *because of* the account comes back — not one an admin suspended
+ * on the Vendors page for reasons of its own.
+ */
+function accountSuspensionNote(reason: string): string {
+  return reason ? `Account suspended: ${reason}` : "Account suspended.";
+}
+
 export async function setAccountSuspended(
   actorEmail: string,
   appUserId: string,
@@ -112,7 +129,7 @@ export async function setAccountSuspended(
         where: { id: vendor.id },
         data: {
           approvalStatus: "SUSPENDED",
-          approvalNote: reason || "Account suspended.",
+          approvalNote: accountSuspensionNote(reason),
           isAcceptingWork: false,
           isVerified: false,
           isFeatured: false,
@@ -120,8 +137,14 @@ export async function setAccountSuspended(
       });
     }
     // Reinstating the account brings back a storefront that only went
-    // offline because of the account suspension.
-    if (vendor && !suspend && vendor.approvalStatus === "SUSPENDED") {
+    // offline because of the account suspension. Notes written before the
+    // prefix existed were the bare reason, so that still matches.
+    const suspendedByAccount =
+      account.suspendedAt !== null &&
+      [accountSuspensionNote(account.suspendedReason), account.suspendedReason || "Account suspended."].includes(
+        vendor?.approvalNote ?? "",
+      );
+    if (vendor && !suspend && vendor.approvalStatus === "SUSPENDED" && suspendedByAccount) {
       await tx.provider.update({
         where: { id: vendor.id },
         data: { approvalStatus: "APPROVED", approvalNote: "", isAcceptingWork: true, isVerified: true },

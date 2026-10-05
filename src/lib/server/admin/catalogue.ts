@@ -42,7 +42,7 @@ export async function updateCategory(actorEmail: string, id: string, raw: unknow
   const current = await prisma.category.findUnique({ where: { id } });
   if (!current) throw new AdminError("That category no longer exists.", 404, "NOT_FOUND");
 
-  const slug = input.slug !== undefined ? slugify(input.slug || current.name) : undefined;
+  const slug = input.slug !== undefined ? slugify(input.slug || input.name || current.name) : undefined;
   const renamed = input.name !== undefined && input.name !== current.name;
   if (renamed || (slug && slug !== current.slug)) {
     const clash = await prisma.category.findFirst({
@@ -60,6 +60,8 @@ export async function updateCategory(actorEmail: string, id: string, raw: unknow
         where: { category: current.name },
         data: { category: input.name! },
       });
+      // Promo codes are limited to a category by its name, so they follow it.
+      await tx.promoCode.updateMany({ where: { category: current.name }, data: { category: input.name! } });
     }
     return tx.category.update({ where: { id }, data: { ...input, ...(slug ? { slug } : {}) } });
   });
@@ -96,6 +98,14 @@ export async function deleteCategory(actorEmail: string, id: string, moveTo?: st
   }
   await prisma.$transaction(async (tx) => {
     if (inUse > 0) await tx.service.updateMany({ where: { category: current.name }, data: { category: moveTo! } });
+    // Codes limited to this category follow its services. With nowhere to
+    // go they are paused, not widened: clearing the limit would quietly make
+    // a category discount apply to every booking.
+    if (moveTo) {
+      await tx.promoCode.updateMany({ where: { category: current.name }, data: { category: moveTo } });
+    } else {
+      await tx.promoCode.updateMany({ where: { category: current.name }, data: { isActive: false } });
+    }
     await tx.category.delete({ where: { id } });
   });
   if (current.imageFileId) await deleteImageKitFiles([current.imageFileId]);

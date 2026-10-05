@@ -26,8 +26,11 @@ function whereFor(filter: Filter) {
     case "COMPLETED":
     case "CANCELLED":
     case "NO_SHOW":
-    case "DISPUTED":
       return { status: filter };
+    case "DISPUTED":
+      // As the admin bookings page: a payment dispute can sit on a booking
+      // whose lifecycle status is still COMPLETED or CANCELLED.
+      return { OR: [{ status: "DISPUTED" }, { settlementStatus: "DISPUTED" }] };
     default:
       return {};
   }

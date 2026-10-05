@@ -79,8 +79,11 @@ export function AdView(props: AdViewProps) {
           className={`absolute inset-0 h-full w-full ${imageFit === "CONTAIN" ? "object-contain" : "object-cover"}`}
         />
       ) : null}
+      {/* The shade covers the whole ad, under the words, so a centred
+          headline is not left sitting on a stripe. */}
+      {placement && imageUrl ? <div aria-hidden className={`absolute inset-0 ${placement.shade}`} /> : null}
       {placement ? (
-        <div className={`relative w-full p-5 ${imageUrl ? `${placement.shade} text-on-obsidian` : "text-metal-ink"}`}>
+        <div className={`relative w-full p-5 ${imageUrl ? "text-on-obsidian" : "text-metal-ink"}`}>
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] opacity-75">Sponsored</span>
           <p className="font-display text-xl font-bold leading-tight">{title}</p>
           {subtitle ? <p className="mt-0.5 text-sm opacity-85">{subtitle}</p> : null}
