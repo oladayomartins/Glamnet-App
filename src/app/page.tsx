@@ -62,19 +62,30 @@ const HOW_IT_WORKS = [
   {
     icon: <MagnifyingGlass size={20} weight="light" />,
     title: "Find your pro",
-    body: "Pick a hub, add your postcode, and browse verified pros nearest first — their looks, menus and reviews.",
+    body: "Search by service and postcode, then compare verified pros nearest first — their work, prices and reviews.",
   },
   {
     icon: <CalendarCheck size={20} weight="light" />,
     title: "Book a real slot",
-    body: "Choose services and an open time from their own calendar. You see the full price, and your card is only held.",
+    body: "Pick your services and a time from their live calendar. You see the full price upfront, and your card is only held.",
   },
   {
     icon: <LockKey size={20} weight="light" />,
     title: "Pay with your PIN",
-    body: "Happy with the result? Read your pro a 4-digit PIN and the payment is released. Not happy? Keep it, and tell us.",
+    body: "Happy with the result? Give your pro your 4-digit PIN to release the payment. Not happy? Keep the PIN and tell us — the money stays on hold.",
   },
 ];
+
+/**
+ * Below this many, a count reads as "nobody is here" rather than as proof, so
+ * the page says what is true of every pro instead. The numbers are never
+ * rounded up or invented — they are left out until they help.
+ */
+const SHOW_COUNTS_FROM = 10;
+
+function prosLabel(count: number): string | null {
+  return count >= SHOW_COUNTS_FROM ? `${count} pros` : null;
+}
 
 /** The platform's own promises — shown where a marketplace would put reviews. */
 const PROMISES = [
@@ -139,7 +150,6 @@ export default async function MarketingPage() {
   // rail is the same mistake as a made-up booking counter.
   const rows = qualifyingRows(await discoveryVendors());
 
-  const thresholdHours = Math.round(thresholdMinutes / 60);
   // Quick picks in the search bar: only areas where someone can be booked.
   const areas = cities
     .filter((city) => city.providerCount > 0 && city.hubId)
@@ -343,9 +353,15 @@ export default async function MarketingPage() {
             <dl className="mt-5 flex max-w-[var(--glam-hero-col)] flex-wrap items-center gap-x-7 gap-y-3">
               <HeroFigure
                 icon={<ShieldCheck size={15} weight="fill" aria-hidden />}
-                value={String(stats.providerCount)}
+                value={
+                  stats.providerCount >= SHOW_COUNTS_FROM
+                    ? String(stats.providerCount)
+                    : "100%"
+                }
                 label={
-                  stats.providerCount === 1 ? "Vetted vendor" : "Vetted vendors"
+                  stats.providerCount >= SHOW_COUNTS_FROM
+                    ? "Vetted pros"
+                    : "Pros vetted"
                 }
               />
               <HeroFigure
@@ -355,8 +371,8 @@ export default async function MarketingPage() {
               />
               <HeroFigure
                 icon={<Lightning size={15} weight="fill" aria-hidden />}
-                value={`${thresholdHours}h`}
-                label="Emergency cover"
+                value="Same-day"
+                label="Short-notice bookings"
               />
 
               {/*
@@ -399,7 +415,7 @@ export default async function MarketingPage() {
         <Container className="pt-14 sm:pt-16">
           <BlockHeading
             title="Browse by specialty"
-            lede="Each hub has pros who specialise in exactly that craft."
+            lede="Specialists in Black and Asian hair, makeup, nails and wellness."
             action={<SeeAll href="/salons" />}
           />
 
@@ -460,8 +476,7 @@ export default async function MarketingPage() {
                   {category.name}
                 </span>
                 <span className="mt-0.5 block text-xs text-ink-muted">
-                  {category.providerCount}{" "}
-                  {category.providerCount === 1 ? "provider" : "providers"}
+                  {prosLabel(category.providerCount) ?? "View pros"}
                 </span>
               </Link>
             ))}
@@ -475,10 +490,10 @@ export default async function MarketingPage() {
                 <SquaresFour size={28} weight="light" aria-hidden />
               </span>
               <span className="mt-2.5 block text-sm font-semibold text-brand-700">
-                All salons
+                All pros
               </span>
               <span className="mt-0.5 block text-xs text-ink-muted">
-                {stats.serviceCount} services
+                Every specialty
               </span>
             </Link>
           </Rail>
@@ -594,7 +609,7 @@ export default async function MarketingPage() {
                     </span>
                     <span className="mt-0.5 block text-xs text-white/80">
                       {city.providerCount > 0
-                        ? `${city.providerCount} ${city.providerCount === 1 ? "provider" : "providers"}`
+                        ? (prosLabel(city.providerCount) ?? "Taking bookings")
                         : "Pros joining soon"}
                     </span>
                   </span>
@@ -689,11 +704,13 @@ export default async function MarketingPage() {
           <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
             <div>
               <h2 className="font-display text-3xl font-bold tracking-[-0.02em] text-ink sm:text-4xl">
-                Bring your next occasion to life
+                Your next look, in the right hands
               </h2>
               <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
-                Book a pro for this evening or next season — or, if you are the
-                pro, claim a free storefront with 0% commission on your own link.
+                Book a verified specialist in Black and Asian beauty, see the
+                full price upfront, and pay only when you&rsquo;re happy. Are you
+                a pro? List your business free, with 0% commission on clients
+                you bring.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
@@ -735,12 +752,17 @@ export default async function MarketingPage() {
                 ) : null}
               </span>
               <p className="text-sm text-ink-muted">
-                <span className="font-semibold text-ink">
-                  {stats.providerCount}
-                </span>{" "}
-                vetted {stats.providerCount === 1 ? "provider" : "providers"}{" "}
-                taking work across {stats.cityCount}{" "}
-                {stats.cityCount === 1 ? "city" : "cities"}
+                {stats.providerCount >= SHOW_COUNTS_FROM ? (
+                  <>
+                    <span className="font-semibold text-ink">
+                      {stats.providerCount}
+                    </span>{" "}
+                    vetted pros taking bookings across {stats.cityCount}{" "}
+                    {stats.cityCount === 1 ? "city" : "cities"}
+                  </>
+                ) : (
+                  "Vetted pros taking bookings now"
+                )}
               </p>
             </div>
           </div>
