@@ -108,7 +108,7 @@ export function SearchFilters({
           value={values.q}
           onChange={(event) => setValues({ ...values, q: event.target.value })}
           onBlur={() => apply(values)}
-          placeholder="Braids, makeup, blow dry…"
+          placeholder="Braids, bridal makeup, gele…"
           className="min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 text-[15px] text-ink outline-none transition duration-[180ms] focus:border-brand-400"
         />
       </label>
@@ -205,7 +205,7 @@ export function SearchFilters({
             value={values.q}
             onChange={(event) => setValues({ ...values, q: event.target.value })}
             onBlur={() => apply(values)}
-            placeholder="Braids, makeup, blow dry…"
+            placeholder="Braids, bridal makeup, gele…"
             className="min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 text-[15px] text-ink outline-none focus:border-brand-400"
           />
         </label>

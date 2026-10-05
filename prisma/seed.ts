@@ -62,18 +62,17 @@ async function main() {
   });
 
   // --- Services ------------------------------------------------------------
-  // Categories are the five Specialty Hubs of the marketplace directory
+  // Categories are the four Specialty Hubs of the marketplace directory
   // (src/lib/domain/specialty-hubs.ts) — the names must match exactly.
   const AFRO = "Afro & Textured";
-  const EURO = "European & Western";
   const MUA = "MUA Glam & Asian Bridal";
   const NAILS = "Manicures & Pedicures";
   const MASSAGE = "Massage & Wellness";
   const catalogue = [
     { key: "braids", name: "Knotless Braids", priceMinor: 12_000, durationMinutes: 180, kind: "SERVICE", category: AFRO, description: "Full head knotless braids, medium size." },
     { key: "twists", name: "Passion Twists", priceMinor: 9_500, durationMinutes: 150, kind: "SERVICE", category: AFRO, description: "Protective twists, bum length." },
-    { key: "blowdry", name: "Luxury Blow Dry", priceMinor: 4_500, durationMinutes: 45, kind: "SERVICE", category: EURO, description: "Wash, treatment and smooth blow dry." },
-    { key: "updo", name: "Technical Updo", priceMinor: 8_000, durationMinutes: 75, kind: "SERVICE", category: EURO, description: "Sculpted occasion updo with finishing spray." },
+    { key: "silkpress", name: "Silk Press", priceMinor: 4_500, durationMinutes: 45, kind: "SERVICE", category: AFRO, description: "Wash, heat protectant and a smooth silk press on natural hair." },
+    { key: "wiginstall", name: "Frontal Wig Install", priceMinor: 8_000, durationMinutes: 75, kind: "SERVICE", category: AFRO, description: "Lace frontal install, customised and styled." },
     { key: "glam", name: "Glam Makeup", priceMinor: 6_500, durationMinutes: 45, kind: "SERVICE", category: MUA, description: "Full glam with long-wear base." },
     { key: "bridal", name: "Asian Bridal Makeup", priceMinor: 15_000, durationMinutes: 90, kind: "SERVICE", category: MUA, description: "Bridal makeup with trial notes applied." },
     { key: "gele", name: "Gele Tie", priceMinor: 3_000, durationMinutes: 20, kind: "SERVICE", category: MUA, description: "Traditional gele, tied to the outfit." },
@@ -107,11 +106,11 @@ async function main() {
   const providerSpecs = [
     { name: "Amara Okafor", slug: "amara-braids", email: "amara@glamnet.test", hub: sheffield, rating: 4.9, completed: 214, windows: EXTENDED_WEEK, skills: [services.braids, services.twists, services.treatment, services.gele], workspaceType: "HOME_SALON", workspaceSector: "S11", instagram: "amarabraids", bio: "Braids and protective styling from my S11 home salon. Takes short-notice work." },
     { name: "Priya Shah", slug: "priya-bridal", email: "priya@glamnet.test", hub: sheffield, rating: 4.8, completed: 168, windows: STANDARD_WEEK, skills: [services.glam, services.bridal, services.gele, services.lashes], workspaceType: "PRIVATE_ROOM", workspaceSector: "S10", instagram: "priyashahmua", bio: "Asian bridal and editorial makeup artist." },
-    { name: "Chloe Bennett", slug: "chloe-blowdry", email: "chloe@glamnet.test", hub: sheffield, rating: 4.6, completed: 92, windows: STANDARD_WEEK, skills: [services.updo, services.blowdry, services.treatment], workspaceType: "CHAIR", workspaceSector: "S1", instagram: "", bio: "Blow dries and technical updos from a city-centre chair." },
+    { name: "Zainab Bello", slug: "zainab-silkpress", email: "zainab@glamnet.test", hub: sheffield, rating: 4.6, completed: 92, windows: STANDARD_WEEK, skills: [services.wiginstall, services.silkpress, services.treatment], workspaceType: "CHAIR", workspaceSector: "S1", instagram: "", bio: "Silk presses and wig installs from a city-centre chair." },
     { name: "Nadia Rahman", slug: "nadia-nails", email: "nadia@glamnet.test", hub: sheffield, rating: 4.4, completed: 51, windows: EXTENDED_WEEK, skills: [services.biab, services.gelmani, services.removal], workspaceType: "HOME_SALON", workspaceSector: "S7", instagram: "nadianails", bio: "BIAB and gel nails, evenings and weekends." },
     { name: "Tom Hughes", slug: "tom-sports-massage", email: "tom@glamnet.test", hub: sheffield, rating: 4.7, completed: 77, windows: STANDARD_WEEK, skills: [services.deeptissue, services.sports], workspaceType: "PRIVATE_ROOM", workspaceSector: "S6", instagram: "", bio: "Sports and deep tissue massage therapist." },
     { name: "Sofia Marino", slug: "sofia-leeds", email: "sofia@glamnet.test", hub: leeds, rating: 4.9, completed: 301, windows: EXTENDED_WEEK, skills: allServiceIds, workspaceType: "MOBILE", workspaceSector: "", instagram: "", bio: "Leeds-based all-rounder." },
-    { name: "Ines Duarte", slug: "ines-natural-hair", email: "ines@glamnet.test", hub: leeds, rating: 4.7, completed: 143, windows: STANDARD_WEEK, skills: [services.braids, services.updo, services.treatment], workspaceType: "MOBILE", workspaceSector: "", instagram: "", bio: "Protective styling and natural hair." },
+    { name: "Ines Duarte", slug: "ines-natural-hair", email: "ines@glamnet.test", hub: leeds, rating: 4.7, completed: 143, windows: STANDARD_WEEK, skills: [services.braids, services.wiginstall, services.treatment], workspaceType: "MOBILE", workspaceSector: "", instagram: "", bio: "Protective styling and natural hair." },
   ];
 
   const providers: Record<string, string> = {};
@@ -205,11 +204,11 @@ async function main() {
       addressLine: "14 Ecclesall Road, Sheffield",
       customerId: customer.id,
       hubId: sheffield.id,
-      providerId: providers["chloe@glamnet.test"],
+      providerId: providers["zainab@glamnet.test"],
       items: {
         create: [
-          { serviceId: services.updo, name: "Technical Updo", priceMinor: 8_000, durationMinutes: 75, kind: "SERVICE" },
-          { serviceId: services.blowdry, name: "Luxury Blow Dry", priceMinor: 4_500, durationMinutes: 45, kind: "SERVICE" },
+          { serviceId: services.wiginstall, name: "Frontal Wig Install", priceMinor: 8_000, durationMinutes: 75, kind: "SERVICE" },
+          { serviceId: services.silkpress, name: "Silk Press", priceMinor: 4_500, durationMinutes: 45, kind: "SERVICE" },
         ],
       },
     },

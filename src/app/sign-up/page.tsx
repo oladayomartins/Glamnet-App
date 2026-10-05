@@ -26,7 +26,7 @@ export default async function SignUpPage({
       lede={
         vendorFirst
           ? "Your own booking page, your prices, and 0% commission on clients from your link."
-          : "Book verified beauty pros across the UK — at their studio or at your door."
+          : "Book verified Black and Asian beauty pros across the UK — at their studio or at your door."
       }
       reassurance="Every pro is checked before their storefront goes live."
       footer={

@@ -10,7 +10,7 @@ export interface CategoryView extends SpecialtyHub {
 /**
  * The live Specialty Hubs, in the order admins set.
  *
- * Read from the Category table, which admins manage. Falls back to the five
+ * Read from the Category table, which admins manage. Falls back to the
  * built-in hubs if the table is empty or unreachable, so a fresh database or
  * a hiccup never leaves the directory with no tiles at all.
  */

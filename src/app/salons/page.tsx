@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Beauty pros near you",
-  description: "Verified independent hair, makeup, nails and wellness pros across the UK, sorted by distance from your postcode.",
+  description: "Verified Black and Asian hair, makeup, nails and wellness pros across the UK, sorted by distance from your postcode.",
   alternates: { canonical: "/salons" },
 };
 
