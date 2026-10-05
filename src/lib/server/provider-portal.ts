@@ -266,7 +266,7 @@ export async function refreshPayoutStatus(providerId: string) {
 export async function onboardingGaps(providerId: string): Promise<string[]> {
   const provider = await prisma.provider.findUniqueOrThrow({
     where: { id: providerId },
-    include: { _count: { select: { services: true, documents: true } } },
+    include: { _count: { select: { services: true, documents: true, availability: true } } },
   });
   const gaps: string[] = [];
   if (!provider.slug) gaps.push("Choose your storefront link.");
@@ -279,6 +279,11 @@ export async function onboardingGaps(providerId: string): Promise<string[]> {
   }
   if (provider._count.services === 0) gaps.push("Add at least one service to your menu.");
   if (provider._count.documents === 0) gaps.push("Upload your insurance, licence or certificate.");
+  // Without hours a vendor goes live unbookable: their storefront reads
+  // "Closed" every day and the availability engine offers nobody a slot. It is
+  // checked here as well as in the wizard so the review step cannot submit
+  // around it.
+  if (provider._count.availability === 0) gaps.push("Set the days and hours you work.");
   // A linked bank is not needed to submit: it is needed to be *paid*, and
   // releasing a payment already refuses without one. Requiring it here left
   // pros stuck whenever bank linking itself was unavailable.
