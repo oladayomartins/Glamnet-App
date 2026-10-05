@@ -94,6 +94,22 @@ export default async function AdminAccountsPage({
             </Link>
           ))}
         </nav>
+        <div className="flex flex-wrap gap-2">
+          {tab !== "PROVIDER" && tab !== "ADMIN" ? (
+            <a
+              href={`/api/admin/exports/customers?${new URLSearchParams({ q, suspended: tab === "SUSPENDED" ? "1" : "" }).toString()}`}
+              download
+              className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-accent-700 ring-1 ring-line hover:bg-sunken"
+            >
+              Customers CSV
+            </a>
+          ) : null}
+          {tab === "ALL" || tab === "PROVIDER" ? (
+            <a href={`/api/admin/exports/vendors?${new URLSearchParams({ q }).toString()}`} download className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-accent-700 ring-1 ring-line hover:bg-sunken">
+              Vendors CSV
+            </a>
+          ) : null}
+        </div>
         <form className="w-full sm:w-64">
           <input type="hidden" name="role" value={tab} />
           <input name="q" defaultValue={q} placeholder="Search name or email" className={`${fieldClass} mt-0`} />

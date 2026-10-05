@@ -132,6 +132,13 @@ export default async function AdminProvidersPage({
             </Link>
           ))}
         </nav>
+        <a
+          href={`/api/admin/exports/vendors?${new URLSearchParams({ status: tab === "ALL" ? "" : tab, q }).toString()}`}
+          download
+          className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-accent-700 ring-1 ring-line hover:bg-sunken"
+        >
+          Download CSV
+        </a>
         <form className="w-full sm:w-64">
           <input type="hidden" name="status" value={tab} />
           <input name="q" defaultValue={q} placeholder="Search name, email or link" className={`${fieldClass} mt-0`} />

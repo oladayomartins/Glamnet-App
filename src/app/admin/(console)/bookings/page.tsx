@@ -1,5 +1,11 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
+import {
+  BOOKING_FILTERS,
+  bookingListWhere,
+  parseBookingFilter,
+  type BookingFilter,
+} from "@/lib/server/admin/booking-filters";
 import { prisma } from "@/lib/server/prisma";
 import { requireRole } from "@/lib/auth/session";
 import { buildEmergencyReport } from "@/lib/server/reporting";
@@ -12,41 +18,10 @@ import {
   formatNotice,
 } from "@/lib/format";
 
-const FILTERS = [
-  "ALL",
-  "NORMAL",
-  "EMERGENCY",
-  "CONFIRMED",
-  "COMPLETED",
-  "CANCELLED",
-  "NO_SHOW",
-  "DISPUTED",
-] as const;
-
-type Filter = (typeof FILTERS)[number];
+const FILTERS = BOOKING_FILTERS;
+type Filter = BookingFilter;
 
 const PAGE_SIZE = 50;
-
-/** A booking id, or part of a customer's or vendor's name or email. */
-function searchWhere(q: string): Prisma.BookingWhereInput {
-  if (!q) return {};
-  const text = { contains: q, mode: "insensitive" as const };
-  return {
-    OR: [
-      { id: { startsWith: q } },
-      { customer: { OR: [{ name: text }, { email: text }] } },
-      { provider: { OR: [{ name: text }, { email: text }] } },
-    ],
-  };
-}
-
-function whereFor(filter: Filter): Prisma.BookingWhereInput {
-  if (filter === "NORMAL" || filter === "EMERGENCY") return { bookingType: filter };
-  if (filter === "ALL") return {};
-  // A payment dispute lives on settlementStatus; a lifecycle one on status.
-  if (filter === "DISPUTED") return { OR: [{ status: "DISPUTED" }, { settlementStatus: "DISPUTED" }] };
-  return { status: filter };
-}
 
 /** Booking ledger: filtering, emergency identification and reporting (spec §10). */
 export default async function AdminBookingsPage({
@@ -59,11 +34,9 @@ export default async function AdminBookingsPage({
   const { filter: rawFilter, q: rawQ, page: rawPage } = await searchParams;
   const q = (rawQ ?? "").trim().slice(0, 80);
   const page = Math.max(1, Math.floor(Number(rawPage)) || 1);
-  const filter: Filter = (FILTERS as readonly string[]).includes(rawFilter ?? "")
-    ? (rawFilter as Filter)
-    : "ALL";
+  const filter: Filter = parseBookingFilter(rawFilter);
 
-  const where: Prisma.BookingWhereInput = { AND: [whereFor(filter), searchWhere(q)] };
+  const where: Prisma.BookingWhereInput = bookingListWhere(filter, q);
   const [report, bookings, total] = await Promise.all([
     buildEmergencyReport(),
     prisma.booking.findMany({
@@ -168,7 +141,24 @@ export default async function AdminBookingsPage({
 
       {/* --- Booking ledger (spec §10) ---------------------------------- */}
       <section>
-        <SectionTitle hint={total === 0 ? "None" : `${first}–${last} of ${total}`}>Bookings</SectionTitle>
+        <SectionTitle
+          hint={
+            <span className="flex flex-wrap items-center gap-3">
+              {total === 0 ? "None" : `${first}–${last} of ${total}`}
+              {total > 0 ? (
+                <a
+                  href={`/api/admin/exports/bookings?${new URLSearchParams({ filter, q }).toString()}`}
+                  download
+                  className="font-semibold text-accent-700 hover:underline"
+                >
+                  Download CSV
+                </a>
+              ) : null}
+            </span>
+          }
+        >
+          Bookings
+        </SectionTitle>
 
         <form className="mb-3 flex flex-wrap gap-2" role="search">
           {filter !== "ALL" ? <input type="hidden" name="filter" value={filter} /> : null}

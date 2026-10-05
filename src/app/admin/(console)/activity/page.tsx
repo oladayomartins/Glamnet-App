@@ -24,6 +24,7 @@ const AREAS = [
   { key: "city", label: "Cities" },
   { key: "pricing", label: "Pricing" },
   { key: "finance", label: "Finance" },
+  { key: "export", label: "Exports" },
 ] as const;
 
 /** A YYYY-MM-DD value as the start of that UK day, or null. */
