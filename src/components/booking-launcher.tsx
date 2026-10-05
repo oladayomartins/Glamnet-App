@@ -395,7 +395,8 @@ export function BookingLauncher({
       ) : (
         <p className="mt-2 text-xs text-ink-muted">
           {/* The rule, not a verdict: the server decides from the real gap. */}
-          Anywhere in the UK. Within {thresholdHours} hours of booking counts as an emergency booking.
+          Anywhere in the UK. Need someone within {thresholdHours} hours? Book
+          anyway — any short-notice rate is shown before you pay.
         </p>
       )}
     </div>
