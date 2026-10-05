@@ -5,6 +5,7 @@ import { prisma } from "@/lib/server/prisma";
 import { signedFileUrl } from "@/lib/server/private-files";
 import { AdminHeader, fieldClass } from "../_components/bits";
 import { ApprovalQueue, type QueueProvider } from "./approval-queue";
+import { PAGE_SIZE, Pager, listHref, pageFrom } from "../_components/pager";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,13 @@ type Tab = (typeof TABS)[number]["key"];
 export default async function AdminProvidersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   await requireRole("ADMIN", "/admin/providers");
   const params = await searchParams;
   const tab: Tab = TABS.some((entry) => entry.key === params.status) ? (params.status as Tab) : "PENDING";
   const q = params.q?.trim() ?? "";
+  const page = pageFrom(params.page);
 
   const where: Prisma.ProviderWhereInput = {
     ...(tab === "ALL" ? {} : { approvalStatus: tab }),
@@ -43,13 +45,14 @@ export default async function AdminProvidersPage({
       : {}),
   };
 
-  const [providers, counts, unfinished] = await Promise.all([
+  const [providers, counts, unfinished, total] = await Promise.all([
     prisma.provider.findMany({
       where,
       // Finished applications first: an unfinished wizard is not yet asking
       // for a decision.
       orderBy: [{ onboardedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
-      take: 200,
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
       include: {
         hub: { select: { name: true, sector: true, city: true } },
         _count: { select: { services: true, bookings: true } },
@@ -58,6 +61,7 @@ export default async function AdminProvidersPage({
     }),
     prisma.provider.groupBy({ by: ["approvalStatus"], _count: true }),
     prisma.provider.count({ where: { approvalStatus: "PENDING", onboardedAt: null } }),
+    prisma.provider.count({ where }),
   ]);
   const countFor = (key: Tab) =>
     key === "ALL"
@@ -88,6 +92,10 @@ export default async function AdminProvidersPage({
       fileName: document.fileName,
       status: document.status,
       url: signedFileUrl(document.url),
+      reviewNote: document.reviewNote,
+      uploadedAt: document.uploadedAt.toISOString(),
+      reviewedAt: document.reviewedAt?.toISOString() ?? null,
+      expiresAt: document.expiresAt?.toISOString() ?? null,
     })),
   }));
 
@@ -133,6 +141,12 @@ export default async function AdminProvidersPage({
       <ApprovalQueue
         providers={queue}
         emptyMessage={q ? `No vendors match “${q}”.` : tab === "PENDING" ? "No applications waiting. New sign-ups appear here." : "Nobody here yet."}
+      />
+      <Pager
+        page={page}
+        total={total}
+        label="Vendor pages"
+        hrefFor={(next) => listHref("/admin/providers", { status: tab, q, page: next })}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import { ArrowSquareOut, Star } from "@phosphor-icons/react";
 import { Button, Card, EmptyState, Pill } from "@/components/ui";
 import { ErrorNote, fieldClass } from "../_components/bits";
 import { useAdminAction } from "../_components/use-admin-action";
+import { DocumentReview, type ReviewDocument } from "../_components/document-review";
 
 export interface QueueProvider {
   id: string;
@@ -23,7 +24,7 @@ export interface QueueProvider {
   submitted: boolean;
   payoutsEnabled: boolean;
   isFeatured: boolean;
-  documents: { id: string; kind: string; fileName: string; status: string; url: string }[];
+  documents: ReviewDocument[];
 }
 
 type Decision = "APPROVED" | "REJECTED" | "SUSPENDED" | "PENDING";
@@ -99,7 +100,11 @@ export function ApprovalQueue({ providers, emptyMessage }: { providers: QueuePro
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-display text-lg font-semibold text-ink">{provider.name}</h3>
+                  <h3 className="font-display text-lg font-semibold text-ink">
+                    <Link href={`/admin/accounts/${provider.id}`} className="hover:text-accent-700">
+                      {provider.name}
+                    </Link>
+                  </h3>
                   <Pill tone={TONE[provider.status] ?? "neutral"}>{provider.status.toLowerCase()}</Pill>
                   {provider.isFeatured ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-accent-100 px-2 py-0.5 text-[11px] font-semibold text-accent-700">
@@ -130,17 +135,9 @@ export function ApprovalQueue({ providers, emptyMessage }: { providers: QueuePro
                   {provider.documents.length === 0 ? (
                     <p className="text-xs text-warning">None uploaded — cannot be approved until one is.</p>
                   ) : (
-                    <ul className="mt-1 space-y-1">
-                      {provider.documents.map((document) => (
-                        <li key={document.id} className="flex flex-wrap items-center gap-2 text-xs">
-                          <a href={document.url} target="_blank" rel="noreferrer" className="font-medium text-accent-700 underline">
-                            {document.fileName || document.kind}
-                          </a>
-                          <span className="text-ink-muted">{document.kind.toLowerCase()}</span>
-                          <Pill tone={document.status === "APPROVED" ? "positive" : "neutral"}>{document.status.toLowerCase()}</Pill>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="mt-1">
+                      <DocumentReview providerId={provider.id} documents={provider.documents} />
+                    </div>
                   )}
                 </div>
                 {provider.status !== "PENDING" && provider.note ? (

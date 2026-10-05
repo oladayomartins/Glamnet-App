@@ -311,6 +311,9 @@ model ProviderDocument {
   reviewNote String    @default("")
   uploadedAt DateTime  @default(now())
   reviewedAt DateTime?
+  /// When the cover runs out (insurance, licences), set by the admin who
+  /// reviewed it; null when it doesn't expire or wasn't recorded.
+  expiresAt  DateTime?
 
   provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 

@@ -1,5 +1,6 @@
 import { prisma } from "../prisma";
-import { deliverApprovalEmail } from "../notifications";
+import { z } from "zod";
+import { deliverApprovalEmail, deliverBookingNotice } from "../notifications";
 import { AdminError, audit } from "./core";
 
 /**
@@ -158,4 +159,72 @@ export async function setAccountSuspended(
     { type: "AppUser", id: appUserId },
     `${account.email}${reason ? ` — ${reason}` : ""}`,
   );
+}
+
+export const documentReviewInput = z.object({
+  status: z.enum(["APPROVED", "REJECTED", "PENDING"]),
+  note: z.string().trim().max(500).default(""),
+  expiresAt: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((value, ctx) => {
+      if (value === undefined) return undefined;
+      if (value === null || value === "") return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        ctx.addIssue({ code: "custom", message: "Not a valid date." });
+        return z.NEVER;
+      }
+      return date;
+    }),
+});
+
+/**
+ * Review one document on its own: approve it, reject it with a reason the
+ * vendor is emailed, or put it back to pending. Approving a vendor still
+ * signs off every pending document at once; this is for the rest — a new
+ * certificate on a live vendor, a blurry upload, an expiry date to record.
+ */
+export async function reviewDocument(actorEmail: string, providerId: string, documentId: string, raw: unknown) {
+  const input = documentReviewInput.parse(raw);
+  const document = await prisma.providerDocument.findFirst({
+    where: { id: documentId, providerId },
+    include: { provider: { select: { name: true, email: true } } },
+  });
+  if (!document) throw new AdminError("That document no longer exists.", 404, "NOT_FOUND");
+  if (input.status === "REJECTED" && input.note.length < 5) {
+    throw new AdminError("Say why the document was rejected — the vendor is emailed your note.", 422);
+  }
+
+  const updated = await prisma.providerDocument.update({
+    where: { id: documentId },
+    data: {
+      status: input.status,
+      reviewNote: input.note,
+      reviewedAt: input.status === "PENDING" ? null : new Date(),
+      ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
+    },
+  });
+
+  await audit(
+    actorEmail,
+    `document.${input.status.toLowerCase()}`,
+    { type: "Provider", id: providerId },
+    `${document.provider.name}: ${document.kind}${document.fileName ? ` (${document.fileName})` : ""}${input.note ? ` — ${input.note}` : ""}`,
+  );
+
+  if (input.status === "REJECTED" && document.status !== "REJECTED") {
+    await deliverBookingNotice({
+      to: document.provider.email,
+      name: document.provider.name,
+      bookingId: "",
+      path: "/provider/onboarding",
+      subject: "A document needs replacing",
+      heading: "Please upload a replacement document",
+      lead: `We couldn't accept one of the documents on your GLAMNET storefront: ${input.note}`,
+      facts: [["Document", document.fileName || document.kind]],
+      cta: "Upload a new one",
+    });
+  }
+  return updated;
 }

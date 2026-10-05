@@ -273,11 +273,19 @@ export default async function AdminBookingsPage({
                       <LifecycleChip status={booking.status} size="sm" />
                     </Td>
                     <Td>
-                      {booking.provider?.name ?? (
+                      {booking.provider && booking.providerId ? (
+                        <Link href={`/admin/accounts/${booking.providerId}`} className="hover:text-accent-700">
+                          {booking.provider.name}
+                        </Link>
+                      ) : (
                         <span className="text-ink-muted">unassigned</span>
                       )}
                     </Td>
-                    <Td>{booking.customer.name}</Td>
+                    <Td>
+                      <Link href={`/admin/accounts/${booking.customerId}`} className="hover:text-accent-700">
+                        {booking.customer.name}
+                      </Link>
+                    </Td>
                     <Td mono numeric strong>
                       {formatMoney(booking.totalInvoicePriceMinor)}
                     </Td>

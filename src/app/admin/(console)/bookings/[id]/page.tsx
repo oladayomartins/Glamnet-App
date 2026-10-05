@@ -45,7 +45,7 @@ export default async function AdminBookingPage({
     include: {
       items: true,
       hub: true,
-      customer: { select: { name: true, email: true } },
+      customer: { select: { id: true, name: true, email: true } },
       provider: { select: { id: true, name: true, rating: true } },
       events: { orderBy: { createdAt: "asc" } },
       completionPhotos: { orderBy: { position: "asc" } },
@@ -146,12 +146,15 @@ export default async function AdminBookingPage({
             </Field>
             <Field name="sector">{booking.sector}</Field>
             <Field name="customer">
-              {booking.customer.name} · {booking.customer.email}
+              <Link href={`/admin/accounts/${booking.customerId}`} className="text-brand-700 hover:underline">
+                {booking.customer.name}
+              </Link>{" "}
+              · {booking.customer.email}
             </Field>
             <Field name="provider">
               {booking.provider ? (
                 <Link
-                  href={`/provider/${booking.provider.id}`}
+                  href={`/admin/accounts/${booking.provider.id}`}
                   className="text-brand-700 hover:underline"
                 >
                   {booking.provider.name}

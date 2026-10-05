@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/auth/session";
 import { prisma } from "@/lib/server/prisma";
 import { AdminHeader, fieldClass } from "../_components/bits";
+import { PAGE_SIZE, Pager, listHref, pageFrom } from "../_components/pager";
 import { AccountList, type AccountRow } from "./account-list";
 
 export const dynamic = "force-dynamic";
@@ -22,12 +23,13 @@ type RoleTab = (typeof ROLES)[number]["key"];
 export default async function AdminAccountsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ role?: string; q?: string }>;
+  searchParams: Promise<{ role?: string; q?: string; page?: string }>;
 }) {
   await requireRole("ADMIN", "/admin/accounts");
   const params = await searchParams;
   const tab: RoleTab = ROLES.some((entry) => entry.key === params.role) ? (params.role as RoleTab) : "ALL";
   const q = params.q?.trim() ?? "";
+  const page = pageFrom(params.page);
 
   const where: Prisma.AppUserWhereInput = {
     ...(tab === "SUSPENDED" ? { suspendedAt: { not: null } } : tab === "ALL" ? {} : { role: tab }),
@@ -42,15 +44,19 @@ export default async function AdminAccountsPage({
       : {}),
   };
 
-  const users = await prisma.appUser.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 300,
-    include: {
-      customer: { select: { name: true, _count: { select: { bookings: true } } } },
-      provider: { select: { name: true, slug: true, approvalStatus: true, _count: { select: { bookings: true } } } },
-    },
-  });
+  const [users, total] = await Promise.all([
+    prisma.appUser.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: {
+        customer: { select: { name: true, _count: { select: { bookings: true } } } },
+        provider: { select: { name: true, slug: true, approvalStatus: true, _count: { select: { bookings: true } } } },
+      },
+    }),
+    prisma.appUser.count({ where }),
+  ]);
 
   const rows: AccountRow[] = users.map((user) => ({
     id: user.id,
@@ -65,7 +71,7 @@ export default async function AdminAccountsPage({
     suspendedReason: user.suspendedReason,
   }));
 
-  const href = (role: RoleTab) => `/admin/accounts?role=${role}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+  const href = (role: RoleTab) => listHref("/admin/accounts", { role: role === "ALL" ? null : role, q });
 
   return (
     <div>
@@ -94,6 +100,12 @@ export default async function AdminAccountsPage({
         </form>
       </div>
       <AccountList rows={rows} />
+      <Pager
+        page={page}
+        total={total}
+        label="Account pages"
+        hrefFor={(next) => listHref("/admin/accounts", { role: tab === "ALL" ? null : tab, q, page: next })}
+      />
     </div>
   );
 }
