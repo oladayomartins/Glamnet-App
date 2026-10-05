@@ -55,6 +55,9 @@ model Service {
 
   providers    ProviderService[]
   bookingItems BookingItem[]
+
+  /// Category renames, deletes and counts look services up by name.
+  @@index([category])
 }
 
 /// Links a Supabase Auth user to their role and profile in this database.
@@ -308,6 +311,9 @@ model ProviderDocument {
   reviewNote String    @default("")
   uploadedAt DateTime  @default(now())
   reviewedAt DateTime?
+  /// When the cover runs out (insurance, licences), set by the admin who
+  /// reviewed it; null when it doesn't expire or wasn't recorded.
+  expiresAt  DateTime?
 
   provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
@@ -524,6 +530,9 @@ model Booking {
   @@index([customerId, providerId])
   @@index([settlementStatus, disputeWindowClosesAt])
   @@index([paymentStatus, appointmentStartAt])
+  /// Finance, the Overview and the admin bookings list all range over this.
+  @@index([bookingCreatedAt])
+  @@index([cancelledAt])
 }
 
 /// One of the three mandatory photos of the finished work, taken by the
@@ -712,25 +721,45 @@ model Campaign {
 
 /// A paid or house ad in a named slot on the site.
 model AdPlacement {
-  id          String    @id @default(cuid())
-  /// "HOME_BANNER" | "DIRECTORY_TOP" | "STOREFRONT_FOOTER".
-  slot        String
-  title       String
-  subtitle    String    @default("")
-  imageUrl    String    @default("")
-  imageFileId String    @default("")
-  linkUrl     String    @default("")
+  id           String    @id @default(cuid())
+  /// A key of AD_SLOTS in src/lib/domain/ad-layout.ts, e.g. "HOME_BANNER".
+  slot         String
+  title        String
+  subtitle     String    @default("")
+  imageUrl     String    @default("")
+  imageFileId  String    @default("")
+  linkUrl      String    @default("")
   /// Who the ad is for — shown to admins, never to visitors.
-  advertiser  String    @default("")
-  startsAt    DateTime  @default(now())
-  endsAt      DateTime?
-  isActive    Boolean   @default(true)
+  advertiser   String    @default("")
+  startsAt     DateTime  @default(now())
+  endsAt       DateTime?
+  isActive     Boolean   @default(true)
   /// Higher shows first when a slot has several live ads.
-  priority    Int       @default(0)
-  impressions Int       @default(0)
-  clicks      Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  priority     Int       @default(0)
+  impressions  Int       @default(0)
+  clicks       Int       @default(0)
+  /// Layout; see src/lib/domain/ad-layout.ts. A size preset, or "CUSTOM".
+  size         String    @default("BANNER")
+  /// Design size in CSS pixels. Drawn at this width, or the column's if
+  /// narrower, keeping these proportions.
+  width        Int       @default(1400)
+  height       Int       @default(400)
+  /// "LEFT" | "CENTER" | "RIGHT", when narrower than the column.
+  align        String    @default("CENTER")
+  /// Where the headline sits: "BOTTOM_LEFT" | "BOTTOM_CENTER" | "CENTER" |
+  /// "TOP_LEFT" | "HIDDEN".
+  textPosition String    @default("BOTTOM_LEFT")
+  /// "COVER" | "CONTAIN".
+  imageFit     String    @default("COVER")
+  /// "ALL" | "MOBILE" | "DESKTOP".
+  device       String    @default("ALL")
+  /// In-list slots only: shown after this many vendor cards.
+  listPosition Int       @default(4)
+  /// A city name to show only there (directory and storefront slots), or ""
+  /// for everywhere.
+  targetCity   String    @default("")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([slot, isActive])
 }
@@ -747,6 +776,8 @@ model AdminAuditLog {
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
+  /// A person's or booking's admin history.
+  @@index([targetId])
 }
 
 /// A discount code customers enter at checkout. GLAMNET-funded: it comes out

@@ -4,6 +4,7 @@ import { cancelSchema } from "@/lib/api/schemas";
 import { requireApiRole } from "@/lib/auth/api-guard";
 import { BookingError } from "@/lib/server/booking-service";
 import { cancelBooking, type Canceller } from "@/lib/server/cancellations";
+import { audit } from "@/lib/server/admin/core";
 
 /**
  * POST /api/bookings/:id/cancel — cancel a booking.
@@ -29,6 +30,9 @@ export async function POST(
     const { id } = await params;
     const input = cancelSchema.parse(await request.json().catch(() => ({})));
     const booking = await cancelBooking(id, by, input);
+    if (by.role === "ADMIN") {
+      await audit(auth.user.email, "booking.cancel", { type: "Booking", id }, input.reason ?? "");
+    }
     return NextResponse.json({
       booking: { id: booking.id, status: booking.status, cancellationFeeMinor: booking.cancellationFeeMinor },
     });

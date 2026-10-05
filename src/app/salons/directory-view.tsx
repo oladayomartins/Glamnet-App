@@ -1,10 +1,13 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { MapPin, SealCheck, Star, Storefront } from "@phosphor-icons/react/dist/ssr";
 import { listDirectory, workspaceLabel } from "@/lib/server/storefront";
 import { listCategories } from "@/lib/server/categories";
 import { backfillHubCoordinates, lookupPlace } from "@/lib/server/geo";
 import { getSessionUser } from "@/lib/auth/session";
-import { AdSlot } from "@/components/ad-slot";
+import { AdList, AdSlot } from "@/components/ad-slot";
+import { adsForSlot } from "@/lib/server/admin/marketing";
+import { deviceClass } from "@/lib/domain/ad-layout";
 import { CampaignBanner } from "@/components/campaign-banner";
 import { GlamImage } from "@/components/glam-image";
 import { EmptyState } from "@/components/ui";
@@ -54,13 +57,21 @@ export async function DirectoryView({
     : DEFAULT_RADIUS_MILES;
   const space = parseWorkspaceFilter(query.space);
 
-  const vendors = await listDirectory({
-    city,
-    hubName: hub?.name,
-    near: place,
-    radiusKm: place ? milesToKm(radiusMiles) : null,
-    space,
-  });
+  const [vendors, inlineAds] = await Promise.all([
+    listDirectory({
+      city,
+      hubName: hub?.name,
+      near: place,
+      radiusKm: place ? milesToKm(radiusMiles) : null,
+      space,
+    }),
+    adsForSlot("DIRECTORY_INLINE", { city }),
+  ]);
+  // The in-list ad sits after the number of cards it asked for, or after the
+  // last card on a short list. Phone and computer ads may ask for different
+  // spots, so each is placed on its own.
+  const inlineAfter = (index: number) =>
+    inlineAds.filter((ad) => Math.min(ad.listPosition, vendors.length) === index + 1);
 
   const hrefWith = (next: { hub?: string | null; space?: string | null }) => {
     const search = new URLSearchParams();
@@ -157,7 +168,7 @@ export async function DirectoryView({
         })}
       </nav>
 
-      <AdSlot slot="DIRECTORY_TOP" />
+      <AdSlot slot="DIRECTORY_TOP" city={city} />
 
       {vendors.length === 0 ? (
         <EmptyState icon={<Storefront size={24} weight="light" />} title="Nobody here yet">
@@ -193,8 +204,9 @@ export async function DirectoryView({
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
           <ul className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-            {vendors.map((vendor) => (
-              <li key={vendor.id} className="min-w-0">
+            {vendors.map((vendor, index) => (
+              <Fragment key={vendor.id}>
+              <li className="min-w-0">
                 <Link
                   href={`/pro/${vendor.slug}?via=directory`}
                   className="group block overflow-hidden rounded-glam border border-line bg-surface shadow-card transition hover:border-accent-500"
@@ -246,6 +258,17 @@ export async function DirectoryView({
                   </div>
                 </Link>
               </li>
+              {inlineAfter(index).length > 0 ? (
+                <li
+                  className={`min-w-0 sm:col-span-2 ${
+                    // One device-only ad: hide its cell too, not just the ad.
+                    inlineAfter(index).length === 1 ? deviceClass(inlineAfter(index)[0].device) : ""
+                  }`}
+                >
+                  <AdList ads={inlineAfter(index)} />
+                </li>
+              ) : null}
+              </Fragment>
             ))}
           </ul>
           <div className="min-w-0 lg:sticky lg:top-24">

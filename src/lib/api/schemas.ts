@@ -59,6 +59,11 @@ export const emergencyConfigSchema = z.object({
   effectiveFrom: isoDateTime.optional(),
   isActive: z.boolean().default(true),
   note: z.string().max(500).optional(),
+}).refine((input) => input.surchargeType !== "PERCENTAGE" || input.surchargeValue <= 10_000, {
+  // 10,000 basis points is 100%: anything above it doubles the price or more,
+  // which is a typo, not a policy.
+  message: "A percentage surcharge can be at most 100%.",
+  path: ["surchargeValue"],
 });
 
 const uploadedFile = z.object({

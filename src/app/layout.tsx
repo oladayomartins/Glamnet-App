@@ -9,6 +9,9 @@ import "./globals.css";
 import { GlamNetLogo } from "@/components/brand";
 import { getSessionUser } from "@/lib/auth/session";
 import { SiteFooter } from "@/components/site-footer";
+import { InstallBanner } from "@/components/pwa/install-banner";
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { INSTALL_CAPTURE_SCRIPT } from "@/components/pwa/install-state";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -138,6 +141,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${brandSans.variable} ${brandDisplay.variable} ${brandMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-canvas font-sans text-ink">
+        {/* Before hydration: Chrome's one-time install offer can fire before
+            React is listening, and is lost for the visit if nobody keeps it. */}
+        <script dangerouslySetInnerHTML={{ __html: INSTALL_CAPTURE_SCRIPT }} />
         <ThemeProvider>
           {/* First in the tree so gtag is configured before any page's own
               tracking effects run. Admins are staff: their clicks around the
@@ -148,6 +154,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             user={user ? { id: user.appUserId, role: user.role } : null}
           />
           <OfflineNotice />
+          <ServiceWorkerRegister />
 
           <header className="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur">
             <div className="mx-auto flex w-full max-w-[var(--glam-page-max)] items-center justify-between gap-2 px-4 py-3">
@@ -207,6 +214,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </main>
 
           <SiteFooter cookieSettings={gaId !== null} />
+          <InstallBanner />
         </ThemeProvider>
       </body>
     </html>

@@ -19,6 +19,9 @@ import { GlamImage } from "@/components/glam-image";
 import { chargeMinorOf, disputedAmountsOf, disputeStageOf } from "@/lib/domain/payment-rules";
 import { paymentGateway } from "@/lib/server/payments";
 import { DisputeResolver } from "./dispute-resolver";
+import { BookingActions } from "./booking-actions";
+import { ADMIN_CANCELLABLE } from "@/lib/server/cancellations";
+import { REASSIGNABLE, reassignCandidates, refundability } from "@/lib/server/admin/booking-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +48,7 @@ export default async function AdminBookingPage({
     include: {
       items: true,
       hub: true,
-      customer: { select: { name: true, email: true } },
+      customer: { select: { id: true, name: true, email: true } },
       provider: { select: { id: true, name: true, rating: true } },
       events: { orderBy: { createdAt: "asc" } },
       completionPhotos: { orderBy: { position: "asc" } },
@@ -57,6 +60,11 @@ export default async function AdminBookingPage({
   });
 
   if (!booking) notFound();
+
+  const canReassign = REASSIGNABLE.includes(booking.status) && booking.paymentStatus !== "ESCROW_RELEASED";
+  const candidates = canReassign ? await reassignCandidates(booking.id) : [];
+  const refundTerms = refundability(booking);
+  const statusWords = booking.status.toLowerCase().replaceAll("_", " ");
 
   const accepted = booking.broadcasts.find((row) => row.status === "ACCEPTED");
   const minutesToAcceptance =
@@ -146,12 +154,15 @@ export default async function AdminBookingPage({
             </Field>
             <Field name="sector">{booking.sector}</Field>
             <Field name="customer">
-              {booking.customer.name} · {booking.customer.email}
+              <Link href={`/admin/accounts/${booking.customerId}`} className="text-brand-700 hover:underline">
+                {booking.customer.name}
+              </Link>{" "}
+              · {booking.customer.email}
             </Field>
             <Field name="provider">
               {booking.provider ? (
                 <Link
-                  href={`/provider/${booking.provider.id}`}
+                  href={`/admin/accounts/${booking.provider.id}`}
                   className="text-brand-700 hover:underline"
                 >
                   {booking.provider.name}
@@ -249,6 +260,33 @@ export default async function AdminBookingPage({
           ) : null}
         </Card>
       </div>
+
+      <BookingActions
+        bookingId={booking.id}
+        cancel={{
+          allowed: ADMIN_CANCELLABLE.includes(booking.status),
+          why: `Can't cancel a booking that is ${statusWords}.`,
+        }}
+        refund={
+          refundTerms.ok
+            ? { allowed: true, chargeMinor: refundTerms.chargeMinor, payoutMinor: refundTerms.payoutMinor, canRecover: refundTerms.canRecover }
+            : { allowed: false, why: refundTerms.reason }
+        }
+        reassign={{
+          allowed: canReassign,
+          why: `Only a booked appointment that hasn't started can move; this one is ${statusWords}.`,
+          current: booking.provider?.name ?? null,
+          vendorPremises: booking.serviceLocation === "VENDOR_PREMISES",
+          candidates: candidates.map((vendor) => ({
+            id: vendor.id,
+            name: vendor.name,
+            rating: vendor.rating,
+            area: `${vendor.hub.name}, ${vendor.hub.city}`,
+            sameArea: vendor.sameArea,
+            payoutsEnabled: vendor.payoutsEnabled,
+          })),
+        }}
+      />
 
       {/* --- Dispute ----------------------------------------------------- */}
       {booking.status === "DISPUTED" && booking.settlementStatus === "DISPUTED" ? (

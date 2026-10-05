@@ -8,19 +8,22 @@ import type { EmergencyPricingConfig } from "@/lib/domain/types";
 /**
  * The emergency pricing configuration in force at `now`.
  *
- * Config rows are append-only, so "in force" means the most recent active row
- * whose effective date has passed. Returns `null` when nothing is configured,
- * which the pricing engine treats as a zero surcharge rather than an error.
+ * Config rows are append-only, so "in force" means the most recent row whose
+ * effective date has passed. If that row is inactive, emergency pricing is
+ * off: publishing an inactive row is how an admin switches it off, so it must
+ * not fall back to the older active row it was meant to replace. Returns
+ * `null` when off or nothing is configured, which the pricing engine treats
+ * as a zero surcharge rather than an error.
  */
 export async function getActiveEmergencyConfig(
   now: Date = new Date(),
 ): Promise<EmergencyPricingConfig | null> {
   const row = await prisma.emergencyPricingConfig.findFirst({
-    where: { isActive: true, effectiveFrom: { lte: now } },
-    orderBy: { effectiveFrom: "desc" },
+    where: { effectiveFrom: { lte: now } },
+    orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
   });
 
-  if (!row) return null;
+  if (!row || !row.isActive) return null;
 
   return {
     thresholdMinutes: row.thresholdMinutes,

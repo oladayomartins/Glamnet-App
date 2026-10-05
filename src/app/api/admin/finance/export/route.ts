@@ -1,19 +1,11 @@
-import { NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/auth/api-guard";
 import { errorResponse } from "@/lib/api/respond";
 import { prisma } from "@/lib/server/prisma";
 import { resolveRange } from "@/lib/server/admin/ranges";
+import { audit } from "@/lib/server/admin/core";
+import { MAX_EXPORT_ROWS, csvResponse, pounds, toCsv } from "@/lib/server/admin/csv";
 
 export const dynamic = "force-dynamic";
-
-/** A cell that a spreadsheet will not execute as a formula. */
-function cell(value: string | number): string {
-  let text = String(value);
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-const pounds = (minor: number) => (minor / 100).toFixed(2);
 
 /**
  * GET /api/admin/finance/export?range=month — the booking ledger for a period
@@ -28,8 +20,12 @@ export async function GET(request: Request) {
     const bookings = await prisma.booking.findMany({
       where: { bookingCreatedAt: { gte: range.from, lt: range.to } },
       orderBy: { bookingCreatedAt: "asc" },
+      take: MAX_EXPORT_ROWS,
       include: { provider: { select: { name: true } }, customer: { select: { name: true } } },
     });
+
+    // Customer names leave the platform in this file: record who took it.
+    await audit(auth.user.email, "finance.export", { type: "Booking" }, `${bookings.length} bookings, ${range.from.toISOString().slice(0, 10)} to ${range.to.toISOString().slice(0, 10)}`);
 
     const header = [
       "booking_id", "created_at", "appointment_at", "status", "payment_status", "settlement_status",
@@ -43,14 +39,7 @@ export async function GET(request: Request) {
       pounds(b.tipMinor), pounds(b.discountMinor), pounds(b.totalInvoicePriceMinor + b.tipMinor - b.discountMinor),
       pounds(b.providerPayoutMinor), b.escrowReleasedAt?.toISOString() ?? "",
     ]);
-    const csv = [header, ...rows].map((row) => row.map(cell).join(",")).join("\n");
-
-    return new NextResponse(csv, {
-      headers: {
-        "content-type": "text/csv; charset=utf-8",
-        "content-disposition": `attachment; filename="glamnet-bookings-${range.key}-${new Date().toISOString().slice(0, 10)}.csv"`,
-      },
-    });
+    return csvResponse(`bookings-${range.key}`, toCsv(header, rows));
   } catch (error) {
     return errorResponse(error);
   }

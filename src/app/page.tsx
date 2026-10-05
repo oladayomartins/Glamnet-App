@@ -492,6 +492,11 @@ export default async function MarketingPage() {
         </Container>
       ))}
 
+      {/* ================= Sponsored, mid page ========================= */}
+      <Container className="pt-14 empty:hidden sm:pt-16">
+        <AdSlot slot="HOME_MIDDLE" />
+      </Container>
+
       {/* ================= Block 4 — cities ============================ */}
       {cities.length > 0 ? (
         <section className="mt-14 bg-sunken py-14 sm:mt-16 sm:py-16">
@@ -635,6 +640,11 @@ export default async function MarketingPage() {
           </ul>
         </Container>
       </section>
+
+      {/* ================= Sponsored, above the sign-off =============== */}
+      <Container className="pt-14 empty:hidden sm:pt-16">
+        <AdSlot slot="HOME_BOTTOM" />
+      </Container>
 
       {/* ================= CTA band ==================================== */}
       <Container className="pt-14 sm:pt-16">

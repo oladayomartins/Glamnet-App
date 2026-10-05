@@ -37,6 +37,10 @@ export function EmergencyConfigForm({
   >({ kind: "idle" });
 
   const save = async () => {
+    const what = isActive
+      ? `Publish a ${surchargeType === "FIXED" ? `£${amount}` : `${amount}%`} emergency surcharge for bookings under ${thresholdHours} hours' notice?`
+      : "Switch the emergency surcharge off?";
+    if (!window.confirm(`${what} New bookings price against this ${effectiveFrom ? "from the date you set" : "straight away"}.`)) return;
     setStatus({ kind: "saving" });
     try {
       const response = await fetch("/api/admin/emergency-config", {
@@ -55,7 +59,9 @@ export function EmergencyConfigForm({
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error?.message ?? "Could not save the configuration.");
+        throw new Error(
+          payload.error?.issues?.[0]?.message ?? payload.error?.message ?? "Could not save the configuration.",
+        );
       }
       setStatus({ kind: "saved" });
       setNote("");
@@ -147,7 +153,8 @@ export function EmergencyConfigForm({
             onChange={(event) => setIsActive(event.target.checked)}
             className="size-5 accent-[var(--glam-rose-700)]"
           />
-          <span className="text-sm font-medium text-ink">Active</span>
+          <span className="text-sm font-medium text-ink">Surcharge on</span>
+          <span className="text-xs text-ink-muted">(untick and publish to switch it off)</span>
         </label>
       </div>
 
