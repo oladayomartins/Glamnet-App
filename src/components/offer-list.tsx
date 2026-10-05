@@ -24,6 +24,8 @@ export interface OfferRow {
   bookingType: string;
   totalMinor: number;
   emergencySurchargeMinor: number;
+  /** A paid top-of-search placement: shown first and labelled as such. */
+  sponsored?: boolean;
 }
 
 /**
@@ -95,6 +97,11 @@ export function OfferList({ offers }: { offers: OfferRow[] }) {
                     <span className="text-[15px] font-bold text-ink">
                       {offer.providerName}
                     </span>
+                    {offer.sponsored ? (
+                      <span className="rounded-full bg-sunken px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-ink-muted ring-1 ring-line">
+                        Sponsored
+                      </span>
+                    ) : null}
                     {/* No rating until someone has given one. "4.9 (0)" is a
                         default dressed up as a score, and a customer who
                         notices stops believing the real ones too. */}

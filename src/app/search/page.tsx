@@ -2,6 +2,8 @@ import Link from "next/link";
 import { MapPinArea } from "@phosphor-icons/react/dist/ssr";
 import { nearestCoveredArea, searchableAreas } from "@/lib/server/search";
 import { searchOffers } from "@/lib/server/offers";
+import { promotedProviderIds } from "@/lib/server/promotions";
+import { rotate } from "@/lib/domain/promotions";
 import { EmptyState } from "@/components/ui";
 import { OfferList, type OfferRow } from "@/components/offer-list";
 import { SearchFilters } from "@/components/search-filters";
@@ -9,6 +11,9 @@ import { TrackEvent } from "@/components/analytics";
 import { serviceItem } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
+
+/** How many paid placements can sit above the organic results. */
+const SPONSORED_SEARCH_SLOTS = 3;
 
 /**
  * Category & search results (§C-02).
@@ -50,7 +55,7 @@ export default async function SearchPage({
   // link someone can send.
   const tags = (params.tags ?? "").split(",").filter(Boolean);
 
-  const [offers, areas] = await Promise.all([
+  const [offers, areas, promoted] = await Promise.all([
     searchOffers({
       query: q,
       location,
@@ -62,9 +67,25 @@ export default async function SearchPage({
       amenities: tags,
     }),
     searchableAreas(),
+    promotedProviderIds("SEARCH_TOP"),
   ]);
 
-  const rows: OfferRow[] = offers.map((offer) => ({
+  // Paid top-of-search: up to three vendors who bought it AND genuinely
+  // match this search, lifted to the top and labelled Sponsored. Buying it
+  // never puts a vendor into results they wouldn't otherwise be in. Equal
+  // buyers take turns at the very top.
+  const sponsoredIds = new Set(
+    rotate(
+      offers.filter((offer) => promoted.has(offer.providerId)).map((offer) => offer.providerId),
+      SPONSORED_SEARCH_SLOTS,
+    ),
+  );
+  const ordered = [
+    ...offers.filter((offer) => sponsoredIds.has(offer.providerId)),
+    ...offers.filter((offer) => !sponsoredIds.has(offer.providerId)),
+  ];
+
+  const rows: OfferRow[] = ordered.map((offer) => ({
     providerId: offer.providerId,
     providerName: offer.providerName,
     avatarUrl: offer.avatarUrl,
@@ -81,6 +102,7 @@ export default async function SearchPage({
     bookingType: offer.bookingType,
     totalMinor: offer.totalMinor,
     emergencySurchargeMinor: offer.emergencySurchargeMinor,
+    sponsored: sponsoredIds.has(offer.providerId),
   }));
 
   const nearest = rows.length === 0 ? await nearestCoveredArea(location) : null;
@@ -128,6 +150,7 @@ export default async function SearchPage({
         <p className="mt-1 text-[15px] text-ink-muted" data-numeric>
           {rows.length} {rows.length === 1 ? "provider" : "providers"} can take
           this work, soonest first
+          {sponsoredIds.size > 0 ? " · Sponsored pros pay to be shown at the top" : ""}
         </p>
       </div>
 

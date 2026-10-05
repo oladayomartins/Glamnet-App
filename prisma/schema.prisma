@@ -238,6 +238,7 @@ model Provider {
   lookbook     ProviderLookbookImage[]
   documents    ProviderDocument[]
   clientNotes  ProviderClientNote[]
+  promotions   Promotion[]
 
   @@index([hubId])
   @@index([approvalStatus])
@@ -828,4 +829,57 @@ model PromoRedemption {
 
   @@index([promoCodeId])
   @@index([customerId, promoCodeId])
+}
+
+/// A paid placement a vendor can buy (see lib/domain/promotions.ts).
+///
+/// Where each one shows is code, so the rows are fixed: one per key, created
+/// by migration. Admins set the prices, the number of slots and whether it is
+/// on sale. Off until an admin switches it on.
+model PromotionProduct {
+  /// "SEARCH_TOP" | "DIRECTORY_FEATURED" | "HOME_SPOTLIGHT".
+  key          String   @id
+  name         String
+  description  String   @default("")
+  /// How many vendors can hold it at once: per city for city placements,
+  /// across the UK for national ones.
+  slots        Int      @default(3)
+  /// Package prices in pence. 0 = that length is not sold.
+  price7Minor  Int      @default(0)
+  price14Minor Int      @default(0)
+  price30Minor Int      @default(0)
+  isActive     Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+}
+
+/// One purchase of a placement by a vendor, for a fixed window.
+///
+/// Live while status is PAID and now is inside [startsAt, endsAt). A PENDING
+/// row holds its slot only until holdExpiresAt, so an abandoned checkout
+/// gives the slot back on its own.
+model Promotion {
+  id                String    @id @default(cuid())
+  providerId        String
+  provider          Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  productKey        String
+  /// The vendor's city when bought, for city placements; "" for national.
+  city              String    @default("")
+  days              Int
+  amountMinor       Int
+  /// "PENDING" | "PAID" | "EXPIRED" | "CANCELLED" | "REFUNDED".
+  status            String    @default("PENDING")
+  startsAt          DateTime
+  endsAt            DateTime
+  holdExpiresAt     DateTime?
+  checkoutSessionId String    @default("")
+  paymentIntentId   String    @default("")
+  paidAt            DateTime?
+  cancelledAt       DateTime?
+  /// Who cancelled it and why, for the admin list.
+  note              String    @default("")
+  createdAt         DateTime  @default(now())
+
+  @@index([productKey, city, status])
+  @@index([providerId])
+  @@index([checkoutSessionId])
 }
