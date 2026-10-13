@@ -219,7 +219,7 @@ model Provider {
   longitude        Float?
   /// Set when the vendor finishes the onboarding wizard.
   onboardedAt      DateTime?
-  /// is_verified: approved by an admin with compliance documents on file.
+  /// is_verified: approved by an admin (documents are optional).
   /// Only verified vendors have a live storefront and booking calendar.
   isVerified       Boolean       @default(false)
 
@@ -359,6 +359,40 @@ model ProviderTimeOff {
 /// Rows are never edited in place: saving new settings inserts a new row with a
 /// new `effectiveFrom`, so historic bookings remain explainable against the
 /// config that priced them.
+/// The commission and fee rates, set by an admin. Append-only like
+/// EmergencyPricingConfig: a change inserts a new row, and each booking keeps
+/// a link to the row it was made under, so changing a rate never re-prices a
+/// booking already made (a broadcast is re-settled at accept time with its
+/// own rates, and a cancellation fee uses the terms the client agreed to).
+/// No row at all means the defaults in lib/domain/fee-rates.ts.
+model PlatformFeeConfig {
+  id                     String   @id @default(cuid())
+  /// Rule B: a new client found through the marketplace or an emergency
+  /// request. Basis points of the service work (3000 = 30%).
+  discoveryCommissionBps Int
+  /// Rule A: the vendor's own link, and every repeat client.
+  repeatCommissionBps    Int
+  /// Card processing fee taken from the vendor's payout under Rule A.
+  cardFeeBps             Int
+  /// The client's booking ("trust") fee on marketplace and emergency
+  /// bookings, and on bookings through a vendor's own link. Pence.
+  trustFeeMinor          Int
+  directTrustFeeMinor    Int
+  /// Late cancellation and missed appointment, as a share of the service.
+  lateCancellationFeeBps Int
+  noShowFeeBps           Int
+  /// Home-visit travel fee, applied to every area when published. Pence.
+  travelFeeMinor         Int
+  note                   String   @default("")
+  /// Admin email that published it, for the audit trail.
+  createdBy              String   @default("")
+  createdAt              DateTime @default(now())
+
+  bookings Booking[]
+
+  @@index([createdAt])
+}
+
 model EmergencyPricingConfig {
   id               String   @id @default(cuid())
   /// Notice period at or below which a booking is EMERGENCY. Default 720 (12h).
@@ -528,6 +562,9 @@ model Booking {
   completionPhotos BookingCompletionPhoto[]
   promoRedemption  PromoRedemption?
   messages         BookingMessage[]
+  /// The fee rates this booking was made under (null: the defaults).
+  feeConfigId      String?
+  feeConfig        PlatformFeeConfig?       @relation(fields: [feeConfigId], references: [id])
 
   @@index([status])
   @@index([bookingType])

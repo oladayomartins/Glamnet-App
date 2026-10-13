@@ -31,6 +31,7 @@ import { ReschedulePanel } from "./reschedule-panel";
 import { ReviewReplyForm } from "@/components/review-reply-form";
 import { ClientNoteEditor } from "@/components/client-note-editor";
 import { clientNoteFor } from "@/lib/server/clients";
+import { ratesForBooking } from "@/lib/server/fee-config";
 
 /**
  * Customer-facing booking record. Shows the classification and the surcharge
@@ -117,7 +118,10 @@ export default async function BookingPage({
       canDispute(booking, now));
   const ended = ["CANCELLED", "EXPIRED", "NO_SHOW"].includes(booking.status);
   // What cancelling costs right now; the endpoint charges exactly this.
-  const cancelQuote = isTheCustomer && !ended ? quoteCustomerCancellation(booking, now) : null;
+  const cancelQuote =
+    isTheCustomer && !ended
+      ? quoteCustomerCancellation(booking, now, await ratesForBooking(booking.feeConfigId))
+      : null;
   const arrivedAt = booking.events.findLast((event) => event.toStatus === "ARRIVED")?.createdAt ?? null;
   const noShowFrom = isTheProvider
     ? noShowAllowedFrom(booking, booking.serviceLocation === "VENDOR_PREMISES" ? null : arrivedAt)

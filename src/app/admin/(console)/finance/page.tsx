@@ -61,7 +61,7 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
           tone="gold"
           hint={summary.discountsMinor ? `less ${formatMoney(summary.discountsMinor)} promo discounts` : undefined}
         />
-        <Stat label="Card fees collected" value={formatMoney(summary.processingFeesMinor)} hint="2% card processing" />
+        <Stat label="Card fees collected" value={formatMoney(summary.processingFeesMinor)} hint="Card processing on own-link and repeat bookings" />
         <Stat label="Trust fees" value={formatMoney(summary.trustFeesMinor)} />
         <Stat label="Owed to vendors" value={formatMoney(summary.vendorPayoutsMinor)} hint={`incl. ${formatMoney(summary.tipsMinor)} tips`} />
         <Stat label="Paid out to vendors" value={formatMoney(summary.released.amountMinor)} hint={`${summary.released.bookings} released by PIN`} />

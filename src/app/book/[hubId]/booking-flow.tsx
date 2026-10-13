@@ -84,6 +84,8 @@ interface Quote {
   appointmentStartAt: string;
   appointmentEndAt: string;
   providersAvailable: number;
+  lateCancellationFeeBps: number;
+  noShowFeeBps: number;
   price: {
     lines: PriceLine[];
     totalMinor: number;
@@ -755,7 +757,7 @@ export function BookingFlow({
                 </label>
               </Card>
 
-              <CancellationTerms appointmentStartAt={quote.appointmentStartAt} />
+              <CancellationTerms appointmentStartAt={quote.appointmentStartAt} lateFeeBps={quote.lateCancellationFeeBps} noShowFeeBps={quote.noShowFeeBps} />
 
               {hold ? (
                 <Card className="space-y-3 p-4">

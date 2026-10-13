@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { percent } from "@/lib/domain/fee-rates";
 import { citySlug } from "@/lib/domain/postcode";
 import { getSessionUser } from "@/lib/auth/session";
 import { AdSlot } from "@/components/ad-slot";
@@ -139,7 +140,7 @@ function Container({
 export default async function MarketingPage() {
   const [
     { providers, categories, cities, searchHints, stats },
-    { thresholdMinutes },
+    { thresholdMinutes, feeRates },
     viewer,
   ] =
     await Promise.all([getMarketingData(), getPricingContext(), getSessionUser()]);
@@ -709,8 +710,8 @@ export default async function MarketingPage() {
               <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
                 Book a verified specialist in Black and Asian beauty, see the
                 full price upfront, and pay only when you&rsquo;re happy. Are you
-                a pro? List your business free, with 0% commission on clients
-                you bring.
+                a pro? List your business free, with {percent(feeRates.repeatCommissionBps)} commission on
+                clients you bring.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link

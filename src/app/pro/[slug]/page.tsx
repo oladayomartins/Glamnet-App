@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { currentFeeRates } from "@/lib/server/fee-config";
 import Link from "next/link";
 import { citySlug } from "@/lib/domain/postcode";
 import { notFound } from "next/navigation";
@@ -100,6 +101,7 @@ export default async function StorefrontPage({
   const shortest = Math.min(
     ...store.menu.filter((item) => item.kind === "SERVICE").map((item) => item.durationMinutes),
   );
+  const feeRates = await currentFeeRates();
   const nextFree = store.isAcceptingWork && Number.isFinite(shortest)
     ? (await storefrontDays(store.id, shortest, new Date())).find((day) => day.firstStartAt)?.firstStartAt ?? null
     : null;
@@ -276,6 +278,8 @@ export default async function StorefrontPage({
         workspaceLabel={`${workspaceLabel(store.workspaceType)} in ${store.sector}`}
         travelsToClients={store.travelsToClients}
         travelFeeMinor={store.hub.travelFeeMinor}
+        lateCancellationFeeBps={feeRates.lateCancellationFeeBps}
+        noShowFeeBps={feeRates.noShowFeeBps}
         nearbyNails={store.nearbyNails}
         signedInAsCustomer={viewer?.role === "CUSTOMER"}
         vendorArea={area}

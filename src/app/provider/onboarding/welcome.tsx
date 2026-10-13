@@ -2,11 +2,18 @@
 
 import { ArrowRight, Camera, CurrencyGbp, IdentificationCard, LockKey, MapPin, Scissors, Sparkle } from "@phosphor-icons/react";
 
-const PERKS = [
-  { icon: CurrencyGbp, title: "0% commission on your clients", body: "Anyone who books through your own link pays you everything, minus a 2% card fee." },
+const perks = (commissionPct: string, cardFeePct: string) => [
+  {
+    icon: CurrencyGbp,
+    title: `${commissionPct} commission on your clients`,
+    body:
+      commissionPct === "0%"
+        ? `Anyone who books through your own link pays you everything, minus a ${cardFeePct} card fee.`
+        : `Anyone who books through your own link costs you just ${commissionPct} commission and a ${cardFeePct} card fee.`,
+  },
   { icon: LockKey, title: "Paid by PIN, never chased", body: "The client's card is held when they book. Their 4-digit PIN releases it to your bank." },
   { icon: MapPin, title: "Found by clients near you", body: "Your storefront shows up for people searching nearby, anywhere in the UK." },
-] as const;
+];
 
 const NEEDS = [
   { icon: Camera, text: "A profile photo and three photos of your work" },
@@ -18,7 +25,18 @@ const NEEDS = [
  * The first thing a brand-new pro sees: what GLAMNET does for them, what the
  * set-up asks for, and one button to start. Shown once, before step one.
  */
-export function WelcomeIntro({ name, onStart }: { name: string; onStart: () => void }) {
+export function WelcomeIntro({
+  name,
+  commissionPct,
+  cardFeePct,
+  onStart,
+}: {
+  name: string;
+  commissionPct: string;
+  cardFeePct: string;
+  onStart: () => void;
+}) {
+  const PERKS = perks(commissionPct, cardFeePct);
   const firstName = name.trim().split(/\s+/)[0] || "there";
   return (
     <div data-page-width="wide" className="mx-auto max-w-3xl pb-10">

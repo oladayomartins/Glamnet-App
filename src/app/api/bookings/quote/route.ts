@@ -18,6 +18,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       quote: {
         ...quote,
+        // Internal: which fee-rate row the booking would be made under.
+        feeConfigId: undefined,
         noticeLabel: formatNotice(quote.noticePeriodMinutes),
         isEmergency: quote.bookingType === "EMERGENCY",
         // The shortlist itself is internal: the customer sees only the count.

@@ -98,6 +98,8 @@ export default async function ConfirmPage({
     reservedUntilAt: quote.reservedUntilAt.toISOString(),
     lines: quote.price.lines,
     totalMinor: quote.price.totalMinor,
+    lateCancellationFeeBps: quote.lateCancellationFeeBps,
+    noShowFeeBps: quote.noShowFeeBps,
   };
 
   return (

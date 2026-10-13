@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { BookingError, settlementFields } from "./booking-service";
 import { getActiveEmergencyConfig } from "./emergency-config";
+import { getFeeConfig } from "./fee-config";
 import { CALENDAR_HOLDING_STATUSES, loadProviderSchedule } from "./schedules";
 import { hasPriorBooking } from "./escrow";
 import { evaluatePromoCode, type PromoResult } from "./promos";
@@ -451,7 +452,7 @@ export async function quoteStorefront(
     kind: service.kind,
   }));
 
-  const config = await getActiveEmergencyConfig(now);
+  const [config, fees] = await Promise.all([getActiveEmergencyConfig(now), getFeeConfig()]);
   const threshold = resolveThresholdMinutes(config, now);
   const notice = noticePeriodMinutes(now, request.appointmentStartAt);
   const bookingType = classifyBooking(notice, threshold);
@@ -465,15 +466,18 @@ export async function quoteStorefront(
       travelFeeMinor:
         request.serviceLocation === "CUSTOMER_ADDRESS" ? provider.hub.travelFeeMinor : 0,
       emergencyConfig: config,
-      trustFeeMinor: trustFeeFor(request.source),
+      trustFeeMinor: trustFeeFor(request.source, fees.rates),
     },
     now,
   );
 
-  const commission = decideCommission({
-    source: request.source,
-    hasPriorBooking: await hasPriorBooking(request.customerId, provider.id),
-  });
+  const commission = decideCommission(
+    {
+      source: request.source,
+      hasPriorBooking: await hasPriorBooking(request.customerId, provider.id),
+    },
+    fees.rates,
+  );
 
   // A promo is worked out against the undiscounted split: GLAMNET's share of
   // it is the most any code can give away.
@@ -503,6 +507,8 @@ export async function quoteStorefront(
     promo,
     promoLines,
     settlement: settlementFields(price, commission, request.tipMinor, discountMinor),
+    feeConfigId: fees.id,
+    lateCancellationFeeBps: fees.rates.lateCancellationFeeBps,
   };
 }
 
@@ -588,6 +594,7 @@ export async function createStorefrontBooking(
           trustFeeMinor: quote.price.trustFeeMinor,
           totalInvoicePriceMinor: quote.price.totalMinor,
           ...quote.settlement,
+          feeConfigId: quote.feeConfigId,
           promoCodeId: promo?.promoCodeId ?? null,
           source: request.source,
           serviceLocation: request.serviceLocation,

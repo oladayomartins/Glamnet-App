@@ -1,5 +1,5 @@
-import { TRUST_FEE_MINOR } from "./constants";
 import { applyBps } from "./pricing";
+import { DEFAULT_FEE_RATES, type FeeRates } from "./fee-rates";
 
 /**
  * The dual-commission payout protocol (Open Marketplace Directory §D).
@@ -18,6 +18,9 @@ import { applyBps } from "./pricing";
  *
  * All money is integer pence, and every function here is pure so the split is
  * testable without a payment provider.
+ *
+ * The rates themselves (30%, 0%, 2%, the trust fee) are an admin setting —
+ * see fee-rates.ts. The constants below are only the defaults.
  */
 
 export type BookingSource = "BROADCAST" | "MARKETPLACE" | "DIRECT_LINK";
@@ -33,28 +36,30 @@ export const BOOKING_SOURCES: readonly BookingSource[] = [
  * vendor's own link was brought by the vendor, not by GLAMNET, so they pay
  * none; marketplace and emergency bookings pay the standard fee.
  */
-export function trustFeeFor(source: BookingSource): number {
-  return source === "DIRECT_LINK" ? 0 : TRUST_FEE_MINOR;
+export function trustFeeFor(source: BookingSource, rates: FeeRates = DEFAULT_FEE_RATES): number {
+  return source === "DIRECT_LINK" ? rates.directTrustFeeMinor : rates.trustFeeMinor;
 }
 
-/** Rule B: the acquisition commission on a first discovery booking. */
-export const DISCOVERY_COMMISSION_BPS = 3_000;
+/** Rule B by default: the acquisition commission on a first discovery booking. */
+export const DISCOVERY_COMMISSION_BPS = DEFAULT_FEE_RATES.discoveryCommissionBps;
 
-/** Rule A: no marketplace commission. */
-export const DIRECT_COMMISSION_BPS = 0;
+/** Rule A by default: no marketplace commission. */
+export const DIRECT_COMMISSION_BPS = DEFAULT_FEE_RATES.repeatCommissionBps;
 
 /**
  * Card processing fee passed on to the vendor under Rule A (spec: "minus a
  * basic 2% Stripe processing card fee"). Under Rule B the platform absorbs it
  * from its commission, as the spec passes the vendor "the remaining 70%".
  */
-export const CARD_PROCESSING_FEE_BPS = 200;
+export const CARD_PROCESSING_FEE_BPS = DEFAULT_FEE_RATES.cardFeeBps;
 
 export interface CommissionDecision {
   rule: "A" | "B";
   /** The spec's `first_discovery_booking` flag. */
   firstDiscoveryBooking: boolean;
   commissionBps: number;
+  /** Card fee taken from the vendor under Rule A (default 2%). */
+  cardFeeBps?: number;
 }
 
 /**
@@ -64,21 +69,26 @@ export interface CommissionDecision {
  * or later, not cancelled) with this vendor — they are no longer a new client
  * the marketplace acquired.
  */
-export function decideCommission(input: {
-  source: BookingSource;
-  hasPriorBooking: boolean;
-}): CommissionDecision {
+export function decideCommission(
+  input: {
+    source: BookingSource;
+    hasPriorBooking: boolean;
+  },
+  rates: FeeRates = DEFAULT_FEE_RATES,
+): CommissionDecision {
   const discovery = input.source !== "DIRECT_LINK" && !input.hasPriorBooking;
   return discovery
     ? {
         rule: "B",
         firstDiscoveryBooking: true,
-        commissionBps: DISCOVERY_COMMISSION_BPS,
+        commissionBps: rates.discoveryCommissionBps,
+        cardFeeBps: rates.cardFeeBps,
       }
     : {
         rule: "A",
         firstDiscoveryBooking: false,
-        commissionBps: DIRECT_COMMISSION_BPS,
+        commissionBps: rates.repeatCommissionBps,
+        cardFeeBps: rates.cardFeeBps,
       };
 }
 
@@ -126,7 +136,7 @@ export function settle(input: SettlementInput): Settlement {
   );
   const processingFeeMinor =
     input.commission.rule === "A"
-      ? applyBps(fullChargeMinor, CARD_PROCESSING_FEE_BPS)
+      ? applyBps(fullChargeMinor, input.commission.cardFeeBps ?? CARD_PROCESSING_FEE_BPS)
       : 0;
 
   const providerPayoutMinor = Math.max(

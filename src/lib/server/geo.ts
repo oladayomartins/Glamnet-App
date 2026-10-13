@@ -1,4 +1,5 @@
 import type { Hub } from "@prisma/client";
+import { currentFeeRates } from "./fee-config";
 import { prisma } from "./prisma";
 import { cityFor, formatPostcode, outwardCode, type LatLng } from "@/lib/domain/postcode";
 import { searchText, splitNumber, toSuggestion, uniqueSuggestions, type AddressSuggestion, type PhotonProperties } from "@/lib/domain/address";
@@ -173,6 +174,8 @@ export async function hubForPlace(place: Place): Promise<Hub> {
     city: (centre ?? place).city,
     latitude: centre?.lat ?? place.lat,
     longitude: centre?.lng ?? place.lng,
+    // A new area starts on the travel fee an admin has set for every area.
+    travelFeeMinor: (await currentFeeRates()).travelFeeMinor,
   };
   // Two first-ever lookups for the same outward code can race; the unique
   // sector decides, and the loser reads the winner's row.

@@ -278,7 +278,8 @@ export async function onboardingGaps(providerId: string): Promise<string[]> {
     gaps.push("Add your workspace's street address.");
   }
   if (provider._count.services === 0) gaps.push("Add at least one service to your menu.");
-  if (provider._count.documents === 0) gaps.push("Upload your insurance, licence or certificate.");
+  // Insurance, licence or certificate: optional. Uploading one helps the
+  // review, but a vendor can submit and go live without it.
   // Without hours a vendor goes live unbookable: their storefront reads
   // "Closed" every day and the availability engine offers nobody a slot. It is
   // checked here as well as in the wizard so the review step cannot submit

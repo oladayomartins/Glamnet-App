@@ -8,6 +8,7 @@ import { selectBroadcastTargets } from "@/lib/domain/matching";
 import { addMinutes } from "@/lib/domain/availability";
 import { BROADCAST_ACCEPTANCE_WINDOW_MINUTES } from "@/lib/domain/constants";
 import { decideCommission, type BookingSource } from "@/lib/domain/settlement";
+import { ratesForBooking } from "./fee-config";
 import { chargeMinorOf, holdIsDue, needsSavedCard, UNSECURED_CANCEL_HOURS } from "@/lib/domain/payment-rules";
 import { formatMoney } from "@/lib/domain/pricing";
 
@@ -268,8 +269,10 @@ export async function dispatchBroadcast(bookingId: string, now = new Date()) {
     return;
   }
 
-  // Dual commission: each invited vendor is quoted what *they* would earn.
+  // Dual commission: each invited vendor is quoted what *they* would earn,
+  // under the rates the booking was made with.
   const served = await servedCustomer(booking.customerId, eligible);
+  const rates = await ratesForBooking(booking.feeConfigId);
   const price = {
     totalMinor: booking.totalInvoicePriceMinor,
     subtotalMinor: booking.subtotalMinor,
@@ -291,7 +294,7 @@ export async function dispatchBroadcast(bookingId: string, now = new Date()) {
       data: eligible.map((providerId) => {
         const quoted = settlementFields(
           price,
-          decideCommission({ source: "BROADCAST" as BookingSource, hasPriorBooking: served.has(providerId) }),
+          decideCommission({ source: "BROADCAST" as BookingSource, hasPriorBooking: served.has(providerId) }, rates),
         );
         return {
           bookingId,

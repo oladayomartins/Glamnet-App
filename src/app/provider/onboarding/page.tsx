@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { currentFeeRates } from "@/lib/server/fee-config";
+import { percent } from "@/lib/domain/fee-rates";
 import { prisma } from "@/lib/server/prisma";
 import { requireRole } from "@/lib/auth/session";
 import { onboardingGaps } from "@/lib/server/provider-portal";
@@ -13,7 +15,7 @@ export const dynamic = "force-dynamic";
 /**
  * The 2-minute sign-up wizard (Directory §C, Flow 3):
  * profile → storefront link & socials → workspace → menu → lookbook →
- * compliance documents → payouts → submit for review.
+ * documents (optional) → payouts → submit for review.
  *
  * Also the vendor's place to edit their storefront later, so it opens for
  * approved vendors too, not only applicants.
@@ -27,6 +29,7 @@ export default async function OnboardingPage({
   if (!user.providerId) redirect("/forbidden");
   const { step, payouts } = await searchParams;
 
+  const feeRates = await currentFeeRates();
   const [provider, catalogue, gaps, categories] = await Promise.all([
     prisma.provider.findUniqueOrThrow({
       where: { id: user.providerId },
@@ -53,6 +56,8 @@ export default async function OnboardingPage({
       welcome={!step && !provider.slug && provider.services.length === 0 && provider.onboardedAt === null}
       payoutsNotice={payouts ?? null}
       siteOrigin={siteUrl().replace(/^https?:\/\//, "")}
+      commissionPct={percent(feeRates.repeatCommissionBps)}
+      cardFeePct={percent(feeRates.cardFeeBps)}
       testPayments={paymentGateway().mode === "simulated"}
       uploadsEnabled={isImageKitConfigured()}
       approved={user.providerApproved}
