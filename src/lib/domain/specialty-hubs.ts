@@ -1,5 +1,5 @@
 /**
- * The five Specialty Hubs of the marketplace directory (Open Marketplace
+ * The four Specialty Hubs of the marketplace directory (Open Marketplace
  * Directory §A).
  *
  * A Specialty Hub is a *category* of work, stored as `Service.category`. It is
@@ -22,12 +22,6 @@ export const SPECIALTY_HUBS: readonly SpecialtyHub[] = [
     name: "Afro & Textured",
     emoji: "🌍",
     blurb: "Braids, twists and protective styling",
-  },
-  {
-    slug: "european-western",
-    name: "European & Western",
-    emoji: "👱‍♀️",
-    blurb: "Blow-dries, technical updos and curls",
   },
   {
     slug: "mua-bridal",
@@ -112,13 +106,11 @@ export function crossSellFor(
 }
 
 /**
- * Short customer-facing groups for a storefront's category buttons. Two hair
- * hubs become one "Hair": a customer choosing a service thinks "hair", not
- * which tradition the stylist works in.
+ * Short customer-facing groups for a storefront's category buttons: a
+ * customer choosing a service thinks "hair" or "makeup", not the hub's name.
  */
 const MENU_GROUPS: Record<string, string> = {
   "Afro & Textured": "Hair",
-  "European & Western": "Hair",
   [MUA_BRIDAL_HUB]: "Makeup",
   [NAILS_HUB]: "Nails",
   "Massage & Wellness": "Massage",

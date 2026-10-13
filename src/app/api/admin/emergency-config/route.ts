@@ -4,6 +4,7 @@ import { errorResponse } from "@/lib/api/respond";
 import { emergencyConfigSchema } from "@/lib/api/schemas";
 import { getActiveEmergencyConfig } from "@/lib/server/emergency-config";
 import { requireApiRole } from "@/lib/auth/api-guard";
+import { audit } from "@/lib/server/admin/core";
 
 /**
  * GET /api/admin/emergency-config — the config in force plus its history.
@@ -54,6 +55,14 @@ export async function POST(request: Request) {
         note: input.note ?? "",
       },
     });
+    await audit(
+      auth.user.email,
+      config.isActive ? "pricing.emergency.publish" : "pricing.emergency.off",
+      { type: "EmergencyPricingConfig", id: config.id },
+      config.isActive
+        ? `${config.surchargeType === "FIXED" ? `£${(config.surchargeValue / 100).toFixed(2)}` : `${config.surchargeValue / 100}%`} within ${config.thresholdMinutes} min, from ${config.effectiveFrom.toISOString()}`
+        : `Emergency surcharge off from ${config.effectiveFrom.toISOString()}`,
+    );
     return NextResponse.json({ config }, { status: 201 });
   } catch (error) {
     return errorResponse(error);

@@ -29,9 +29,16 @@ import {
 } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui";
 import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
+import { StreetField } from "@/components/street-field";
 import { MapView } from "@/components/map-view";
 import { formatPostcode } from "@/lib/domain/postcode";
 import { VENDOR_AMENITIES } from "@/lib/domain/vendor-tags";
+import {
+  weekFromWindows,
+  weekProblem,
+  weekToWindows,
+  type WorkingDay,
+} from "@/lib/domain/working-week";
 import { aboutPrompts } from "@/lib/domain/about-sections";
 import { WelcomeIntro } from "./welcome";
 import { BioLink } from "@/components/bio-link";
@@ -81,11 +88,12 @@ interface MenuEntry {
 type Look = (UploadedImage & { caption: string }) | null;
 
 const STEPS = [
-  { key: "profile", label: "You", title: "Let's build your storefront", lede: "Two minutes, eight short steps. Everything can be changed later." },
+  { key: "profile", label: "You", title: "Let's build your storefront", lede: "Two minutes, nine short steps. Everything can be changed later." },
   { key: "specialties", label: "Specialties", title: "What do you specialise in?", lede: "Pick every hub you work in. Clients browse the directory by these." },
   { key: "menu", label: "Menu", title: "Build your menu", lede: "Tap the services you offer, then set your own price and time." },
   { key: "storefront", label: "Link & bio", title: "Claim your link", lede: "This is the page you share in your bio — clients from it cost you 0% commission." },
   { key: "workspace", label: "Workspace", title: "Where do clients find you?", lede: "Only your postcode sector is ever shown publicly." },
+  { key: "hours", label: "Hours", title: "When do you work?", lede: "Clients can only book inside these hours. Change them any time." },
   { key: "lookbook", label: "Lookbook", title: "Show your best work", lede: "Three transformations sell better than any description. Optional for now." },
   { key: "compliance", label: "Documents", title: "Get verified", lede: "Upload your insurance, licence or certificate. We check it before your storefront goes live." },
   { key: "payouts", label: "Payouts", title: "Link your bank", lede: "Payments are released to you by your client's PIN, straight through Stripe." },
@@ -145,7 +153,9 @@ export function OnboardingWizard(props: {
   catalogue: CatalogueItem[];
   /** The categories an admin has left visible, in their order. */
   categories: { slug: string; name: string; emoji: string; blurb: string; imageUrl: string }[];
+  providerId: string;
   menu: MenuEntry[];
+  workingHours: { dayOfWeek: number; startMinute: number; endMinute: number }[];
   documents: { id: string; kind: string; fileName: string; status: string }[];
   lookbook: { url: string; fileId: string; caption: string }[];
 }) {
@@ -155,6 +165,7 @@ export function OnboardingWizard(props: {
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [profile, setProfile] = useState(props.profile);
   const [menu, setMenu] = useState<MenuEntry[]>(props.menu);
+  const [week, setWeek] = useState<WorkingDay[]>(() => weekFromWindows(props.workingHours));
   const [hubs, setHubs] = useState<string[]>(() => {
     const fromMenu = new Set(
       props.menu
@@ -271,6 +282,8 @@ export function OnboardingWizard(props: {
         return profile.workspaceType === "MOBILE" || profile.workspaceAddress.trim().length >= 3
           ? null
           : "Add your workspace's street address, so booked clients can find you.";
+      case "hours":
+        return weekProblem(week);
       case "storefront":
         if (slugState === "checking") return "Checking your link — one moment.";
         if (slugState !== "free") return "Choose an available storefront link.";
@@ -324,6 +337,12 @@ export function OnboardingWizard(props: {
             amenities: profile.amenities,
           }),
         );
+      case "hours":
+        return run(() =>
+          send(`/api/providers/${props.providerId}/working-hours`, "PUT", {
+            windows: weekToWindows(week),
+          }),
+        );
       case "lookbook":
         return run(() =>
           send("/api/provider/lookbook", "PUT", {
@@ -349,6 +368,7 @@ export function OnboardingWizard(props: {
     workspace:
       Boolean(formatPostcode(profile.workspacePostcode)) &&
       (profile.workspaceType === "MOBILE" || profile.workspaceAddress.trim().length >= 3),
+    hours: week.some((day) => day.working) && weekProblem(week) === null,
     lookbook: looks.some((look) => look !== null),
     compliance: props.documents.length > 0,
     payouts: profile.payoutsEnabled,
@@ -734,22 +754,6 @@ export function OnboardingWizard(props: {
                     );
                   })}
                 </div>
-                {profile.workspaceType !== "MOBILE" ? (
-                  <label className="block">
-                    <span className="text-sm font-semibold text-ink">Street address</span>
-                    <input
-                      value={profile.workspaceAddress}
-                      maxLength={200}
-                      autoComplete="street-address"
-                      placeholder="e.g. Flat 2, 14 Ecclesall Road"
-                      onChange={(e) => set("workspaceAddress", e.target.value)}
-                      className={inputClass}
-                    />
-                    <span className="mt-1 block text-xs text-ink-muted">
-                      Private. Only a client with a paid booking at your workspace sees it, with a map pin.
-                    </span>
-                  </label>
-                ) : null}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <PostcodeField
                     label={profile.workspaceType === "MOBILE" ? "The postcode you travel from" : "Your workspace postcode"}
@@ -769,6 +773,20 @@ export function OnboardingWizard(props: {
                     </div>
                   ) : null}
                 </div>
+                {profile.workspaceType !== "MOBILE" ? (
+                  <StreetField
+                    label="Street address"
+                    value={profile.workspaceAddress}
+                    onChange={(value) => set("workspaceAddress", value)}
+                    near={area}
+                    maxLength={200}
+                    autoComplete="address-line1"
+                    placeholder="e.g. Flat 2, 14 Ecclesall Road"
+                    hint="Private. Only a client with a paid booking at your workspace sees it, with a map pin."
+                    labelClassName="block text-sm font-semibold text-ink"
+                    inputClassName={inputClass}
+                  />
+                ) : null}
                 <fieldset>
                   <legend className="text-sm font-semibold text-ink">
                     What should clients know?
@@ -822,6 +840,86 @@ export function OnboardingWizard(props: {
                     </p>
                   </div>
                 ) : null}
+              </div>
+            ) : null}
+
+            {step.key === "hours" ? (
+              <div className="max-w-xl space-y-3">
+                {/* Pre-ticked Monday to Saturday: an ordinary week is one tap,
+                    and anyone else changes the days that differ. */}
+                <ul className="divide-y divide-line rounded-glam border border-line bg-surface">
+                  {week.map((day) => (
+                    <li
+                      key={day.dayOfWeek}
+                      className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-3"
+                    >
+                      <Toggle
+                        checked={day.working}
+                        onChange={(working) =>
+                          setWeek((current) =>
+                            current.map((entry) =>
+                              entry.dayOfWeek === day.dayOfWeek ? { ...entry, working } : entry,
+                            ),
+                          )
+                        }
+                        label={day.label}
+                      />
+
+                      {day.working ? (
+                        <span className="flex items-center gap-2">
+                          <label className="sr-only" htmlFor={`start-${day.dayOfWeek}`}>
+                            {day.label} start
+                          </label>
+                          <input
+                            id={`start-${day.dayOfWeek}`}
+                            type="time"
+                            value={day.start}
+                            step={900}
+                            onChange={(e) =>
+                              setWeek((current) =>
+                                current.map((entry) =>
+                                  entry.dayOfWeek === day.dayOfWeek
+                                    ? { ...entry, start: e.target.value }
+                                    : entry,
+                                ),
+                              )
+                            }
+                            className="min-h-11 rounded-glam-input border border-line bg-surface px-2.5 text-[15px] text-ink outline-none transition duration-[180ms] focus:border-accent-500"
+                          />
+                          <span aria-hidden className="text-ink-muted">
+                            –
+                          </span>
+                          <label className="sr-only" htmlFor={`end-${day.dayOfWeek}`}>
+                            {day.label} finish
+                          </label>
+                          <input
+                            id={`end-${day.dayOfWeek}`}
+                            type="time"
+                            value={day.end}
+                            step={900}
+                            onChange={(e) =>
+                              setWeek((current) =>
+                                current.map((entry) =>
+                                  entry.dayOfWeek === day.dayOfWeek
+                                    ? { ...entry, end: e.target.value }
+                                    : entry,
+                                ),
+                              )
+                            }
+                            className="min-h-11 rounded-glam-input border border-line bg-surface px-2.5 text-[15px] text-ink outline-none transition duration-[180ms] focus:border-accent-500"
+                          />
+                        </span>
+                      ) : (
+                        <span className="text-sm text-ink-muted">Closed</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-ink-muted">
+                  These are the hours you are open, not the slots you are free —
+                  bookings and time off are taken off them automatically. Split
+                  days and holidays live in your calendar once you are live.
+                </p>
               </div>
             ) : null}
 
@@ -973,6 +1071,7 @@ export function OnboardingWizard(props: {
                       ["Menu with at least one service", done.menu, "menu"],
                       ["Storefront link and bio", done.storefront, "storefront"],
                       ["Workspace", done.workspace, "workspace"],
+                      ["Working hours set", done.hours, "hours"],
                       ["Insurance, licence or certificate uploaded", done.compliance, "compliance"],
                       ["Bank linked for payouts (needed before you're paid)", done.payouts, "payouts"],
                     ] as const

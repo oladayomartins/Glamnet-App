@@ -42,7 +42,9 @@ export function AccountList({ rows }: { rows: AccountRow[] }) {
           <div key={row.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-ink">{row.name || row.email.split("@")[0]}</span>
+                <Link href={`/admin/accounts/${row.id}`} className="font-semibold text-ink hover:text-accent-700">
+                  {row.name || row.email.split("@")[0]}
+                </Link>
                 <Pill tone={row.role === "ADMIN" ? "positive" : "neutral"}>{row.role.toLowerCase()}</Pill>
                 {row.vendorStatus ? <Pill tone={row.vendorStatus === "APPROVED" ? "positive" : "neutral"}>vendor {row.vendorStatus.toLowerCase()}</Pill> : null}
                 {row.suspended ? <Pill tone="muted">suspended</Pill> : null}

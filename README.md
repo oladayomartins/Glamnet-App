@@ -321,8 +321,9 @@ card through one path, `src/lib/server/payment-flow.ts`:
   account, and `account.updated` from connected accounts), each with its own
   signing secret: put both in the variable, comma-separated. Handles `payment_intent.amount_capturable_updated`,
   `setup_intent.succeeded`, `payment_intent.canceled`, `account.updated`,
-  `charge.refunded`, `charge.dispute.created` and `charge.dispute.closed`.
-  Each event is handled once.
+  `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`,
+  `checkout.session.completed` and `checkout.session.expired` (the last two
+  for vendor promotions). Each event is handled once.
 - **Disputes:** an admin rules from the booking page (Admin → Bookings →
   Disputed). Before release, only what's owed is captured and the vendor is
   paid their reduced share; after release, the customer is refunded and the
@@ -332,6 +333,36 @@ card through one path, `src/lib/server/payment-flow.ts`:
 Environment for real payments: `STRIPE_SECRET_KEY`,
 `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, and
 `CRON_SECRET` for the daily job.
+
+## Vendor promotions (paid placements)
+
+A second revenue line beside commission: vendors pay a fixed price to be
+seen first for 7, 14 or 30 days, like a classified-ads bump. One-off
+payments on Stripe Checkout; nothing renews. Three placements, each with a
+fixed number of slots so a spot stays worth buying:
+
+| Placement | Where it shows | Slots |
+| --- | --- | --- |
+| Top of search | Up to 3 rows pinned above search results, only when the vendor genuinely matches the search | per city |
+| Featured in your city | First in the city directory (`/[city]/salons`, or a postcode search) with a highlighted map pin | per city |
+| Home page spotlight | A "Sponsored pros" row on the home page, separate from "Featured pros", which stays unpaid | UK-wide |
+
+Every paid spot is labelled **Sponsored**. Buyers of the same placement take
+turns at the top (shuffled per page view).
+
+- **Admin → Vendor promotions:** set prices, slot counts and wording, switch
+  each placement on or off (all three ship **off**), see revenue, and take a
+  promotion down with or without a full refund.
+- **Vendor → Promote** (from the dashboard or Profile): shows what's on sale
+  in their city, slots left, and the start date. If every slot is taken the
+  purchase queues for the first date one frees up for the whole run; buying
+  again while one is running extends it.
+- **How a slot is held:** starting checkout reserves the slot for 40 minutes
+  (the Stripe page closes after 31), so two vendors can't pay for the last
+  slot. Payment is confirmed by the return page or the webhook, whichever
+  comes first; an abandoned checkout gives the slot back.
+- Code: `src/lib/domain/promotions.ts` (slots and pricing),
+  `src/lib/server/promotions.ts` (purchase flow and live placements).
 
 ## Not built
 

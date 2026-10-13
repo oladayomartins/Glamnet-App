@@ -8,6 +8,7 @@ import { ErrorNote, fieldClass } from "../_components/bits";
 import { fromLocalInput, shortDate, toLocalInput } from "../_components/date-input";
 import { SchedulePill } from "../_components/schedule-pill";
 import { useAdminAction } from "../_components/use-admin-action";
+import { ListFilter, matches } from "../_components/list-filter";
 
 interface Promo {
   id: string;
@@ -44,6 +45,8 @@ export function PromoManager({ promos, categories }: { promos: Promo[]; categori
   const { run, busy, error } = useAdminAction();
   const [editing, setEditing] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const shown = promos.filter((promo) => matches(query, promo.code, promo.description, promo.category));
 
   return (
     <div className="space-y-4">
@@ -70,7 +73,9 @@ export function PromoManager({ promos, categories }: { promos: Promo[]; categori
         </EmptyState>
       ) : null}
 
-      {promos.map((promo) =>
+      {promos.length > 0 ? <ListFilter value={query} onChange={setQuery} placeholder="Find a code" count={shown.length} /> : null}
+
+      {shown.map((promo) =>
         editing === promo.id ? (
           <PromoForm
             key={promo.id}
@@ -287,8 +292,8 @@ function PromoForm({
               minSpendMinor: toMinor(minSpend),
               category,
               firstBookingOnly,
-              maxRedemptions: Math.max(0, Number(maxRedemptions) || 0),
-              perCustomerLimit: Math.max(0, Number(perCustomerLimit) || 0),
+              maxRedemptions: Math.max(0, Math.floor(Number(maxRedemptions)) || 0),
+              perCustomerLimit: Math.max(0, Math.floor(Number(perCustomerLimit)) || 0),
               startsAt: fromLocalInput(startsAt),
               endsAt: fromLocalInput(endsAt),
               isActive,

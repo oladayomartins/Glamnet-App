@@ -364,6 +364,10 @@ export interface EventMap {
   /** A pro turning a broadcast down. */
   vendor_decline_booking: { outcome: "declined" | "failed" };
   apply_promo_code: { coupon: string; success: boolean };
+  /** The install banner or guide offering "Add to home screen", and what came of it. */
+  pwa_install_prompt: { outcome: "shown" | "accepted" | "dismissed"; platform: string; surface: "banner" | "guide" };
+  /** GLAMNET was installed (Chrome, Edge, Samsung Internet tell us; Safari doesn't). */
+  pwa_installed: Record<string, never>;
 }
 
 export function track<K extends keyof EventMap>(name: K, params: EventMap[K]): void;

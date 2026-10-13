@@ -29,6 +29,7 @@ import { boundingBox, byDistance, distanceKm, type LatLng } from "@/lib/domain/p
 import { crossSellFor, type CrossSellCandidate } from "@/lib/domain/specialty-hubs";
 import { ukDateString } from "@/lib/domain/uk-time";
 import { workspaceWhere, type WorkspaceFilter } from "@/lib/domain/workspace-filter";
+import { promotedProviderIds } from "./promotions";
 
 /**
  * Vendor storefronts and the direct booking engine (Open Marketplace
@@ -659,6 +660,8 @@ export interface DirectoryVendor {
   lookbook: string[];
   /** Promoted by an admin: listed first, with a badge. */
   isFeatured: boolean;
+  /** Paid for a "Featured in your city" placement: listed first, marked Sponsored. */
+  sponsored: boolean;
   /** The centre of the vendor's outward code — public and approximate. */
   area: LatLng | null;
   city: string;
@@ -667,7 +670,8 @@ export interface DirectoryVendor {
 /**
  * The marketplace directory (Directory §A), UK-wide: verified vendors,
  * optionally in one city, one Specialty Hub, or within `radiusKm` of a point.
- * Nearest first when a point is given, then by rating. Featured vendors lead.
+ * Nearest first when a point is given, then by rating. Vendors who paid for
+ * a directory placement lead, then admin-featured ones.
  *
  * Distance is measured from each vendor's private base postcode; what is
  * returned for the map is only the centre of their outward code.
@@ -680,6 +684,7 @@ export async function listDirectory(input: {
   space?: WorkspaceFilter | null;
 }): Promise<DirectoryVendor[]> {
   const box = input.near && input.radiusKm ? boundingBox(input.near, input.radiusKm) : null;
+  const promoted = await promotedProviderIds("DIRECTORY_FEATURED");
   const providers = await prisma.provider.findMany({
     where: {
       ...LIVE_VENDOR,
@@ -767,6 +772,9 @@ export async function listDirectory(input: {
         hubs: [...new Set(menu.map((service) => service.category))],
         lookbook: provider.lookbook.map((image) => image.url),
         isFeatured: provider.isFeatured,
+        // A city placement, so it only lifts a vendor in a local listing,
+        // not on the UK-wide page where every city's buyers would pile up.
+        sponsored: (Boolean(input.city) || Boolean(input.near)) && promoted.has(provider.id),
         area,
         city: provider.hub.city,
       };
@@ -775,6 +783,7 @@ export async function listDirectory(input: {
     .filter((vendor) => !box || (vendor.distanceKm !== null && vendor.distanceKm <= input.radiusKm!))
     .sort(
       (a, b) =>
+        Number(b.sponsored) - Number(a.sponsored) ||
         Number(b.isFeatured) - Number(a.isFeatured) ||
         (input.near ? byDistance(a.distanceKm, b.distanceKm) : 0) ||
         b.rating - a.rating ||

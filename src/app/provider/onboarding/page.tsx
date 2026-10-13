@@ -32,6 +32,7 @@ export default async function OnboardingPage({
       where: { id: user.providerId },
       include: {
         services: true,
+        availability: true,
         documents: { orderBy: { uploadedAt: "desc" } },
         lookbook: { orderBy: { position: "asc" } },
       },
@@ -93,6 +94,12 @@ export default async function OnboardingPage({
           (a, b) =>
             (hubOrder.indexOf(a.category) + 1 || 99) - (hubOrder.indexOf(b.category) + 1 || 99),
         )}
+      providerId={provider.id}
+      workingHours={provider.availability.map((window) => ({
+        dayOfWeek: window.dayOfWeek,
+        startMinute: window.startMinute,
+        endMinute: window.endMinute,
+      }))}
       menu={provider.services.map((link) => ({
         serviceId: link.serviceId,
         priceMinor: link.priceMinor,

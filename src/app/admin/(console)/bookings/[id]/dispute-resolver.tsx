@@ -13,7 +13,9 @@ const STAGE_LABEL: Record<DisputeStage, string> = {
   NONE: "No card payment on this booking.",
 };
 
-const toPence = (pounds: string) => Math.round(Number(pounds || "0") * 100);
+// Anything that is not a number counts as nothing, rather than NaN reaching
+// the preview and the server.
+const toPence = (pounds: string) => Math.max(0, Math.round(Number(pounds || "0") * 100) || 0);
 const toPounds = (minor: number) => (minor / 100).toFixed(2);
 
 /**

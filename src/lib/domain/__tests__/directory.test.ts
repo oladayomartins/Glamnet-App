@@ -9,10 +9,9 @@ import { normaliseSector } from "../postcode";
 import { isValidSlug, slugify } from "../storefront";
 
 describe("specialty hubs", () => {
-  it("has the five hubs from the directory spec", () => {
+  it("has the four hubs the marketplace serves", () => {
     expect(SPECIALTY_HUBS.map((hub) => hub.slug)).toEqual([
       "afro-textured",
-      "european-western",
       "mua-bridal",
       "nails",
       "massage-wellness",

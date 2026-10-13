@@ -46,7 +46,10 @@ export async function getMarketingData() {
             travelFeeMinor: true,
           },
         },
+        // Live services only, as on the storefront: a retired one must not
+        // set a card's "from" price, its specialities or a category count.
         services: {
+          where: { service: { isActive: true } },
           select: {
             service: {
               select: {

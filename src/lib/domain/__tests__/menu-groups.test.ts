@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import { menuGroup, menuGroups } from "@/lib/domain/specialty-hubs";
 
 describe("menuGroup", () => {
-  it("folds both hair hubs into Hair", () => {
+  it("calls the hair hub Hair", () => {
     expect(menuGroup("Afro & Textured")).toBe("Hair");
-    expect(menuGroup("European & Western")).toBe("Hair");
   });
 
   it("gives makeup, nails and massage short names", () => {
@@ -21,7 +20,7 @@ describe("menuGroup", () => {
 describe("menuGroups", () => {
   it("lists each group once, in menu order", () => {
     expect(
-      menuGroups(["Afro & Textured", "MUA Glam & Asian Bridal", "European & Western", "Manicures & Pedicures"]),
+      menuGroups(["Afro & Textured", "MUA Glam & Asian Bridal", "Afro & Textured", "Manicures & Pedicures"]),
     ).toEqual(["Hair", "Makeup", "Nails"]);
   });
 });

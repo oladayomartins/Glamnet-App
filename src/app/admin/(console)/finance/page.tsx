@@ -131,13 +131,9 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
                 {summary.vendors.map((vendor) => (
                   <tr key={vendor.id} className="border-b border-line/70 last:border-0">
                     <td className="px-4 py-2.5 font-medium text-ink">
-                      {vendor.slug ? (
-                        <Link href={`/pro/${vendor.slug}`} className="hover:text-accent-700">
-                          {vendor.name}
-                        </Link>
-                      ) : (
-                        vendor.name
-                      )}
+                      <Link href={`/admin/accounts/${vendor.id}`} className="hover:text-accent-700">
+                        {vendor.name}
+                      </Link>
                     </td>
                     <td data-numeric className="px-4 py-2.5 text-right font-mono">{vendor.bookings}</td>
                     <td data-numeric className="px-4 py-2.5 text-right font-mono">{formatMoney(vendor.gmvMinor)}</td>

@@ -55,6 +55,9 @@ model Service {
 
   providers    ProviderService[]
   bookingItems BookingItem[]
+
+  /// Category renames, deletes and counts look services up by name.
+  @@index([category])
 }
 
 /// Links a Supabase Auth user to their role and profile in this database.
@@ -180,7 +183,7 @@ model Provider {
   hub   Hub    @relation(fields: [hubId], references: [id])
 
   // --- Storefront (Open Marketplace Directory §B, §C) ---------------------
-  /// Public storefront handle: glamnet.co/pro/:slug. Null until the vendor
+  /// Public storefront handle: glamnetapp.com/pro/:slug. Null until the vendor
   /// claims one in the onboarding wizard.
   slug             String?       @unique
   phone            String        @default("")
@@ -240,6 +243,7 @@ model Provider {
   lookbook     ProviderLookbookImage[]
   documents    ProviderDocument[]
   clientNotes  ProviderClientNote[]
+  promotions   Promotion[]
 
   @@index([hubId])
   @@index([approvalStatus])
@@ -313,6 +317,9 @@ model ProviderDocument {
   reviewNote String    @default("")
   uploadedAt DateTime  @default(now())
   reviewedAt DateTime?
+  /// When the cover runs out (insurance, licences), set by the admin who
+  /// reviewed it; null when it doesn't expire or wasn't recorded.
+  expiresAt  DateTime?
 
   provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
@@ -529,6 +536,9 @@ model Booking {
   @@index([customerId, providerId])
   @@index([settlementStatus, disputeWindowClosesAt])
   @@index([paymentStatus, appointmentStartAt])
+  /// Finance, the Overview and the admin bookings list all range over this.
+  @@index([bookingCreatedAt])
+  @@index([cancelledAt])
 }
 
 /// One of the three mandatory photos of the finished work, taken by the
@@ -717,25 +727,45 @@ model Campaign {
 
 /// A paid or house ad in a named slot on the site.
 model AdPlacement {
-  id          String    @id @default(cuid())
-  /// "HOME_BANNER" | "DIRECTORY_TOP" | "STOREFRONT_FOOTER".
-  slot        String
-  title       String
-  subtitle    String    @default("")
-  imageUrl    String    @default("")
-  imageFileId String    @default("")
-  linkUrl     String    @default("")
+  id           String    @id @default(cuid())
+  /// A key of AD_SLOTS in src/lib/domain/ad-layout.ts, e.g. "HOME_BANNER".
+  slot         String
+  title        String
+  subtitle     String    @default("")
+  imageUrl     String    @default("")
+  imageFileId  String    @default("")
+  linkUrl      String    @default("")
   /// Who the ad is for — shown to admins, never to visitors.
-  advertiser  String    @default("")
-  startsAt    DateTime  @default(now())
-  endsAt      DateTime?
-  isActive    Boolean   @default(true)
+  advertiser   String    @default("")
+  startsAt     DateTime  @default(now())
+  endsAt       DateTime?
+  isActive     Boolean   @default(true)
   /// Higher shows first when a slot has several live ads.
-  priority    Int       @default(0)
-  impressions Int       @default(0)
-  clicks      Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  priority     Int       @default(0)
+  impressions  Int       @default(0)
+  clicks       Int       @default(0)
+  /// Layout; see src/lib/domain/ad-layout.ts. A size preset, or "CUSTOM".
+  size         String    @default("BANNER")
+  /// Design size in CSS pixels. Drawn at this width, or the column's if
+  /// narrower, keeping these proportions.
+  width        Int       @default(1400)
+  height       Int       @default(400)
+  /// "LEFT" | "CENTER" | "RIGHT", when narrower than the column.
+  align        String    @default("CENTER")
+  /// Where the headline sits: "BOTTOM_LEFT" | "BOTTOM_CENTER" | "CENTER" |
+  /// "TOP_LEFT" | "HIDDEN".
+  textPosition String    @default("BOTTOM_LEFT")
+  /// "COVER" | "CONTAIN".
+  imageFit     String    @default("COVER")
+  /// "ALL" | "MOBILE" | "DESKTOP".
+  device       String    @default("ALL")
+  /// In-list slots only: shown after this many vendor cards.
+  listPosition Int       @default(4)
+  /// A city name to show only there (directory and storefront slots), or ""
+  /// for everywhere.
+  targetCity   String    @default("")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([slot, isActive])
 }
@@ -752,6 +782,8 @@ model AdminAuditLog {
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
+  /// A person's or booking's admin history.
+  @@index([targetId])
 }
 
 /// A discount code customers enter at checkout. GLAMNET-funded: it comes out
@@ -802,4 +834,57 @@ model PromoRedemption {
 
   @@index([promoCodeId])
   @@index([customerId, promoCodeId])
+}
+
+/// A paid placement a vendor can buy (see lib/domain/promotions.ts).
+///
+/// Where each one shows is code, so the rows are fixed: one per key, created
+/// by migration. Admins set the prices, the number of slots and whether it is
+/// on sale. Off until an admin switches it on.
+model PromotionProduct {
+  /// "SEARCH_TOP" | "DIRECTORY_FEATURED" | "HOME_SPOTLIGHT".
+  key          String   @id
+  name         String
+  description  String   @default("")
+  /// How many vendors can hold it at once: per city for city placements,
+  /// across the UK for national ones.
+  slots        Int      @default(3)
+  /// Package prices in pence. 0 = that length is not sold.
+  price7Minor  Int      @default(0)
+  price14Minor Int      @default(0)
+  price30Minor Int      @default(0)
+  isActive     Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+}
+
+/// One purchase of a placement by a vendor, for a fixed window.
+///
+/// Live while status is PAID and now is inside [startsAt, endsAt). A PENDING
+/// row holds its slot only until holdExpiresAt, so an abandoned checkout
+/// gives the slot back on its own.
+model Promotion {
+  id                String    @id @default(cuid())
+  providerId        String
+  provider          Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  productKey        String
+  /// The vendor's city when bought, for city placements; "" for national.
+  city              String    @default("")
+  days              Int
+  amountMinor       Int
+  /// "PENDING" | "PAID" | "EXPIRED" | "CANCELLED" | "REFUNDED".
+  status            String    @default("PENDING")
+  startsAt          DateTime
+  endsAt            DateTime
+  holdExpiresAt     DateTime?
+  checkoutSessionId String    @default("")
+  paymentIntentId   String    @default("")
+  paidAt            DateTime?
+  cancelledAt       DateTime?
+  /// Who cancelled it and why, for the admin list.
+  note              String    @default("")
+  createdAt         DateTime  @default(now())
+
+  @@index([productKey, city, status])
+  @@index([providerId])
+  @@index([checkoutSessionId])
 }

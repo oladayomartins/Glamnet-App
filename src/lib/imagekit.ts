@@ -84,7 +84,6 @@ export const GOOGLE_REVIEW_URL = "";
  */
 export const CATEGORY_IMAGE_PATHS: Record<string, string> = {
   "Afro & Textured": "/Glossy Hair.png",
-  "European & Western": "/Glossy Hair.png",
   "Manicures & Pedicures": "/Glamnet - Nail Tech.png",
   // Two trailing spaces before the extension, which is how the file is named
   // in the library. Written out rather than trimmed: the name has to match.

@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { onHoldCancelled, securePayment } from "./payment-flow";
 import { formatMoney } from "@/lib/domain/pricing";
+import { confirmPromotion, expirePromotionCheckout } from "./promotions";
 
 /**
  * What Stripe tells us, as it happens.
@@ -111,6 +112,20 @@ const HANDLERS: Record<string, Handler> = {
         },
       }),
     ]);
+  },
+
+  /**
+   * A vendor paid for a promotion. Normally they land back on the Promote
+   * page first, which confirms it too; this covers a closed tab.
+   */
+  "checkout.session.completed": async (session) => {
+    const promotionId = str((session.metadata as Record<string, unknown> | undefined)?.promotionId);
+    if (promotionId) await confirmPromotion(promotionId);
+  },
+
+  /** A promotion checkout ran out unpaid: its slot goes back on sale. */
+  "checkout.session.expired": async (session) => {
+    await expirePromotionCheckout(str(session.id));
   },
 
   "charge.dispute.closed": async (dispute) => {

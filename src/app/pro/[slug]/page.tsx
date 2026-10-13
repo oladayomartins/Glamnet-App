@@ -59,7 +59,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 /**
  * A vendor's storefront blade (Open Marketplace Directory §B):
- * glamnet.co/pro/:username.
+ * glamnetapp.com/pro/:username.
  *
  * Lookbook, menu, calendar and reviews for one named vendor, and a booking
  * that goes to that vendor alone. The same page serves the vendor's own bio
@@ -242,6 +242,8 @@ export default async function StorefrontPage({
           )}
         </p>
       </section>
+
+      <AdSlot slot="STOREFRONT_TOP" city={store.hub.city} />
 
       <SectionNav sections={sections} />
 
@@ -450,7 +452,7 @@ export default async function StorefrontPage({
         </div>
       </section>
 
-      <AdSlot slot="STOREFRONT_FOOTER" />
+      <AdSlot slot="STOREFRONT_FOOTER" city={store.hub.city} />
 
       <p className="text-center text-xs text-ink-muted">
         <Link href={backHref} className="inline-flex min-h-11 items-center hover:text-accent-700">

@@ -58,7 +58,7 @@ export default async function AdminSettingsPage() {
           hint={
             config
               ? `Currently ${describeSurcharge(config.surchargeType, config.surchargeValue)} under ${formatDuration(config.thresholdMinutes)} notice`
-              : "Not configured"
+              : "Off — no emergency surcharge"
           }
         >
           Emergency pricing

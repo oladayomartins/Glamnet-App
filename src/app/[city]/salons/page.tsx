@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return city
     ? {
         title: `Beauty salons in ${city}`,
-        description: `Home salons, private rooms and independent chairs across ${city}, sorted by postcode.`,
+        description: `Black and Asian beauty pros in home salons, private rooms and independent chairs across ${city}, sorted by postcode.`,
       }
     : { title: "Not found" };
 }

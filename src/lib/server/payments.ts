@@ -94,6 +94,35 @@ export interface PaymentGateway {
   refund(input: { bookingId: string; paymentIntentId: string; amountMinor: number }): Promise<{ refundId: string }>;
   /** Take back part or all of what a vendor was transferred. */
   reverseTransfer(input: { bookingId: string; transferId: string; amountMinor: number }): Promise<{ reversalId: string }>;
+
+  /**
+   * A one-off charge on Stripe's hosted Checkout page, captured straight
+   * away — for what vendors buy from GLAMNET (promotions), not bookings.
+   */
+  createCheckout(input: CheckoutRequest): Promise<{ sessionId: string; url: string }>;
+  checkoutState(sessionId: string): Promise<CheckoutState>;
+  /** Refund part or all of a Checkout payment. */
+  refundPayment(input: { reference: string; paymentIntentId: string; amountMinor: number }): Promise<{ refundId: string }>;
+}
+
+export interface CheckoutRequest {
+  /** Our id for what is being bought; also the idempotency key. */
+  reference: string;
+  amountMinor: number;
+  name: string;
+  description: string;
+  customerEmail: string;
+  successUrl: string;
+  cancelUrl: string;
+  /** When the page stops taking payment. Stripe needs 30 minutes to 24 hours. */
+  expiresAt: Date;
+  metadata: Record<string, string>;
+}
+
+export interface CheckoutState {
+  paid: boolean;
+  expired: boolean;
+  paymentIntentId: string;
 }
 
 export interface SavedCard {
@@ -393,6 +422,57 @@ class StripeGateway implements PaymentGateway {
     );
     return { reversalId: reversal.id };
   }
+
+  async createCheckout(input: CheckoutRequest) {
+    const session = await this.call<{ id: string; url: string }>(
+      "POST",
+      "/checkout/sessions",
+      {
+        mode: "payment",
+        customer_email: input.customerEmail,
+        client_reference_id: input.reference,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "gbp",
+              unit_amount: input.amountMinor,
+              product_data: { name: input.name, description: input.description },
+            },
+          },
+        ],
+        success_url: input.successUrl,
+        cancel_url: input.cancelUrl,
+        expires_at: Math.floor(input.expiresAt.getTime() / 1000),
+        metadata: input.metadata,
+        payment_intent_data: { description: input.name, metadata: input.metadata },
+      },
+      `checkout-${input.reference}`,
+    );
+    return { sessionId: session.id, url: session.url };
+  }
+
+  async checkoutState(sessionId: string): Promise<CheckoutState> {
+    const session = await this.call<{ status: string; payment_status: string; payment_intent: string | null }>(
+      "GET",
+      `/checkout/sessions/${encodeURIComponent(sessionId)}`,
+    );
+    return {
+      paid: session.payment_status === "paid",
+      expired: session.status === "expired",
+      paymentIntentId: session.payment_intent ?? "",
+    };
+  }
+
+  async refundPayment(input: { reference: string; paymentIntentId: string; amountMinor: number }) {
+    const refund = await this.call<{ id: string }>(
+      "POST",
+      "/refunds",
+      { payment_intent: input.paymentIntentId, amount: input.amountMinor, metadata: { reference: input.reference } },
+      `refund-${input.reference}`,
+    );
+    return { refundId: refund.id };
+  }
 }
 
 interface SetupIntentPayload {
@@ -497,6 +577,20 @@ class SimulatedGateway implements PaymentGateway {
 
   async reverseTransfer(input: { bookingId: string }) {
     return { reversalId: `sim_trr_${input.bookingId}` };
+  }
+
+  async createCheckout(input: CheckoutRequest) {
+    // No payment page on a test deployment: straight to the success page,
+    // which then reads the session as paid.
+    return { sessionId: `sim_cs_${input.reference}`, url: input.successUrl };
+  }
+
+  async checkoutState(sessionId: string): Promise<CheckoutState> {
+    return { paid: true, expired: false, paymentIntentId: sessionId.replace("sim_cs_", "sim_pi_") };
+  }
+
+  async refundPayment(input: { reference: string }) {
+    return { refundId: `sim_re_${input.reference}` };
   }
 }
 

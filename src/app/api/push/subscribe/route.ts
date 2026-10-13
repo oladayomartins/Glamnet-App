@@ -45,8 +45,10 @@ export async function POST(request: Request) {
       },
       update: { appUserId: auth.user.appUserId, p256dh: input.keys.p256dh, auth: input.keys.auth, userAgent },
     });
-    // A first notification straight away, so the person sees it works.
-    await pushToUsers([auth.user.appUserId], {
+    // A first notification straight away, so the person sees it works —
+    // but not when the service worker is quietly renewing a subscription the
+    // browser rotated, which the person never asked for.
+    if (request.headers.get("x-glamnet-resubscribe") !== "1") await pushToUsers([auth.user.appUserId], {
       title: "Notifications are on",
       body:
         auth.user.role === "PROVIDER"

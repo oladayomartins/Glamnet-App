@@ -9,6 +9,7 @@ import {
   ClockCounterClockwise,
   Gear,
   Megaphone,
+  RocketLaunch,
   Scissors,
   SquaresFour,
   Storefront,
@@ -27,6 +28,7 @@ const SECTIONS = [
   { href: "/admin/cities", label: "Cities", icon: Buildings },
   { href: "/admin/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/admin/promos", label: "Promo codes", icon: Ticket },
+  { href: "/admin/promotions", label: "Vendor promotions", icon: RocketLaunch },
   { href: "/admin/ads", label: "Ad placements", icon: Television },
   { href: "/admin/finance", label: "Finance", icon: Wallet },
   { href: "/admin/activity", label: "Activity log", icon: ClockCounterClockwise },
@@ -56,9 +58,9 @@ export function AdminNav({ email }: { email: string }) {
             <Link
               key={href}
               href={href}
-              // Each prefetch is a full server render with its own auth check;
-              // ten of them on every admin page load is wasted work.
-              prefetch={false}
+              // The default prefetch stops at the console's loading boundary,
+              // so it fetches the shell, not every section's data: a click
+              // then shows the skeleton at once instead of the old page.
               aria-current={current ? "page" : undefined}
               className={`flex min-h-10 shrink-0 items-center gap-2.5 rounded-full px-3.5 text-sm font-medium transition duration-[180ms] ease-glam lg:rounded-glam-sm ${
                 current

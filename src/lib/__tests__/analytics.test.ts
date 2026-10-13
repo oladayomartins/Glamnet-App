@@ -30,20 +30,20 @@ describe("resolveMeasurementId", () => {
 
 describe("sanitizeLocation", () => {
   it("drops one-time tokens and anything else not allowlisted", () => {
-    expect(sanitizeLocation("https://glamnet.co/unsubscribe?token=secret&utm_source=email")).toBe(
-      "https://glamnet.co/unsubscribe?utm_source=email",
+    expect(sanitizeLocation("https://glamnetapp.com/unsubscribe?token=secret&utm_source=email")).toBe(
+      "https://glamnetapp.com/unsubscribe?utm_source=email",
     );
-    expect(sanitizeLocation("https://glamnet.co/auth/confirm?token_hash=abc&type=email&next=/account")).toBe(
-      "https://glamnet.co/auth/confirm",
+    expect(sanitizeLocation("https://glamnetapp.com/auth/confirm?token_hash=abc&type=email&next=/account")).toBe(
+      "https://glamnetapp.com/auth/confirm",
     );
-    expect(sanitizeLocation("https://glamnet.co/sign-in?email=a%40b.com")).toBe("https://glamnet.co/sign-in");
+    expect(sanitizeLocation("https://glamnetapp.com/sign-in?email=a%40b.com")).toBe("https://glamnetapp.com/sign-in");
   });
 
   it("keeps campaign and search parameters", () => {
-    expect(sanitizeLocation("https://glamnet.co/search?q=braids&location=Leeds&gclid=x#top")).toBe(
-      "https://glamnet.co/search?q=braids&location=Leeds&gclid=x",
+    expect(sanitizeLocation("https://glamnetapp.com/search?q=braids&location=Leeds&gclid=x#top")).toBe(
+      "https://glamnetapp.com/search?q=braids&location=Leeds&gclid=x",
     );
-    expect(sanitizeLocation("https://glamnet.co/pro/ada?via=directory")).toBe("https://glamnet.co/pro/ada?via=directory");
+    expect(sanitizeLocation("https://glamnetapp.com/pro/ada?via=directory")).toBe("https://glamnetapp.com/pro/ada?via=directory");
   });
 
   it("returns an empty string for garbage", () => {

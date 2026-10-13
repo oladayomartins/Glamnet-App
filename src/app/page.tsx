@@ -24,6 +24,9 @@ import { getMarketingData } from "@/lib/server/marketing";
 import { BlockHeading } from "@/components/ui";
 import { BookingLauncher } from "@/components/booking-launcher";
 import { FeaturedProviders } from "@/components/featured-providers";
+import { ProviderCard } from "@/components/provider-card";
+import { promotedProviderIds } from "@/lib/server/promotions";
+import { rotate } from "@/lib/domain/promotions";
 import { DiscoveryRail } from "@/components/discovery-rail";
 import { discoveryVendors } from "@/lib/server/discovery";
 import { qualifyingRows } from "@/lib/domain/discovery-rows";
@@ -49,7 +52,6 @@ export const dynamic = "force-dynamic";
  */
 const CATEGORY_ICONS: Record<string, ReactNode> = {
   "Afro & Textured": <Scissors size={18} weight="light" />,
-  "European & Western": <Scissors size={18} weight="light" />,
   "MUA Glam & Asian Bridal": <PaintBrush size={18} weight="light" />,
   "Manicures & Pedicures": <Hand size={18} weight="light" />,
   "Massage & Wellness": <Heart size={18} weight="light" />,
@@ -60,19 +62,30 @@ const HOW_IT_WORKS = [
   {
     icon: <MagnifyingGlass size={20} weight="light" />,
     title: "Find your pro",
-    body: "Pick a hub, add your postcode, and browse verified pros nearest first — their looks, menus and reviews.",
+    body: "Search by service and postcode, then compare verified pros nearest first — their work, prices and reviews.",
   },
   {
     icon: <CalendarCheck size={20} weight="light" />,
     title: "Book a real slot",
-    body: "Choose services and an open time from their own calendar. You see the full price, and your card is only held.",
+    body: "Pick your services and a time from their live calendar. You see the full price upfront, and your card is only held.",
   },
   {
     icon: <LockKey size={20} weight="light" />,
     title: "Pay with your PIN",
-    body: "Happy with the result? Read your pro a 4-digit PIN and the payment is released. Not happy? Keep it, and tell us.",
+    body: "Happy with the result? Give your pro your 4-digit PIN to release the payment. Not happy? Keep the PIN and tell us — the money stays on hold.",
   },
 ];
+
+/**
+ * Below this many, a count reads as "nobody is here" rather than as proof, so
+ * the page says what is true of every pro instead. The numbers are never
+ * rounded up or invented — they are left out until they help.
+ */
+const SHOW_COUNTS_FROM = 10;
+
+function prosLabel(count: number): string | null {
+  return count >= SHOW_COUNTS_FROM ? `${count} pros` : null;
+}
 
 /** The platform's own promises — shown where a marketplace would put reviews. */
 const PROMISES = [
@@ -130,13 +143,13 @@ export default async function MarketingPage() {
     viewer,
   ] =
     await Promise.all([getMarketingData(), getPricingContext(), getSessionUser()]);
+  const spotlightIds = await promotedProviderIds("HOME_SPOTLIGHT");
 
   // Discovery rows. Each is dropped rather than padded when its query comes
   // back short — see lib/domain/discovery-rows.ts for why a thin "Trending"
   // rail is the same mistake as a made-up booking counter.
   const rows = qualifyingRows(await discoveryVendors());
 
-  const thresholdHours = Math.round(thresholdMinutes / 60);
   // Quick picks in the search bar: only areas where someone can be booked.
   const areas = cities
     .filter((city) => city.providerCount > 0 && city.hubId)
@@ -167,6 +180,14 @@ export default async function MarketingPage() {
     freeTonight: provider.freeTonight,
     specialities: provider.specialities,
   }));
+
+  // Paid home-page spotlight. Its own row, apart from "Featured pros", which
+  // promises it is never ranked by payment. Fresh order on every visit so
+  // everyone who bought it gets turns at the front.
+  const spotlight = rotate(
+    cards.filter((card) => spotlightIds.has(card.id)),
+    cards.length,
+  );
 
   return (
     // `full` hands the whole width to the page, which then contains its own
@@ -278,18 +299,26 @@ export default async function MarketingPage() {
                 aria-hidden
                 className="breathe h-2 w-2 rounded-full bg-normal"
               />
-              The UK&rsquo;s beauty marketplace
+              The UK&rsquo;s marketplace for the Black and Asian beauty community
             </p>
 
             {/* 800, which is heavier than Instrument Sans could go at all —
                 the reason the display family exists. */}
             <h1 className="mt-4 font-display text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
-              Find trusted beauty pros for every occasion
+              Beauty pros who know your hair, your skin, your culture
             </h1>
 
-            <p className="mt-5 max-w-lg text-base text-ink-muted">
-              Braids, bridal glam, BIAB and massage from verified independent
-              pros — at their home salon, studio or chair, or at your door.
+            {/* Two lengths. On a phone the full paragraph pushes the search
+                bar off the first screen, so phones get the specialisms only;
+                the promises it drops are on the page further down. */}
+            <p className="mt-5 max-w-lg text-base text-ink-muted sm:hidden">
+              Braids, Asian bridal, gele, nails and massage from verified pros
+              who specialise in Black and Asian beauty.
+            </p>
+            <p className="mt-5 hidden max-w-lg text-base text-ink-muted sm:block">
+              Braids, twists, Asian bridal, gele, BIAB and massage from
+              verified independent pros who specialise in Black and Asian
+              beauty — at their home salon, studio or chair, or at your door.
               Real availability, one honest price, paid only when you&rsquo;re
               happy.
             </p>
@@ -324,9 +353,15 @@ export default async function MarketingPage() {
             <dl className="mt-5 flex max-w-[var(--glam-hero-col)] flex-wrap items-center gap-x-7 gap-y-3">
               <HeroFigure
                 icon={<ShieldCheck size={15} weight="fill" aria-hidden />}
-                value={String(stats.providerCount)}
+                value={
+                  stats.providerCount >= SHOW_COUNTS_FROM
+                    ? String(stats.providerCount)
+                    : "100%"
+                }
                 label={
-                  stats.providerCount === 1 ? "Vetted vendor" : "Vetted vendors"
+                  stats.providerCount >= SHOW_COUNTS_FROM
+                    ? "Vetted pros"
+                    : "Pros vetted"
                 }
               />
               <HeroFigure
@@ -336,8 +371,8 @@ export default async function MarketingPage() {
               />
               <HeroFigure
                 icon={<Lightning size={15} weight="fill" aria-hidden />}
-                value={`${thresholdHours}h`}
-                label="Emergency cover"
+                value="Same-day"
+                label="Short-notice bookings"
               />
 
               {/*
@@ -380,7 +415,7 @@ export default async function MarketingPage() {
         <Container className="pt-14 sm:pt-16">
           <BlockHeading
             title="Browse by specialty"
-            lede="Each hub has pros who specialise in exactly that craft."
+            lede="Specialists in Black and Asian hair, makeup, nails and wellness."
             action={<SeeAll href="/salons" />}
           />
 
@@ -441,8 +476,7 @@ export default async function MarketingPage() {
                   {category.name}
                 </span>
                 <span className="mt-0.5 block text-xs text-ink-muted">
-                  {category.providerCount}{" "}
-                  {category.providerCount === 1 ? "provider" : "providers"}
+                  {prosLabel(category.providerCount) ?? "View pros"}
                 </span>
               </Link>
             ))}
@@ -456,10 +490,10 @@ export default async function MarketingPage() {
                 <SquaresFour size={28} weight="light" aria-hidden />
               </span>
               <span className="mt-2.5 block text-sm font-semibold text-brand-700">
-                All salons
+                All pros
               </span>
               <span className="mt-0.5 block text-xs text-ink-muted">
-                {stats.serviceCount} services
+                Every specialty
               </span>
             </Link>
           </Rail>
@@ -481,6 +515,19 @@ export default async function MarketingPage() {
         </Container>
       ) : null}
 
+      {spotlight.length > 0 ? (
+        <Container className="pt-14 sm:pt-16">
+          <BlockHeading title="Sponsored pros" lede="Vetted pros who pay to be shown here." />
+          <Rail label="Sponsored pros">
+            {spotlight.map((provider) => (
+              <div key={provider.id} className="w-[220px] shrink-0 snap-start sm:w-[250px]">
+                <ProviderCard provider={provider} />
+              </div>
+            ))}
+          </Rail>
+        </Container>
+      ) : null}
+
       {/* ================= Block 3b — discovery rows ==================
           Only the rows the marketplace has actually earned. With too few
           vendors this renders nothing at all, which is the intended state
@@ -491,6 +538,11 @@ export default async function MarketingPage() {
           <DiscoveryRail label={row.spec.title} vendors={row.vendors} />
         </Container>
       ))}
+
+      {/* ================= Sponsored, mid page ========================= */}
+      <Container className="pt-14 empty:hidden sm:pt-16">
+        <AdSlot slot="HOME_MIDDLE" />
+      </Container>
 
       {/* ================= Block 4 — cities ============================ */}
       {cities.length > 0 ? (
@@ -557,7 +609,7 @@ export default async function MarketingPage() {
                     </span>
                     <span className="mt-0.5 block text-xs text-white/80">
                       {city.providerCount > 0
-                        ? `${city.providerCount} ${city.providerCount === 1 ? "provider" : "providers"}`
+                        ? (prosLabel(city.providerCount) ?? "Taking bookings")
                         : "Pros joining soon"}
                     </span>
                   </span>
@@ -636,6 +688,11 @@ export default async function MarketingPage() {
         </Container>
       </section>
 
+      {/* ================= Sponsored, above the sign-off =============== */}
+      <Container className="pt-14 empty:hidden sm:pt-16">
+        <AdSlot slot="HOME_BOTTOM" />
+      </Container>
+
       {/* ================= CTA band ==================================== */}
       <Container className="pt-14 sm:pt-16">
         {/*
@@ -647,11 +704,13 @@ export default async function MarketingPage() {
           <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
             <div>
               <h2 className="font-display text-3xl font-bold tracking-[-0.02em] text-ink sm:text-4xl">
-                Bring your next occasion to life
+                Your next look, in the right hands
               </h2>
               <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
-                Book a pro for this evening or next season — or, if you are the
-                pro, claim a free storefront with 0% commission on your own link.
+                Book a verified specialist in Black and Asian beauty, see the
+                full price upfront, and pay only when you&rsquo;re happy. Are you
+                a pro? List your business free, with 0% commission on clients
+                you bring.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
@@ -693,12 +752,17 @@ export default async function MarketingPage() {
                 ) : null}
               </span>
               <p className="text-sm text-ink-muted">
-                <span className="font-semibold text-ink">
-                  {stats.providerCount}
-                </span>{" "}
-                vetted {stats.providerCount === 1 ? "provider" : "providers"}{" "}
-                taking work across {stats.cityCount}{" "}
-                {stats.cityCount === 1 ? "city" : "cities"}
+                {stats.providerCount >= SHOW_COUNTS_FROM ? (
+                  <>
+                    <span className="font-semibold text-ink">
+                      {stats.providerCount}
+                    </span>{" "}
+                    vetted pros taking bookings across {stats.cityCount}{" "}
+                    {stats.cityCount === 1 ? "city" : "cities"}
+                  </>
+                ) : (
+                  "Vetted pros taking bookings now"
+                )}
               </p>
             </div>
           </div>

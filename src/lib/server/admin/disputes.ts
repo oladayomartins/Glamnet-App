@@ -77,6 +77,30 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
   const finalStatus = amounts.feeOnly ? (booking.noShowAt ? "NO_SHOW" : "CANCELLED") : plan.bookingStatus;
 
   const gateway = paymentGateway();
+
+  // Every check comes before any money moves: a ruling refused halfway, after
+  // the refund or the hold had gone through, would leave the customer paid
+  // and the booking still saying DISPUTED.
+  // Stripe allows one refund per booking here (its idempotency key is the
+  // booking), so one already given from the booking page can't be topped up.
+  if (plan.stage === "RELEASED" && plan.refundMinor > 0 && booking.refundedMinor > 0) {
+    throw new AdminError(
+      `${formatMoney(booking.refundedMinor)} has already been refunded on this booking. Rule with no further refund, or refund the rest in the Stripe dashboard.`,
+    );
+  }
+  if (plan.stage === "RELEASED" && plan.clawbackMinor > 0 && !booking.transferId) {
+    throw new AdminError("There's no transfer to the vendor on record to recover from.");
+  }
+  if (
+    plan.stage === "HELD" &&
+    plan.captureMinor > 0 &&
+    gateway.mode === "stripe" &&
+    plan.vendorPayMinor > 0 &&
+    (!booking.provider?.stripeAccountId || !booking.provider.payoutsEnabled)
+  ) {
+    throw new AdminError("The vendor hasn't finished their payout set-up, so they can't be paid yet.");
+  }
+
   const money = { transferId: booking.transferId, refundId: "", transferReversalId: "", captured: false };
 
   try {
@@ -94,13 +118,6 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
       if (plan.captureMinor === 0) {
         if (paymentIntentId) await gateway.void(paymentIntentId);
       } else {
-        if (
-          gateway.mode === "stripe" &&
-          plan.vendorPayMinor > 0 &&
-          (!booking.provider?.stripeAccountId || !booking.provider.payoutsEnabled)
-        ) {
-          throw new AdminError("The vendor hasn't finished their payout set-up, so they can't be paid yet.");
-        }
         const { transferId } = await gateway.captureAndTransfer({
           bookingId: booking.id,
           paymentIntentId,
@@ -120,12 +137,9 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
         }));
       }
       if (plan.clawbackMinor > 0) {
-        if (!booking.transferId) {
-          throw new AdminError("There's no transfer to the vendor on record to recover from.");
-        }
         ({ reversalId: money.transferReversalId } = await gateway.reverseTransfer({
           bookingId: booking.id,
-          transferId: booking.transferId,
+          transferId: booking.transferId!,
           amountMinor: plan.clawbackMinor,
         }));
       }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   CalendarCheck,
   CaretDown,
+  DeviceMobile,
   MagnifyingGlass,
   ShieldCheck,
   SignOut,
@@ -21,8 +22,12 @@ export interface UserMenuProps {
 
 const ROLE_LABEL = { CUSTOMER: "Client", PROVIDER: "Beauty pro", ADMIN: "Admin" } as const;
 
-/** Each account type's own shortcuts. */
+/** Each account type's own shortcuts, then installing the app. */
 function linksFor(role: UserMenuProps["role"]) {
+  return [...roleLinks(role), { href: "/install", label: "Get the app", icon: DeviceMobile }];
+}
+
+function roleLinks(role: UserMenuProps["role"]) {
   if (role === "PROVIDER") {
     return [
       { href: "/provider", label: "My dashboard", icon: CalendarCheck },

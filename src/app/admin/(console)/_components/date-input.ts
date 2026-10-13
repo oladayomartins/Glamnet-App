@@ -11,7 +11,10 @@ export function fromLocalInput(value: string): string | null {
   return value ? new Date(value).toISOString() : null;
 }
 
+// Pinned to UK time: these strings render on the server (UTC) and again in
+// the browser, and without a zone the two disagreed by an hour in summer.
 const DATE = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/London",
   day: "numeric",
   month: "short",
   hour: "2-digit",

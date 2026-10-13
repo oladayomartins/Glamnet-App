@@ -44,6 +44,19 @@ async function currentSubscription(): Promise<PushSubscription | null> {
 }
 
 /**
+ * Browsers explain push failures in their own words ("Registration failed -
+ * permission denied", "push service error"), which mean nothing to a
+ * customer. Our own API errors are already written for people and pass
+ * through as they are.
+ */
+function friendlyError(cause: unknown): string {
+  if (!(cause instanceof Error)) return "Couldn't turn notifications on.";
+  const browserSaid = cause.name === "NotAllowedError" || cause.name === "AbortError" || /registration failed|push service/i.test(cause.message);
+  if (!browserSaid) return cause.message;
+  return "Your browser wouldn't set up notifications here. Private or incognito windows can't receive them — open GLAMNET in a normal window, or from its home-screen icon, and try again.";
+}
+
+/**
  * Turn push notifications on or off for this device.
  *
  * Shown as a card while off, and as a quiet line once on. On an iPhone,
@@ -63,6 +76,7 @@ export function PushPrompt({
 }) {
   const [state, setState] = useState<State>("loading");
   const [error, setError] = useState<string | null>(null);
+  const [test, setTest] = useState<"idle" | "sending" | "sent" | "none" | "failed">("idle");
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +128,7 @@ export function PushPrompt({
       }
       setState("on");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Couldn't turn notifications on.");
+      setError(friendlyError(cause));
       setState("off");
     }
   };
@@ -137,6 +151,18 @@ export function PushPrompt({
     }
   };
 
+  const sendTest = async () => {
+    setTest("sending");
+    try {
+      const response = await fetch("/api/push/test", { method: "POST" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error();
+      setTest(payload?.sent > 0 ? "sent" : "none");
+    } catch {
+      setTest("failed");
+    }
+  };
+
   if (state === "loading" || state === "hidden") return null;
 
   if (state === "on") {
@@ -147,11 +173,36 @@ export function PushPrompt({
         Notifications are on for this device.
         <button
           type="button"
+          onClick={sendTest}
+          disabled={test === "sending"}
+          className="inline-flex min-h-11 items-center px-1 font-semibold text-accent-700 underline-offset-4 hover:underline disabled:opacity-60"
+        >
+          {test === "sending" ? "Sending…" : "Send a test"}
+        </button>
+        <button
+          type="button"
           onClick={turnOff}
           className="inline-flex min-h-11 items-center px-1 font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline"
         >
           Turn off
         </button>
+        {test === "sent" ? (
+          <span role="status" className="w-full text-xs">
+            Sent — it should appear in a few seconds. Nothing? See{" "}
+            <a href="/install#help-heading" className="font-semibold text-accent-700 hover:underline">
+              troubleshooting
+            </a>
+            .
+          </span>
+        ) : test === "none" ? (
+          <span role="status" className="w-full text-xs text-warning">
+            This device&rsquo;s notification link has lapsed. Turn notifications off and on again to renew it.
+          </span>
+        ) : test === "failed" ? (
+          <span role="status" className="w-full text-xs text-warning">
+            Couldn&rsquo;t send a test just now. Try again in a moment.
+          </span>
+        ) : null}
       </p>
     );
   }

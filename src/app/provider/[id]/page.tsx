@@ -128,6 +128,23 @@ export default async function ProviderPage({
         )}
       </section>
 
+      {provider.slug ? (
+        <Link
+          href={`/provider/${provider.id}/promote`}
+          className="flex min-h-14 items-center justify-between gap-3 rounded-glam border border-line bg-surface px-4 py-3 transition duration-[180ms] hover:bg-sunken"
+        >
+          <span>
+            <span className="block font-semibold text-ink">Promote your storefront</span>
+            <span className="block text-sm text-ink-muted">
+              Get seen first in search, your city&rsquo;s directory or the home page
+            </span>
+          </span>
+          <span aria-hidden className="text-ink-muted">
+            →
+          </span>
+        </Link>
+      ) : null}
+
       <Link
         href={`/provider/${provider.id}/settings`}
         className="flex min-h-14 items-center justify-between gap-3 rounded-glam border border-line bg-surface px-4 py-3 transition duration-[180ms] hover:bg-sunken"

@@ -62,7 +62,6 @@ describe("brand artwork paths", () => {
   it("knows the seeded categories and nothing it has not been given", () => {
     for (const category of [
       "Afro & Textured",
-      "European & Western",
       "MUA Glam & Asian Bridal",
       "Manicures & Pedicures",
       "Massage & Wellness",

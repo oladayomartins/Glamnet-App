@@ -1,6 +1,7 @@
 "use client";
 
 import { PostcodeField, type ResolvedPlace } from "./postcode-field";
+import { StreetField } from "./street-field";
 import { distanceKm, formatMiles } from "@/lib/domain/postcode";
 
 export interface AddressValue {
@@ -24,8 +25,9 @@ export function formatAddress(value: AddressValue): string {
 
 /**
  * Where the pro should come to: postcode first (with suggestions and "Use my
- * location"), then the house number and street. The postcode is checked
- * against the UK postcode list before the booking can be placed.
+ * location"), then the house number and street, suggested from the streets
+ * around that postcode. The postcode is checked against the UK postcode list
+ * before the booking can be placed.
  */
 export function AddressFields({
   value,
@@ -54,16 +56,13 @@ export function AddressFields({
           About {miles} from {from!.name}&rsquo;s area.
         </p>
       ) : null}
-      <label className="block">
-        <span className="text-sm font-medium text-ink">House number and street</span>
-        <input
-          value={value.street}
-          onChange={(event) => onChange({ ...value, street: event.target.value })}
-          autoComplete="address-line1"
-          placeholder="e.g. Flat 2, 14 Oak Road"
-          className="mt-1 min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 text-[15px] text-ink outline-none focus:border-accent-500"
-        />
-      </label>
+      <StreetField
+        label="House number and street"
+        value={value.street}
+        onChange={(street) => onChange({ ...value, street })}
+        near={value.place}
+        placeholder="e.g. Flat 2, 14 Oak Road"
+      />
     </div>
   );
 }

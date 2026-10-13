@@ -5,11 +5,11 @@ import {
   TableSkeleton,
 } from "@/components/skeletons";
 
-/** The admin dashboard, arriving: reporting, then the ledger. */
+/** A first visit to the admin console, arriving: heading, figures, then a list. */
 export default function Loading() {
   return (
     <LoadingScreen
-      label="Loading the dashboard"
+      label="Loading the admin console"
       pageWidth="wide"
       className="space-y-8"
     >

@@ -37,7 +37,7 @@ export type Canceller =
   | { role: "ADMIN" };
 
 /** Statuses an admin may cancel from: anything not yet under way. */
-const ADMIN_CANCELLABLE = ["REQUESTED", "BROADCAST", ...PROVIDER_CANCELLABLE];
+export const ADMIN_CANCELLABLE = ["REQUESTED", "BROADCAST", ...PROVIDER_CANCELLABLE];
 
 type FullBooking = Booking & {
   customer: { name: string; email: string; stripeCustomerId: string };
