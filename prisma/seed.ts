@@ -113,8 +113,20 @@ async function main() {
     { name: "Ines Duarte", slug: "ines-natural-hair", email: "ines@glamnet.test", hub: leeds, rating: 4.7, completed: 143, windows: STANDARD_WEEK, skills: [services.braids, services.wiginstall, services.treatment], workspaceType: "MOBILE", workspaceSector: "", instagram: "", bio: "Protective styling and natural hair." },
   ];
 
+  // Where each workspace is: real Sheffield streets and postcodes, made-up
+  // door numbers. Private, like a real vendor's: only a client with a paid
+  // booking there sees the street. Mobile pros have no workspace to list.
+  const workspaces: Record<string, { street: string; postcode: string; lat: number; lng: number }> = {
+    "amara@glamnet.test": { street: "18 Wilson Road", postcode: "S11 8RN", lat: 53.369398, lng: -1.498832 },
+    "priya@glamnet.test": { street: "Room 3, 214 Glossop Road", postcode: "S10 2SG", lat: 53.377205, lng: -1.495674 },
+    "zainab@glamnet.test": { street: "Chair 4, 120 Division Street", postcode: "S1 4GF", lat: 53.380053, lng: -1.474429 },
+    "nadia@glamnet.test": { street: "52 St Ronans Road", postcode: "S7 1FL", lat: 53.361824, lng: -1.478696 },
+    "tom@glamnet.test": { street: "Room 2, 310 Middlewood Road", postcode: "S6 4HF", lat: 53.403732, lng: -1.502432 },
+  };
+
   const providers: Record<string, string> = {};
   for (const spec of providerSpecs) {
+    const workspace = workspaces[spec.email];
     const created = await prisma.provider.create({
       data: {
         name: spec.name,
@@ -131,6 +143,10 @@ async function main() {
         slug: spec.slug,
         workspaceType: spec.workspaceType,
         workspaceSector: spec.workspaceSector,
+        workspaceAddress: workspace?.street ?? "",
+        basePostcode: workspace?.postcode ?? "",
+        latitude: workspace?.lat ?? null,
+        longitude: workspace?.lng ?? null,
         instagramHandle: spec.instagram,
         documents: {
           create: {
