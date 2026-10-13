@@ -74,6 +74,7 @@ export async function updatePromo(actorEmail: string, id: string, raw: unknown) 
   const { startsAt, endsAt, ...rest } = patchSchema(promoInput).parse(raw);
   const current = await prisma.promoCode.findUnique({ where: { id } });
   if (!current) throw new AdminError("That code no longer exists.", 404, "NOT_FOUND");
+  if (current.providerId) throw new AdminError("That's a vendor's own code. The vendor manages it.");
   checkRules({
     ...rest,
     discountType: rest.discountType ?? current.discountType,
@@ -107,6 +108,7 @@ export async function updatePromo(actorEmail: string, id: string, raw: unknown) 
 export async function deletePromo(actorEmail: string, id: string) {
   const current = await prisma.promoCode.findUnique({ where: { id } });
   if (!current) throw new AdminError("That code no longer exists.", 404, "NOT_FOUND");
+  if (current.providerId) throw new AdminError("That's a vendor's own code. The vendor manages it.");
   const used = await prisma.promoRedemption.count({ where: { promoCodeId: id } });
   if (used > 0) throw new AdminError("This code has been used, so it's kept for your records. Pause it instead.");
   await prisma.promoCode.delete({ where: { id } });

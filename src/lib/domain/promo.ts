@@ -4,9 +4,12 @@ import { applyBps } from "./pricing";
  * Promo code rules. Pure, so every refusal message and every discount is
  * testable without a database.
  *
- * Every code is GLAMNET-funded: the discount comes out of the platform's own
- * share of the booking and the vendor is paid exactly what they would have
- * been. That share is the hard ceiling on any discount — see `settle()`.
+ * Two kinds of code. A GLAMNET code is GLAMNET-funded: the discount comes out
+ * of the platform's own share of the booking and the vendor is paid exactly
+ * what they would have been — that share is the hard ceiling on it (see
+ * `settle()`). A vendor's own code works only on their storefront and comes
+ * off their service price; for it the caller passes no platform ceiling, and
+ * "first booking" means the client's first booking with that vendor.
  */
 
 export type PromoDiscountType = "PERCENT" | "FIXED";
@@ -25,6 +28,8 @@ export interface PromoRule {
   startsAt: Date;
   endsAt: Date | null;
   isActive: boolean;
+  /** Set for a vendor's own code: their name, for the refusal messages. */
+  ownerName?: string | null;
 }
 
 export interface PromoContext {
@@ -72,7 +77,12 @@ export function evaluatePromo(rule: PromoRule, ctx: PromoContext): PromoOutcome 
     return { ok: false, reason: "You've already used this code." };
   }
   if (rule.firstBookingOnly && ctx.customerPriorBookings > 0) {
-    return { ok: false, reason: "This code is for your first GLAMNET booking." };
+    return {
+      ok: false,
+      reason: rule.ownerName
+        ? `This code is for new clients of ${rule.ownerName}.`
+        : "This code is for your first GLAMNET booking.",
+    };
   }
 
   const eligible = rule.category

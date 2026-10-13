@@ -458,18 +458,21 @@ export async function quoteStorefront(
   const bookingType = classifyBooking(notice, threshold);
   const duration = basketDurationMinutes(basket);
 
-  const price = priceBooking(
-    {
-      basket,
-      bookingType,
-      // Nobody travels to a booking at the vendor's own workspace.
-      travelFeeMinor:
-        request.serviceLocation === "CUSTOMER_ADDRESS" ? provider.hub.travelFeeMinor : 0,
-      emergencyConfig: config,
-      trustFeeMinor: trustFeeFor(request.source, fees.rates),
-    },
-    now,
-  );
+  const priceWith = (vendorDiscount?: { amountMinor: number; label: string }) =>
+    priceBooking(
+      {
+        basket,
+        bookingType,
+        // Nobody travels to a booking at the vendor's own workspace.
+        travelFeeMinor:
+          request.serviceLocation === "CUSTOMER_ADDRESS" ? provider.hub.travelFeeMinor : 0,
+        emergencyConfig: config,
+        trustFeeMinor: trustFeeFor(request.source, fees.rates),
+        vendorDiscount,
+      },
+      now,
+    );
+  let price = priceWith();
 
   const commission = decideCommission(
     {
@@ -488,12 +491,19 @@ export async function quoteStorefront(
     promo = await evaluatePromoCode(request.promoCode, {
       now,
       customerId: request.customerId,
+      providerId: provider.id,
       lines: promoLines,
       platformShareMinor:
         price.totalMinor + undiscounted.tipMinor - undiscounted.providerPayoutMinor,
     });
   }
-  const discountMinor = promo?.outcome.ok ? promo.outcome.discountMinor : 0;
+  // A vendor's own code comes off their price (and so off what commission is
+  // taken on); a GLAMNET code comes out of GLAMNET's share.
+  const applied = promo?.outcome.ok ? promo.outcome.discountMinor : 0;
+  if (promo?.vendorFunded && applied > 0) {
+    price = priceWith({ amountMinor: applied, label: `Discount from ${provider.name} (${promo.code})` });
+  }
+  const discountMinor = promo?.vendorFunded ? 0 : applied;
 
   return {
     provider,
@@ -566,6 +576,7 @@ export async function createStorefrontBooking(
           {
             now,
             customerId: request.customerId,
+            providerId: request.providerId,
             lines: quote.promoLines,
             platformShareMinor: quote.settlement.discountMinor,
           },
@@ -594,6 +605,7 @@ export async function createStorefrontBooking(
           trustFeeMinor: quote.price.trustFeeMinor,
           totalInvoicePriceMinor: quote.price.totalMinor,
           ...quote.settlement,
+          vendorDiscountMinor: quote.price.vendorDiscountMinor,
           feeConfigId: quote.feeConfigId,
           promoCodeId: promo?.promoCodeId ?? null,
           source: request.source,
@@ -625,7 +637,13 @@ export async function createStorefrontBooking(
                 fromStatus: "REQUESTED",
                 toStatus: "ACCEPTED",
                 actor: "SYSTEM",
-                note: `${request.source === "DIRECT_LINK" ? "Direct link" : "Marketplace"} booking; Rule ${quote.commission.rule} (${quote.commission.commissionBps / 100}% commission).${promo ? ` Promo ${promo.code}: ${quote.settlement.discountMinor}p off, GLAMNET-funded.` : ""} Awaiting card hold.`,
+                note: `${request.source === "DIRECT_LINK" ? "Direct link" : "Marketplace"} booking; Rule ${quote.commission.rule} (${quote.commission.commissionBps / 100}% commission).${
+                  promo
+                    ? promo.vendorFunded
+                      ? ` Vendor code ${promo.code}: ${quote.price.vendorDiscountMinor}p off, vendor-funded.`
+                      : ` Promo ${promo.code}: ${quote.settlement.discountMinor}p off, GLAMNET-funded.`
+                    : ""
+                } Awaiting card hold.`,
               },
             ],
           },
@@ -638,7 +656,7 @@ export async function createStorefrontBooking(
             promoCodeId: promo.promoCodeId,
             bookingId: created.id,
             customerId: request.customerId,
-            discountMinor: quote.settlement.discountMinor,
+            discountMinor: promo.vendorFunded ? quote.price.vendorDiscountMinor : quote.settlement.discountMinor,
           },
         });
       }

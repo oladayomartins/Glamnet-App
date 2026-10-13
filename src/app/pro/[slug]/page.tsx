@@ -73,9 +73,9 @@ export default async function StorefrontPage({
   searchParams,
 }: {
   params: Params;
-  searchParams: Promise<{ via?: string }>;
+  searchParams: Promise<{ via?: string; code?: string }>;
 }) {
-  const [{ slug }, { via }] = await Promise.all([params, searchParams]);
+  const [{ slug }, { via, code: sharedCode }] = await Promise.all([params, searchParams]);
   const store = await getStorefront(slug);
   if (!store) notFound();
 
@@ -282,6 +282,7 @@ export default async function StorefrontPage({
         travelFeeMinor={store.hub.travelFeeMinor}
         lateCancellationFeeBps={feeRates.lateCancellationFeeBps}
         noShowFeeBps={feeRates.noShowFeeBps}
+        initialCode={(sharedCode ?? "").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 24)}
         nearbyNails={store.nearbyNails}
         signedInAsCustomer={viewer?.role === "CUSTOMER"}
         vendorArea={area}

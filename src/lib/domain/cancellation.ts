@@ -65,6 +65,8 @@ export interface FeeBooking {
   totalInvoicePriceMinor: number;
   tipMinor: number;
   discountMinor: number;
+  /** A vendor's own discount, off the services. */
+  vendorDiscountMinor?: number;
 }
 
 /** When free cancellation ends. */
@@ -77,9 +79,17 @@ export function graceEndsAt(bookingCreatedAt: Date): Date {
   return new Date(bookingCreatedAt.getTime() + BOOKING_GRACE_MINUTES * MINUTE_MS);
 }
 
-/** The work itself: services, add-ons and surcharges. Not travel, not the trust fee. */
-export function serviceValueMinor(booking: Pick<FeeBooking, "subtotalMinor" | "emergencySurchargeMinor" | "otherSurchargesMinor">) {
-  return booking.subtotalMinor + booking.emergencySurchargeMinor + booking.otherSurchargesMinor;
+/**
+ * The work itself, at the price the client actually agreed: services, add-ons
+ * and surcharges, less a vendor's own discount. Not travel, not the trust fee.
+ */
+export function serviceValueMinor(
+  booking: Pick<FeeBooking, "subtotalMinor" | "emergencySurchargeMinor" | "otherSurchargesMinor" | "vendorDiscountMinor">,
+) {
+  return Math.max(
+    0,
+    booking.subtotalMinor + booking.emergencySurchargeMinor + booking.otherSurchargesMinor - (booking.vendorDiscountMinor ?? 0),
+  );
 }
 
 /** Never more than the card is actually charged for the booking. */

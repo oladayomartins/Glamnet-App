@@ -15,8 +15,8 @@ const LIVE = { booking: { status: { notIn: ["CANCELLED", "EXPIRED", "NO_SHOW"] }
 /** Discount codes customers enter at checkout, funded by GLAMNET. */
 export default async function AdminPromosPage() {
   await requireRole("ADMIN", "/admin/promos");
-  const [promos, usage, categories] = await Promise.all([
-    prisma.promoCode.findMany({ orderBy: { createdAt: "desc" } }),
+  const [allCodes, usage, categories] = await Promise.all([
+    prisma.promoCode.findMany({ orderBy: { createdAt: "desc" }, include: { provider: { select: { name: true } } } }),
     prisma.promoRedemption.groupBy({
       by: ["promoCodeId"],
       where: LIVE,
@@ -25,9 +25,15 @@ export default async function AdminPromosPage() {
     }),
     prisma.category.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" }, select: { name: true } }),
   ]);
+  // GLAMNET's own codes are managed here; vendors manage theirs, and pay for them.
+  const promos = allCodes.filter((promo) => promo.providerId === null);
+  const vendorCodes = allCodes.filter((promo) => promo.providerId !== null);
   const usageFor = (id: string) => usage.find((row) => row.promoCodeId === id);
-  const totalUses = usage.reduce((sum, row) => sum + row._count, 0);
-  const totalGiven = usage.reduce((sum, row) => sum + (row._sum.discountMinor ?? 0), 0);
+  const ours = new Set(promos.map((promo) => promo.id));
+  const totalUses = usage.filter((row) => ours.has(row.promoCodeId)).reduce((sum, row) => sum + row._count, 0);
+  const totalGiven = usage
+    .filter((row) => ours.has(row.promoCodeId))
+    .reduce((sum, row) => sum + (row._sum.discountMinor ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -63,6 +69,48 @@ export default async function AdminPromosPage() {
           givenMinor: usageFor(promo.id)?._sum.discountMinor ?? 0,
         }))}
       />
+
+      <section>
+        <h2 className="font-display text-lg font-semibold text-ink">Vendors&rsquo; own codes</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Codes vendors made for their own storefronts. The vendor pays for the discount, so these don&rsquo;t cost
+          GLAMNET anything. Vendors manage them from their dashboard.
+        </p>
+        {vendorCodes.length === 0 ? (
+          <p className="mt-3 text-sm text-ink-muted">No vendor codes yet.</p>
+        ) : (
+          <div className="mt-3 overflow-x-auto rounded-glam border border-line">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-xs text-ink-muted">
+                  <th className="px-3 py-2 font-medium">Code</th>
+                  <th className="px-3 py-2 font-medium">Vendor</th>
+                  <th className="px-3 py-2 font-medium">Discount</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 text-right font-medium">Uses</th>
+                  <th className="px-3 py-2 text-right font-medium">Given</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vendorCodes.map((promo) => (
+                  <tr key={promo.id} className="border-b border-line/70 last:border-0">
+                    <td className="px-3 py-2 font-mono text-ink">{promo.code}</td>
+                    <td className="px-3 py-2 text-ink">{promo.provider?.name}</td>
+                    <td className="px-3 py-2 text-ink-muted">
+                      {describePromo({ ...promo, discountType: promo.discountType as PromoDiscountType })}
+                    </td>
+                    <td className="px-3 py-2 text-ink-muted">{scheduleOf(promo).toLowerCase()}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{usageFor(promo.id)?._count ?? 0}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {formatMoney(usageFor(promo.id)?._sum.discountMinor ?? 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

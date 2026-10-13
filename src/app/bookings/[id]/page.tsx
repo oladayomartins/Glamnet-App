@@ -200,6 +200,15 @@ export default async function BookingPage({
           },
         ]
       : []),
+    ...(booking.vendorDiscountMinor > 0
+      ? [
+          {
+            label: `Discount from ${booking.provider?.name ?? "your vendor"}${booking.promoCode ? ` (${booking.promoCode.code})` : ""}`,
+            amount: -booking.vendorDiscountMinor,
+            emphasis: false,
+          },
+        ]
+      : []),
     ...(booking.trustFeeMinor > 0
       ? [{ label: "Trust fee", amount: booking.trustFeeMinor, emphasis: false }]
       : []),
@@ -209,7 +218,7 @@ export default async function BookingPage({
     ...(booking.discountMinor > 0
       ? [
           {
-            label: `Promo${booking.promoCode ? ` ${booking.promoCode.code}` : ""}`,
+            label: `Promo${booking.promoCode && booking.vendorDiscountMinor === 0 ? ` ${booking.promoCode.code}` : ""}`,
             amount: -booking.discountMinor,
             emphasis: false,
           },

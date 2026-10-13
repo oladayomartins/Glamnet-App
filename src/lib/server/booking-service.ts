@@ -58,6 +58,8 @@ export function settlementFields(
     emergencySurchargeMinor: number;
     otherSurchargesMinor: number;
     trustFeeMinor: number;
+    /** A vendor's own discount: off the work, so off what commission is taken on. */
+    vendorDiscountMinor?: number;
   },
   commission: CommissionDecision,
   tipMinor = 0,
@@ -66,7 +68,10 @@ export function settlementFields(
   const result = settle({
     totalMinor: price.totalMinor,
     commissionableMinor:
-      price.subtotalMinor + price.emergencySurchargeMinor + price.otherSurchargesMinor,
+      price.subtotalMinor +
+      price.emergencySurchargeMinor +
+      price.otherSurchargesMinor -
+      (price.vendorDiscountMinor ?? 0),
     trustFeeMinor: price.trustFeeMinor,
     tipMinor,
     commission,

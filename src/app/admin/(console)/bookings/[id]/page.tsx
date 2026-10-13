@@ -202,6 +202,9 @@ export default async function AdminBookingPage({
                 amount={booking.otherSurchargesMinor}
               />
             ) : null}
+            {booking.vendorDiscountMinor > 0 ? (
+              <Money label="Vendor's discount code" amount={-booking.vendorDiscountMinor} />
+            ) : null}
             <Money label="Trust fee" amount={booking.trustFeeMinor} />
             <div className="flex justify-between gap-4 border-t border-line pt-2 text-base font-bold text-ink">
               <dt>Customer total</dt>

@@ -93,6 +93,7 @@ export function StorefrontBooking({
   travelFeeMinor,
   lateCancellationFeeBps,
   noShowFeeBps,
+  initialCode = "",
   nearbyNails,
   signedInAsCustomer,
   vendorArea,
@@ -110,6 +111,8 @@ export function StorefrontBooking({
   /** The late-cancellation share in force, for the checkout terms. */
   lateCancellationFeeBps: number;
   noShowFeeBps: number;
+  /** A discount code from a shared link (?code=), applied at checkout. */
+  initialCode?: string;
   nearbyNails: { name: string; slug: string }[];
   signedInAsCustomer: boolean;
 }) {
@@ -135,8 +138,8 @@ export function StorefrontBooking({
   const [tipMinor, setTipMinor] = useState(0);
   // What is typed, and what has been sent for pricing. Only an applied code
   // travels with the checkout.
-  const [promoInput, setPromoInput] = useState("");
-  const [appliedCode, setAppliedCode] = useState("");
+  const [promoInput, setPromoInput] = useState(initialCode);
+  const [appliedCode, setAppliedCode] = useState(initialCode);
   const [promoNote, setPromoNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);

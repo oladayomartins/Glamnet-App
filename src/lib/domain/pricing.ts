@@ -29,6 +29,8 @@ export interface PriceBreakdown {
   emergencySurchargeMinor: number;
   otherSurchargesMinor: number;
   trustFeeMinor: number;
+  /** A vendor's own discount code, off the services. Already out of totalMinor. */
+  vendorDiscountMinor: number;
   totalMinor: number;
   /** Share of the total paid out to the vendor, incl. their surge share. */
   providerEarningsMinor: number;
@@ -56,6 +58,11 @@ export interface PricingInput {
   providerEmergencyShareBps?: number;
   /** The platform trust fee. Default £0.50; zero on a direct-link booking. */
   trustFeeMinor?: number;
+  /**
+   * A vendor's own discount code: taken off the services (never more than
+   * them), paid for by the vendor, so commission is on the discounted price.
+   */
+  vendorDiscount?: { amountMinor: number; label: string };
 }
 
 /**
@@ -171,6 +178,15 @@ export function priceBooking(
     });
   }
 
+  const vendorDiscountMinor = Math.max(0, Math.min(input.vendorDiscount?.amountMinor ?? 0, subtotalMinor));
+  if (vendorDiscountMinor > 0) {
+    lines.push({
+      key: "vendor-discount",
+      label: input.vendorDiscount?.label ?? "Discount",
+      amountMinor: -vendorDiscountMinor,
+    });
+  }
+
   const trustFeeMinor = input.trustFeeMinor ?? TRUST_FEE_MINOR;
   if (trustFeeMinor > 0) {
     lines.push({
@@ -181,7 +197,8 @@ export function priceBooking(
   }
 
   const totalMinor =
-    subtotalMinor +
+    subtotalMinor -
+    vendorDiscountMinor +
     travelFeeMinor +
     surcharge +
     otherSurchargesMinor +
@@ -194,7 +211,7 @@ export function priceBooking(
     providerEmergencyShareBps,
   );
   const providerEarningsMinor =
-    applyBps(subtotalMinor, providerCommissionBps) +
+    applyBps(subtotalMinor - vendorDiscountMinor, providerCommissionBps) +
     travelFeeMinor +
     providerEmergencyEarningsMinor;
 
@@ -206,6 +223,7 @@ export function priceBooking(
     emergencySurchargeMinor: surcharge,
     otherSurchargesMinor,
     trustFeeMinor,
+    vendorDiscountMinor,
     totalMinor,
     providerEarningsMinor,
     providerEmergencyEarningsMinor,

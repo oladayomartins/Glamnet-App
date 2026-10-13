@@ -220,3 +220,32 @@ export const feeConfigSchema = z.object({
   travelFeeMinor: z.number().int().min(0).max(10_000),
   note: z.string().max(300).optional(),
 });
+
+/** A vendor's own discount code. Dates are ISO strings, or empty for none. */
+const optionalDate = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((value, ctx) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      ctx.addIssue({ code: "custom", message: "Not a valid date." });
+      return z.NEVER;
+    }
+    return date;
+  });
+
+export const vendorCodeSchema = z.object({
+  code: z.string().trim().min(1).max(40),
+  description: z.string().trim().max(200).optional(),
+  discountType: z.enum(["PERCENT", "FIXED"]),
+  value: z.number().int().min(1).max(1_000_000),
+  minSpendMinor: z.number().int().min(0).max(10_000_000).optional(),
+  firstBookingOnly: z.boolean().optional(),
+  maxRedemptions: z.number().int().min(0).max(100_000).optional(),
+  perCustomerLimit: z.number().int().min(0).max(1_000).optional(),
+  startsAt: optionalDate,
+  endsAt: optionalDate,
+});
+
+export const vendorCodePatchSchema = z.object({ isActive: z.boolean() });

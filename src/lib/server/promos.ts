@@ -26,15 +26,23 @@ export interface PromoResult {
   promoCodeId: string | null;
   label: string;
   outcome: PromoOutcome;
+  /** A vendor's own code: the discount comes off their price, not GLAMNET's share. */
+  vendorFunded: boolean;
 }
 
-async function usage(db: Db, promoCodeId: string, customerId: string) {
+/**
+ * Live uses of a code. "Prior bookings" are the customer's bookings anywhere
+ * on GLAMNET for a GLAMNET code, and with that vendor for a vendor's own code.
+ */
+async function usage(db: Db, promoCodeId: string, customerId: string, providerId: string | null) {
   const [totalRedemptions, customerRedemptions, customerPriorBookings] = await Promise.all([
     db.promoRedemption.count({ where: { promoCodeId, booking: LIVE_BOOKING } }),
     customerId
       ? db.promoRedemption.count({ where: { promoCodeId, customerId, booking: LIVE_BOOKING } })
       : Promise.resolve(0),
-    customerId ? db.booking.count({ where: { customerId, ...LIVE_BOOKING } }) : Promise.resolve(0),
+    customerId
+      ? db.booking.count({ where: { customerId, ...(providerId ? { providerId } : {}), ...LIVE_BOOKING } })
+      : Promise.resolve(0),
   ]);
   return { totalRedemptions, customerRedemptions, customerPriorBookings };
 }
@@ -47,18 +55,34 @@ export async function evaluatePromoCode(
   rawCode: string,
   input: Omit<PromoContext, "totalRedemptions" | "customerRedemptions" | "customerPriorBookings"> & {
     customerId: string;
+    /** The storefront being booked: a vendor's code works only on their own. */
+    providerId?: string;
   },
   db: Db = prisma,
 ): Promise<PromoResult> {
   const code = normalisePromoCode(rawCode);
-  const promo = code ? await db.promoCode.findUnique({ where: { code } }) : null;
+  const promo = code
+    ? await db.promoCode.findUnique({ where: { code }, include: { provider: { select: { name: true } } } })
+    : null;
   if (!promo) {
-    return { code, promoCodeId: null, label: "", outcome: { ok: false, reason: "That code isn't recognised." } };
+    return { code, promoCodeId: null, label: "", vendorFunded: false, outcome: { ok: false, reason: "That code isn't recognised." } };
   }
-  const counts = await usage(db, promo.id, input.customerId);
+  const vendorFunded = promo.providerId !== null;
+  const label = describePromo({ ...promo, discountType: promo.discountType as PromoDiscountType });
+  if (vendorFunded && promo.providerId !== input.providerId) {
+    return {
+      code,
+      promoCodeId: promo.id,
+      label,
+      vendorFunded,
+      outcome: { ok: false, reason: `This code is for ${promo.provider?.name ?? "another pro"}'s storefront only.` },
+    };
+  }
+  const counts = await usage(db, promo.id, input.customerId, promo.providerId);
   const outcome = evaluatePromo(
-    { ...promo, discountType: promo.discountType as PromoDiscountType },
-    { ...input, ...counts },
+    { ...promo, discountType: promo.discountType as PromoDiscountType, ownerName: promo.provider?.name ?? null },
+    // A vendor gives their own discount: GLAMNET's share is no ceiling on it.
+    { ...input, ...counts, ...(vendorFunded ? { platformShareMinor: Number.MAX_SAFE_INTEGER } : {}) },
   );
-  return { code, promoCodeId: promo.id, label: describePromo({ ...promo, discountType: promo.discountType as PromoDiscountType }), outcome };
+  return { code, promoCodeId: promo.id, label, vendorFunded, outcome };
 }
