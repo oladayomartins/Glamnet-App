@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { StorefrontViewBeacon } from "./view-beacon";
 import { currentFeeRates } from "@/lib/server/fee-config";
 import Link from "next/link";
 import { citySlug } from "@/lib/domain/postcode";
@@ -140,6 +141,7 @@ export default async function StorefrontPage({
 
   return (
     <div data-page-width="wide" className="space-y-8 pb-6">
+      <StorefrontViewBeacon slug={slug} viaDirectory={via === "directory"} />
       {/* --- Lookbook carousel: the three best transformations ------------
           Only rendered once the vendor has uploaded looks: three empty
           frames would be the loudest thing on the page and say nothing. */}

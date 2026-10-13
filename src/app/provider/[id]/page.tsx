@@ -126,6 +126,15 @@ export default async function ProviderPage({
             commissionPct={percent(rates.repeatCommissionBps)}
             cardFeePct={percent(rates.cardFeeBps)}
           />
+        ) : null}
+        {provider.slug ? (
+          <Link
+            href={`/provider/${provider.id}/stats`}
+            className="mt-2 flex min-h-11 items-center justify-between rounded-glam border border-line bg-surface px-4 text-sm font-semibold text-ink transition duration-[180ms] hover:bg-sunken"
+          >
+            See how your link is doing — views and bookings
+            <span aria-hidden className="text-ink-muted">→</span>
+          </Link>
         ) : (
           <Link
             href="/provider/onboarding?step=storefront"
