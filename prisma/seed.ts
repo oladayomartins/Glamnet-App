@@ -201,7 +201,7 @@ async function main() {
       firstDiscoveryBooking: true,
       status: "CONFIRMED",
       sector: "S11",
-      addressLine: "14 Ecclesall Road, Sheffield",
+      addressLine: "14 Ecclesall Road, Sheffield S11 8HW",
       customerId: customer.id,
       hubId: sheffield.id,
       providerId: providers["zainab@glamnet.test"],

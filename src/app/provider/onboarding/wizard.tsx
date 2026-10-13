@@ -29,6 +29,7 @@ import {
 } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui";
 import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
+import { StreetField } from "@/components/street-field";
 import { MapView } from "@/components/map-view";
 import { formatPostcode } from "@/lib/domain/postcode";
 import { VENDOR_AMENITIES } from "@/lib/domain/vendor-tags";
@@ -753,22 +754,6 @@ export function OnboardingWizard(props: {
                     );
                   })}
                 </div>
-                {profile.workspaceType !== "MOBILE" ? (
-                  <label className="block">
-                    <span className="text-sm font-semibold text-ink">Street address</span>
-                    <input
-                      value={profile.workspaceAddress}
-                      maxLength={200}
-                      autoComplete="street-address"
-                      placeholder="e.g. Flat 2, 14 Ecclesall Road"
-                      onChange={(e) => set("workspaceAddress", e.target.value)}
-                      className={inputClass}
-                    />
-                    <span className="mt-1 block text-xs text-ink-muted">
-                      Private. Only a client with a paid booking at your workspace sees it, with a map pin.
-                    </span>
-                  </label>
-                ) : null}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <PostcodeField
                     label={profile.workspaceType === "MOBILE" ? "The postcode you travel from" : "Your workspace postcode"}
@@ -788,6 +773,20 @@ export function OnboardingWizard(props: {
                     </div>
                   ) : null}
                 </div>
+                {profile.workspaceType !== "MOBILE" ? (
+                  <StreetField
+                    label="Street address"
+                    value={profile.workspaceAddress}
+                    onChange={(value) => set("workspaceAddress", value)}
+                    near={area}
+                    maxLength={200}
+                    autoComplete="address-line1"
+                    placeholder="e.g. Flat 2, 14 Ecclesall Road"
+                    hint="Private. Only a client with a paid booking at your workspace sees it, with a map pin."
+                    labelClassName="block text-sm font-semibold text-ink"
+                    inputClassName={inputClass}
+                  />
+                ) : null}
                 <fieldset>
                   <legend className="text-sm font-semibold text-ink">
                     What should clients know?

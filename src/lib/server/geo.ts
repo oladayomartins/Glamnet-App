@@ -1,6 +1,7 @@
 import type { Hub } from "@prisma/client";
 import { prisma } from "./prisma";
 import { cityFor, formatPostcode, outwardCode, type LatLng } from "@/lib/domain/postcode";
+import { searchText, splitNumber, toSuggestion, uniqueSuggestions, type AddressSuggestion, type PhotonProperties } from "@/lib/domain/address";
 
 /**
  * UK postcode lookups, from the ONS Postcode Directory via postcodes.io.
@@ -242,4 +243,53 @@ export async function searchPlaces(prefix: string): Promise<NamedPlace[]> {
       return true;
     })
     .slice(0, 6);
+}
+
+/**
+ * Street addresses near a postcode, from OpenStreetMap via Photon (free,
+ * keyless; PHOTON_API_URL points at a self-hosted copy if the public one is
+ * ever too slow). Nothing typed yet → the streets closest to the postcode;
+ * otherwise houses and streets matching the text, within about a kilometre.
+ * Coverage of house numbers is patchy, so callers must still accept a
+ * typed address. Degrades to an empty list, never an error.
+ */
+const PHOTON = process.env.PHOTON_API_URL?.trim() || "https://photon.komoot.io";
+
+export async function suggestAddresses(typed: string, near: LatLng): Promise<AddressSuggestion[]> {
+  if (!Number.isFinite(near.lat) || !Number.isFinite(near.lng)) return [];
+  const q = searchText(typed);
+  if (q.length < 2) return photonAddresses("/reverse", { radius: "0.4" }, ["street"], near);
+
+  const bbox = [near.lng - 0.016, near.lat - 0.01, near.lng + 0.016, near.lat + 0.01].map((n) => n.toFixed(5)).join(",");
+  // Photon only completes the last word, so "21 dov" matches nothing while
+  // "dov" finds Dover Road. Search the street part too, and offer the
+  // streets it finds for the number already typed.
+  const { number, street } = splitNumber(q);
+  const [whole, streets] = await Promise.all([
+    photonAddresses("/api", { q, bbox }, ["house", "street"], near),
+    number && street.length >= 2 ? photonAddresses("/api", { q: street, bbox }, ["street"], near) : [],
+  ]);
+  return uniqueSuggestions([...whole, ...streets]);
+}
+
+async function photonAddresses(
+  path: string,
+  extra: Record<string, string>,
+  layers: string[],
+  near: LatLng,
+): Promise<AddressSuggestion[]> {
+  const params = new URLSearchParams({ lat: near.lat.toFixed(6), lon: near.lng.toFixed(6), limit: "15", ...extra });
+  for (const layer of layers) params.append("layer", layer);
+  try {
+    const response = await fetch(`${PHOTON}${path}?${params}`, {
+      headers: { accept: "application/json", "user-agent": "GLAMNET (glamnetapp.com)" },
+      next: { revalidate: MONTH },
+      signal: AbortSignal.timeout(4_000),
+    });
+    if (!response.ok) return [];
+    const body = (await response.json()) as { features?: Array<{ properties?: PhotonProperties }> };
+    return uniqueSuggestions((body.features ?? []).map((feature) => toSuggestion(feature.properties ?? {})));
+  } catch {
+    return [];
+  }
 }
