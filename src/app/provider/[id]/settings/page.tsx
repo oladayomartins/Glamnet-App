@@ -71,6 +71,15 @@ export default async function VendorSettingsPage({
             </span>
             <span aria-hidden className="text-ink-muted">→</span>
           </Link>
+          <Link href={`/provider/${provider.id}/stats`} className={ROW}>
+            <span>
+              <span className="block font-semibold text-ink">Storefront stats</span>
+              <span className="block text-sm text-ink-muted">
+                Views from your link and the directory, and how many booked
+              </span>
+            </span>
+            <span aria-hidden className="text-ink-muted">→</span>
+          </Link>
           <Link href={`/provider/${provider.id}/reviews`} className={ROW}>
             <span>
               <span className="block font-semibold text-ink">Reviews</span>

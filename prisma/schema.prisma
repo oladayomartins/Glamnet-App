@@ -235,15 +235,16 @@ model Provider {
   /// replaced when the vendor resets the link, which cuts off the old one.
   calendarToken String? @unique
 
-  services     ProviderService[]
-  availability ProviderAvailability[]
-  timeOff      ProviderTimeOff[]
-  bookings     Booking[]
-  broadcasts   BookingBroadcast[]
-  lookbook     ProviderLookbookImage[]
-  documents    ProviderDocument[]
-  clientNotes  ProviderClientNote[]
-  promotions   Promotion[]
+  services        ProviderService[]
+  availability    ProviderAvailability[]
+  timeOff         ProviderTimeOff[]
+  bookings        Booking[]
+  broadcasts      BookingBroadcast[]
+  lookbook        ProviderLookbookImage[]
+  documents       ProviderDocument[]
+  clientNotes     ProviderClientNote[]
+  storefrontStats StorefrontDailyStat[]
+  promotions      Promotion[]
 
   @@index([hubId])
   @@index([approvalStatus])
@@ -265,6 +266,22 @@ model ProviderClientNote {
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, customerId])
+}
+
+/// Storefront visits per vendor, per UK day, per source: "DIRECT_LINK" (the
+/// vendor's own shared link) or "MARKETPLACE" (a click from the directory).
+/// A counter, not a log: no visitor, IP or device is recorded. The vendor's
+/// own visits, admins and known bots are not counted.
+model StorefrontDailyStat {
+  id         String   @id @default(cuid())
+  providerId String
+  day        DateTime @db.Date
+  source     String
+  views      Int      @default(0)
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, day, source])
 }
 
 model ProviderService {
