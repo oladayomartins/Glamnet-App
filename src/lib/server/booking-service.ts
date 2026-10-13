@@ -21,6 +21,7 @@ import {
   type CommissionDecision,
 } from "@/lib/domain/settlement";
 import { deliverBookingConfirmedEmail } from "./notifications";
+import { getFeeConfig, ratesForBooking } from "./fee-config";
 
 export class BookingError extends Error {
   constructor(
@@ -138,6 +139,11 @@ export interface Quote {
   price: PriceBreakdown;
   /** Vendors who could take this slot right now. */
   eligibleProviderIds: string[];
+  /** The fee rates this would be booked under (null: the defaults). */
+  feeConfigId: string | null;
+  /** The cancellation shares in those rates, for the checkout terms. */
+  lateCancellationFeeBps: number;
+  noShowFeeBps: number;
 }
 
 /**
@@ -182,7 +188,7 @@ export async function quoteBooking(
     kind: service.kind === "ADDON" ? "ADDON" : "SERVICE",
   }));
 
-  const config = await getActiveEmergencyConfig(now);
+  const [config, fees] = await Promise.all([getActiveEmergencyConfig(now), getFeeConfig()]);
   const thresholdMinutesUsed = resolveThresholdMinutes(config, now);
   const notice = noticePeriodMinutes(now, request.appointmentStartAt);
   const bookingType = classifyBooking(notice, thresholdMinutesUsed);
@@ -196,6 +202,7 @@ export async function quoteBooking(
       bookingType,
       travelFeeMinor: hub.travelFeeMinor,
       emergencyConfig: config,
+      trustFeeMinor: fees.rates.trustFeeMinor,
     },
     now,
   );
@@ -223,6 +230,9 @@ export async function quoteBooking(
     basket,
     price,
     eligibleProviderIds: eligible.map((match) => match.providerId),
+    feeConfigId: fees.id,
+    lateCancellationFeeBps: fees.rates.lateCancellationFeeBps,
+    noShowFeeBps: fees.rates.noShowFeeBps,
   };
 }
 
@@ -265,7 +275,7 @@ export async function createBooking(
   // Provisional (Rule B) until a vendor accepts and the rule is final.
   const provisional = settlementFields(
     quote.price,
-    decideCommission({ source: "BROADCAST", hasPriorBooking: false }),
+    decideCommission({ source: "BROADCAST", hasPriorBooking: false }, await ratesForBooking(quote.feeConfigId)),
   );
 
   return prisma.booking.create({
@@ -285,6 +295,7 @@ export async function createBooking(
       trustFeeMinor: quote.price.trustFeeMinor,
       totalInvoicePriceMinor: quote.price.totalMinor,
       ...provisional,
+      feeConfigId: quote.feeConfigId,
       source: "BROADCAST",
       status: "REQUESTED",
       sector: quote.sector,
@@ -367,6 +378,10 @@ export async function acceptBooking(
   providerId: string,
   now: Date = new Date(),
 ) {
+  // The rates the booking was made under, not whatever is in force now.
+  const rates = await ratesForBooking(
+    (await prisma.booking.findUnique({ where: { id: bookingId }, select: { feeConfigId: true } }))?.feeConfigId,
+  );
   const booking = await withContentionRetry(() =>
     prisma.$transaction(async (tx) => {
     const invite = await tx.bookingBroadcast.findUnique({
@@ -459,10 +474,13 @@ export async function acceptBooking(
           otherSurchargesMinor: booking.otherSurchargesMinor,
           trustFeeMinor: booking.trustFeeMinor,
         },
-        decideCommission({
-          source: booking.source as BookingSource,
-          hasPriorBooking: prior !== null,
-        }),
+        decideCommission(
+          {
+            source: booking.source as BookingSource,
+            hasPriorBooking: prior !== null,
+          },
+          rates,
+        ),
         booking.tipMinor,
       ),
     });

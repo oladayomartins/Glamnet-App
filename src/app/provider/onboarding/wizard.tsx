@@ -91,11 +91,11 @@ const STEPS = [
   { key: "profile", label: "You", title: "Let's build your storefront", lede: "Two minutes, nine short steps. Everything can be changed later." },
   { key: "specialties", label: "Specialties", title: "What do you specialise in?", lede: "Pick every hub you work in. Clients browse the directory by these." },
   { key: "menu", label: "Menu", title: "Build your menu", lede: "Tap the services you offer, then set your own price and time." },
-  { key: "storefront", label: "Link & bio", title: "Claim your link", lede: "This is the page you share in your bio — clients from it cost you 0% commission." },
+  { key: "storefront", label: "Link & bio", title: "Claim your link", lede: "This is the page you share in your bio — clients from it cost you {commission} commission." },
   { key: "workspace", label: "Workspace", title: "Where do clients find you?", lede: "Only your postcode sector is ever shown publicly." },
   { key: "hours", label: "Hours", title: "When do you work?", lede: "Clients can only book inside these hours. Change them any time." },
   { key: "lookbook", label: "Lookbook", title: "Show your best work", lede: "Three transformations sell better than any description. Optional for now." },
-  { key: "compliance", label: "Documents", title: "Get verified", lede: "Upload your insurance, licence or certificate. We check it before your storefront goes live." },
+  { key: "compliance", label: "Documents", title: "Documents (optional)", lede: "Got insurance, a licence or a certificate? Add it here — it's optional, and you can skip this step." },
   { key: "payouts", label: "Payouts", title: "Link your bank", lede: "Payments are released to you by your client's PIN, straight through Stripe." },
   { key: "review", label: "Go live", title: "Ready when you are", lede: "Here's everything in one place." },
 ] as const;
@@ -144,6 +144,9 @@ export function OnboardingWizard(props: {
   welcome?: boolean;
   payoutsNotice: string | null;
   siteOrigin: string;
+  /** Own-link commission and card fee in force (admin settings), for the copy. */
+  commissionPct: string;
+  cardFeePct: string;
   testPayments: boolean;
   uploadsEnabled: boolean;
   approved: boolean;
@@ -376,7 +379,12 @@ export function OnboardingWizard(props: {
   };
 
   if (showWelcome) {
-    return <WelcomeIntro name={profile.name} onStart={() => setShowWelcome(false)} />;
+    return <WelcomeIntro
+        name={profile.name}
+        commissionPct={props.commissionPct}
+        cardFeePct={props.cardFeePct}
+        onStart={() => setShowWelcome(false)}
+      />;
   }
 
   return (
@@ -432,7 +440,7 @@ export function OnboardingWizard(props: {
           <h1 className="font-display text-3xl font-bold tracking-[-0.025em] text-ink sm:text-[2.25rem]">
             {step.title}
           </h1>
-          <p className="mt-2 max-w-xl text-[15px] text-ink-muted">{step.lede}</p>
+          <p className="mt-2 max-w-xl text-[15px] text-ink-muted">{step.lede.replace("{commission}", props.commissionPct)}</p>
 
           <div className="mt-8">
             {step.key === "profile" ? (
@@ -993,8 +1001,9 @@ export function OnboardingWizard(props: {
                   </ul>
                 ) : null}
                 <p className="text-sm text-ink-muted">
-                  Upload at least one: your public liability insurance, a practitioner licence, or a beauty
-                  qualification certificate. Pick which one you&rsquo;re uploading, then add the file.
+                  Optional. If you have them, add your public liability insurance, a practitioner licence or a beauty
+                  qualification certificate — pick which one you&rsquo;re uploading, then add the file. You can skip this
+                  and add documents later.
                 </p>
                 <div className="flex flex-wrap gap-2" role="group" aria-label="What are you uploading?">
                   {DOCUMENT_KINDS.map(([kind, label]) => (
@@ -1072,7 +1081,7 @@ export function OnboardingWizard(props: {
                       ["Storefront link and bio", done.storefront, "storefront"],
                       ["Workspace", done.workspace, "workspace"],
                       ["Working hours set", done.hours, "hours"],
-                      ["Insurance, licence or certificate uploaded", done.compliance, "compliance"],
+                      ["Insurance, licence or certificate (optional)", done.compliance, "compliance"],
                       ["Bank linked for payouts (needed before you're paid)", done.payouts, "payouts"],
                     ] as const
                   ).map(([label, finished, target], at) => {
@@ -1115,7 +1124,12 @@ export function OnboardingWizard(props: {
                     submit — tap an item above to finish it.
                   </p>
                 ) : null}
-                {profile.slug ? <BioLink origin={props.siteOrigin} slug={profile.slug} /> : null}
+                {profile.slug ? <BioLink
+                    origin={props.siteOrigin}
+                    slug={profile.slug}
+                    commissionPct={props.commissionPct}
+                    cardFeePct={props.cardFeePct}
+                  /> : null}
                 <p className="text-sm text-ink-muted">
                   {props.approved
                     ? "You're live. Changes you save here show on your storefront straight away."

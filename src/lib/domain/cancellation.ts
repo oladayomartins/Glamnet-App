@@ -1,5 +1,5 @@
 import { applyBps } from "./pricing";
-import { CARD_PROCESSING_FEE_BPS } from "./settlement";
+import { DEFAULT_FEE_RATES, type FeeRates } from "./fee-rates";
 
 /**
  * The cancellation policy: when a customer can cancel for free, what a late
@@ -25,11 +25,14 @@ const MINUTE_MS = 60 * 1_000;
 /** Free cancellation up to this long before the appointment. */
 export const FREE_CANCELLATION_HOURS = 24;
 
-/** A late cancellation costs this share of the service price. */
-export const LATE_CANCELLATION_FEE_BPS = 5_000;
-
-/** A missed appointment costs this share of the service price, plus travel. */
-export const NO_SHOW_FEE_BPS = 10_000;
+/**
+ * A late cancellation costs this share of the service price, and a missed
+ * appointment this share plus travel — by default. The shares in force are an
+ * admin setting (fee-rates.ts), and each booking keeps the ones it was made
+ * under, so a fee is always the one the client was told at checkout.
+ */
+export const LATE_CANCELLATION_FEE_BPS = DEFAULT_FEE_RATES.lateCancellationFeeBps;
+export const NO_SHOW_FEE_BPS = DEFAULT_FEE_RATES.noShowFeeBps;
 
 /**
  * A change of mind straight after booking is free, even for an appointment
@@ -90,12 +93,12 @@ function travelMinor(booking: FeeBooking): number {
   return booking.serviceLocation === "CUSTOMER_ADDRESS" ? booking.travelFeeMinor : 0;
 }
 
-export function lateCancellationFeeMinor(booking: FeeBooking): number {
-  return capped(booking, applyBps(serviceValueMinor(booking), LATE_CANCELLATION_FEE_BPS));
+export function lateCancellationFeeMinor(booking: FeeBooking, rates: FeeRates = DEFAULT_FEE_RATES): number {
+  return capped(booking, applyBps(serviceValueMinor(booking), rates.lateCancellationFeeBps));
 }
 
-export function noShowFeeMinor(booking: FeeBooking): number {
-  return capped(booking, applyBps(serviceValueMinor(booking), NO_SHOW_FEE_BPS) + travelMinor(booking));
+export function noShowFeeMinor(booking: FeeBooking, rates: FeeRates = DEFAULT_FEE_RATES): number {
+  return capped(booking, applyBps(serviceValueMinor(booking), rates.noShowFeeBps) + travelMinor(booking));
 }
 
 export type CancellationKind = "FREE" | "LATE" | "MISSED";
@@ -118,12 +121,16 @@ export type CancellationQuote =
  *   no vendor yet                        → free
  *   more than 24h before, or within 15
  *   minutes of booking                   → free
- *   inside 24h                           → half the service price
+ *   inside 24h                           → the late-cancellation share
  *   vendor on the way, or start time
  *   passed                               → as a missed appointment
  *   vendor at the door or later          → not in the app; contact support
  */
-export function quoteCustomerCancellation(booking: FeeBooking, now = new Date()): CancellationQuote {
+export function quoteCustomerCancellation(
+  booking: FeeBooking,
+  now = new Date(),
+  rates: FeeRates = DEFAULT_FEE_RATES,
+): CancellationQuote {
   if (UNCOMMITTED.includes(booking.status)) {
     return { allowed: true, kind: "FREE", feeMinor: 0, freeUntil: null, explanation: "No vendor has taken this on yet, so cancelling is free." };
   }
@@ -135,7 +142,7 @@ export function quoteCustomerCancellation(booking: FeeBooking, now = new Date())
     return {
       allowed: true,
       kind: "MISSED",
-      feeMinor: noShowFeeMinor(booking),
+      feeMinor: noShowFeeMinor(booking, rates),
       freeUntil,
       explanation:
         booking.status === "PROVIDER_EN_ROUTE"
@@ -167,9 +174,11 @@ export function quoteCustomerCancellation(booking: FeeBooking, now = new Date())
   return {
     allowed: true,
     kind: "LATE",
-    feeMinor: lateCancellationFeeMinor(booking),
+    feeMinor: lateCancellationFeeMinor(booking, rates),
     freeUntil,
-    explanation: "It's less than 24 hours to your appointment, so cancelling now costs half the service price.",
+    explanation: `It's less than ${FREE_CANCELLATION_HOURS} hours to your appointment, so cancelling now costs ${
+      rates.lateCancellationFeeBps === 5_000 ? "half" : `${rates.lateCancellationFeeBps / 100}% of`
+    } the service price.`,
   };
 }
 
@@ -202,19 +211,27 @@ export function vendorShareOfFeeMinor(input: {
   travelInFeeMinor: number;
   commissionBps: number;
   firstDiscoveryBooking: boolean;
+  /** The card fee in the booking's rates (default 2%). */
+  cardFeeBps?: number;
 }): number {
   const travel = Math.min(input.travelInFeeMinor, input.feeMinor);
   const commission = applyBps(input.feeMinor - travel, input.commissionBps);
-  const processing = input.firstDiscoveryBooking ? 0 : applyBps(input.feeMinor, CARD_PROCESSING_FEE_BPS);
+  const processing = input.firstDiscoveryBooking
+    ? 0
+    : applyBps(input.feeMinor, input.cardFeeBps ?? DEFAULT_FEE_RATES.cardFeeBps);
   return Math.max(0, input.feeMinor - commission - processing);
 }
 
 /** Travel included in a missed-appointment fee, for the split above. */
-export function travelInNoShowFeeMinor(booking: FeeBooking): number {
-  return Math.min(travelMinor(booking), noShowFeeMinor(booking));
+export function travelInNoShowFeeMinor(booking: FeeBooking, rates: FeeRates = DEFAULT_FEE_RATES): number {
+  return Math.min(travelMinor(booking), noShowFeeMinor(booking, rates));
 }
 
 /** The policy in one sentence, for checkout and emails. */
-export function policySummary(): string {
-  return `Free cancellation up to ${FREE_CANCELLATION_HOURS} hours before your appointment. After that, cancelling costs ${LATE_CANCELLATION_FEE_BPS / 100}% of the service price, and a missed appointment is charged in full.`;
+export function policySummary(rates: FeeRates = DEFAULT_FEE_RATES): string {
+  const missed =
+    rates.noShowFeeBps >= 10_000
+      ? "a missed appointment is charged in full"
+      : `a missed appointment costs ${rates.noShowFeeBps / 100}% of the service price`;
+  return `Free cancellation up to ${FREE_CANCELLATION_HOURS} hours before your appointment. After that, cancelling costs ${rates.lateCancellationFeeBps / 100}% of the service price, and ${missed}.`;
 }

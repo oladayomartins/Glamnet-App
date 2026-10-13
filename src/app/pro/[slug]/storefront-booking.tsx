@@ -91,6 +91,8 @@ export function StorefrontBooking({
   workspaceLabel,
   travelsToClients,
   travelFeeMinor,
+  lateCancellationFeeBps,
+  noShowFeeBps,
   nearbyNails,
   signedInAsCustomer,
   vendorArea,
@@ -105,6 +107,9 @@ export function StorefrontBooking({
   workspaceLabel: string;
   travelsToClients: boolean;
   travelFeeMinor: number;
+  /** The late-cancellation share in force, for the checkout terms. */
+  lateCancellationFeeBps: number;
+  noShowFeeBps: number;
   nearbyNails: { name: string; slug: string }[];
   signedInAsCustomer: boolean;
 }) {
@@ -709,7 +714,7 @@ export function StorefrontBooking({
                 ) : null}
 
                 {startAt ? (
-                  <CancellationTerms appointmentStartAt={startAt} />
+                  <CancellationTerms appointmentStartAt={startAt} lateFeeBps={lateCancellationFeeBps} noShowFeeBps={noShowFeeBps} />
                 ) : (
                   <p className="flex gap-2 rounded-glam-sm border border-line bg-surface p-3 text-[13px] leading-relaxed text-ink-muted">
                     <Info size={18} className="mt-px shrink-0" aria-hidden />
@@ -866,7 +871,7 @@ export function StorefrontBooking({
                   <p className="text-sm text-ink-muted">Working out your total…</p>
                 )}
 
-                {startAt ? <CancellationTerms appointmentStartAt={startAt} /> : null}
+                {startAt ? <CancellationTerms appointmentStartAt={startAt} lateFeeBps={lateCancellationFeeBps} noShowFeeBps={noShowFeeBps} /> : null}
 
                 {hold && quote ? (
                   <CardHold

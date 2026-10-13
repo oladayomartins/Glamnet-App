@@ -33,11 +33,6 @@ export async function decideVendor(
     throw new AdminError("This vendor's login is suspended. Reinstate the account on the Accounts page first.");
   }
 
-  if (decision === "APPROVED" && provider._count.documents === 0) {
-    throw new AdminError(
-      "This vendor has not uploaded any insurance, licence or certificate yet.",
-    );
-  }
   if (decision === "SUSPENDED" && provider.approvalStatus !== "APPROVED") {
     throw new AdminError("Only a live vendor can be suspended. Reject an application instead.");
   }

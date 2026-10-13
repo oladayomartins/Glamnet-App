@@ -5,7 +5,7 @@ describe("decideCommission (dual-commission protocol)", () => {
   it("Rule A: a direct link is never commissioned", () => {
     expect(
       decideCommission({ source: "DIRECT_LINK", hasPriorBooking: false }),
-    ).toEqual({ rule: "A", firstDiscoveryBooking: false, commissionBps: 0 });
+    ).toEqual({ rule: "A", firstDiscoveryBooking: false, commissionBps: 0, cardFeeBps: 200 });
   });
 
   it("Rule B: a new client from the marketplace is a first discovery booking", () => {
@@ -14,6 +14,7 @@ describe("decideCommission (dual-commission protocol)", () => {
         rule: "B",
         firstDiscoveryBooking: true,
         commissionBps: 3_000,
+        cardFeeBps: 200,
       });
     }
   });

@@ -34,6 +34,8 @@ export interface ConfirmQuote {
   appointmentEndAt: string;
   reservedUntilAt: string;
   lines: PriceLine[];
+  lateCancellationFeeBps: number;
+  noShowFeeBps: number;
   totalMinor: number;
 }
 
@@ -290,7 +292,7 @@ export function ConfirmBooking({
         ) : null}
       </Card>
 
-      <CancellationTerms appointmentStartAt={quote.appointmentStartAt} />
+      <CancellationTerms appointmentStartAt={quote.appointmentStartAt} lateFeeBps={quote.lateCancellationFeeBps} noShowFeeBps={quote.noShowFeeBps} />
 
       {hold ? (
         <Card className="space-y-3 p-4">

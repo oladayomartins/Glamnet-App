@@ -6,6 +6,10 @@ import { describeSurcharge, formatDuration } from "@/lib/format";
 import { Card, SectionTitle } from "@/components/ui";
 import { AdminHeader } from "../_components/bits";
 import { EmergencyConfigForm } from "./config-form";
+import { FeeRatesForm } from "./fee-rates-form";
+import { feeConfigHistory, getFeeConfig } from "@/lib/server/fee-config";
+import { DEFAULT_FEE_RATES, FEE_RATE_KEYS, FEE_RATE_LABELS, feeRatesFrom, formatRate, percent } from "@/lib/domain/fee-rates";
+import { formatDayTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +18,7 @@ export const metadata = { title: "Settings" };
 /** Platform settings and the health of each outside service. */
 export default async function AdminSettingsPage() {
   await requireRole("ADMIN", "/admin/settings");
-  const config = await getActiveEmergencyConfig();
+  const [config, fees, feeHistory] = await Promise.all([getActiveEmergencyConfig(), getFeeConfig(), feeConfigHistory(8)]);
 
   const stripeKey = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
   const admins = (process.env.ADMIN_EMAILS ?? "")
@@ -71,16 +75,43 @@ export default async function AdminSettingsPage() {
       </section>
 
       <section>
-        <SectionTitle>Commission rules</SectionTitle>
-        <Card className="space-y-2 p-4 text-sm text-ink">
-          <p>
-            <strong>Bio-link and repeat clients:</strong> 0% commission. Only the 2% card processing fee applies.
-          </p>
-          <p>
-            <strong>First booking found through the marketplace:</strong> 30% commission, once per client and vendor.
-          </p>
-          <p className="text-xs text-ink-muted">These rates are set in code (settlement rules) so every booking is priced the same way.</p>
-        </Card>
+        <SectionTitle
+          hint={
+            fees.id
+              ? `${percent(fees.rates.discoveryCommissionBps)} new client · ${percent(fees.rates.repeatCommissionBps)} own link · last changed ${formatDayTime(fees.createdAt!)}`
+              : "The launch defaults — not changed yet"
+          }
+        >
+          Commission and fees
+        </SectionTitle>
+        <FeeRatesForm current={fees.rates} />
+        <p className="mt-2 text-xs text-ink-muted">
+          New rates apply to bookings made after you publish. A booking already made keeps the rates it was made under,
+          including its cancellation fees, so no one is charged differently from what they were shown.
+        </p>
+        {feeHistory.length > 0 ? (
+          <Card className="mt-3 divide-y divide-line">
+            {feeHistory.map((row, at) => {
+              const after = feeRatesFrom(row);
+              const before = feeRatesFrom(feeHistory[at + 1] ?? DEFAULT_FEE_RATES);
+              const changes = FEE_RATE_KEYS.filter((key) => before[key] !== after[key]);
+              return (
+                <div key={row.id} className="px-4 py-2.5 text-sm">
+                  <p className="text-ink">
+                    {changes.length
+                      ? changes.map((key) => `${FEE_RATE_LABELS[key]} ${formatRate(key, before[key])} → ${formatRate(key, after[key])}`).join(" · ")
+                      : "Republished with no changes"}
+                  </p>
+                  <p className="text-xs text-ink-muted">
+                    {formatDayTime(row.createdAt)}
+                    {row.createdBy ? ` · ${row.createdBy}` : ""}
+                    {row.note ? ` · “${row.note}”` : ""}
+                  </p>
+                </div>
+              );
+            })}
+          </Card>
+        ) : null}
       </section>
 
       <section>

@@ -2,22 +2,25 @@ import Link from "next/link";
 import { Bullets, LegalPage } from "@/components/legal-page";
 import { LEGAL, whoWeAre } from "@/lib/legal";
 import { formatMoney } from "@/lib/format";
-import { TRUST_FEE_MINOR } from "@/lib/domain/constants";
-import { CARD_PROCESSING_FEE_BPS, DISCOVERY_COMMISSION_BPS } from "@/lib/domain/settlement";
+import { currentFeeRates } from "@/lib/server/fee-config";
 import { DISPUTE_WINDOW_HOURS } from "@/lib/domain/completion";
 import { HOLD_LEAD_DAYS } from "@/lib/domain/payment-rules";
-import { FREE_CANCELLATION_HOURS, LATE_CANCELLATION_FEE_BPS, NO_SHOW_WAIT_MINUTES } from "@/lib/domain/cancellation";
+import { FREE_CANCELLATION_HOURS, NO_SHOW_WAIT_MINUTES } from "@/lib/domain/cancellation";
 
 export const metadata = { title: "Terms of use", description: "The terms for booking and offering beauty services on GLAMNET." };
 
 const pct = (bps: number) => `${bps / 100}%`;
 
 /**
- * Terms of use. The numbers (fees, commission, windows) are read from the
- * same constants the booking engine uses, so the terms can't drift from what
- * the app actually does.
+ * Terms of use. The numbers are read from what the booking engine uses —
+ * the fee rates an admin has set, and the fixed windows — so the terms can't
+ * drift from what the app actually does.
  */
-export default function TermsPage() {
+export const dynamic = "force-dynamic";
+
+/** The rates in these terms are an admin setting, read live so they never drift. */
+export default async function TermsPage() {
+  const rates = await currentFeeRates();
   return (
     <LegalPage
       current="/terms"
@@ -68,9 +71,12 @@ export default function TermsPage() {
             <>
               <p>
                 The price you see before you confirm is the full price. It is made up of the pro&rsquo;s price for each
-                service, any travel fee for home visits, and a {formatMoney(TRUST_FEE_MINOR)} trust fee on bookings
-                made through the GLAMNET marketplace (there is no trust fee when you book through a pro&rsquo;s own
-                link), less any promo code.
+                service, any travel fee for home visits, and a {formatMoney(rates.trustFeeMinor)} trust fee on bookings
+                made through the GLAMNET marketplace (
+                {rates.directTrustFeeMinor > 0
+                  ? `${formatMoney(rates.directTrustFeeMinor)} when you book through a pro’s own link`
+                  : "there is no trust fee when you book through a pro’s own link"}
+                ), less any promo code.
               </p>
               <p>
                 Bookings made at short notice (inside the emergency window shown on the booking screen) carry an
@@ -122,8 +128,9 @@ export default function TermsPage() {
             <p>
               See our <Link href="/cancellations" className="font-semibold text-accent-700 hover:underline">cancellation and refund policy</Link>.
               In short: cancelling is free up to {FREE_CANCELLATION_HOURS} hours before your appointment. After that
-              it costs {pct(LATE_CANCELLATION_FEE_BPS)} of the service price, and a missed appointment is charged at the
-              full service price (plus travel for a home visit). Fees come out of the amount already held on your card,
+              it costs {pct(rates.lateCancellationFeeBps)} of the service price, and a missed appointment is charged at{" "}
+              {rates.noShowFeeBps >= 10_000 ? "the full service price" : `${pct(rates.noShowFeeBps)} of the service price`} (plus
+              travel for a home visit). Fees come out of the amount already held on your card,
               are shown before you confirm, and can be disputed for {DISPUTE_WINDOW_HOURS} hours. If your pro cancels,
               nothing is charged.
             </p>
@@ -143,9 +150,10 @@ export default function TermsPage() {
                   wrongly will be refunded to the client and may lead to removal.
                 </>,
                 <>
-                  Commission: for a new client who finds you through GLAMNET, we keep {pct(DISCOVERY_COMMISSION_BPS)} of the
-                  service value (and cover the card fees). Bookings through your own GLAMNET link, and repeat clients, carry
-                  no commission — just a {pct(CARD_PROCESSING_FEE_BPS)} card processing fee. Your payout and any commission
+                  Commission: for a new client who finds you through GLAMNET, we keep {pct(rates.discoveryCommissionBps)} of the
+                  service value (and cover the card fees). Bookings through your own GLAMNET link, and repeat clients, carry{" "}
+                  {rates.repeatCommissionBps === 0 ? "no commission" : `${pct(rates.repeatCommissionBps)} commission`} — plus
+                  a {pct(rates.cardFeeBps)} card processing fee. Your payout and any commission
                   are shown on every booking.
                 </>,
                 "Payouts go to your bank through Stripe once the client's PIN is entered. You must complete Stripe's identity checks to be paid.",

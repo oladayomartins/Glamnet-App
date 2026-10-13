@@ -3,6 +3,7 @@ import {
   BOOKING_GRACE_MINUTES,
   freeCancellationEndsAt,
   LATE_CANCELLATION_FEE_BPS,
+  NO_SHOW_FEE_BPS,
 } from "@/lib/domain/cancellation";
 
 const ukTime = new Intl.DateTimeFormat("en-GB", {
@@ -20,10 +21,21 @@ const ukTime = new Intl.DateTimeFormat("en-GB", {
  * with the actual deadline for this appointment, not just "24 hours".
  * A fee the customer wasn't clearly told about is one they can fairly refuse.
  */
-export function CancellationTerms({ appointmentStartAt, now = new Date() }: { appointmentStartAt: string | Date; now?: Date }) {
+export function CancellationTerms({
+  appointmentStartAt,
+  lateFeeBps = LATE_CANCELLATION_FEE_BPS,
+  noShowFeeBps = NO_SHOW_FEE_BPS,
+  now = new Date(),
+}: {
+  appointmentStartAt: string | Date;
+  /** The fee shares the booking will be made under (an admin setting). */
+  lateFeeBps?: number;
+  noShowFeeBps?: number;
+  now?: Date;
+}) {
   const deadline = freeCancellationEndsAt(new Date(appointmentStartAt));
   const insideWindow = deadline.getTime() <= now.getTime();
-  const late = `${LATE_CANCELLATION_FEE_BPS / 100}%`;
+  const late = `${Number((lateFeeBps / 100).toFixed(2))}%`;
 
   return (
     <p className="rounded-glam-sm bg-sunken p-3 text-xs leading-relaxed text-ink-muted">
@@ -39,7 +51,9 @@ export function CancellationTerms({ appointmentStartAt, now = new Date() }: { ap
           After that, cancelling costs {late} of the service price.
         </>
       )}{" "}
-      A missed appointment is charged in full.{" "}
+      {noShowFeeBps >= 10_000
+        ? "A missed appointment is charged in full."
+        : `A missed appointment costs ${Number((noShowFeeBps / 100).toFixed(2))}% of the service price.`}{" "}
       <Link href="/cancellations" className="underline underline-offset-2 hover:text-ink">
         Policy
       </Link>

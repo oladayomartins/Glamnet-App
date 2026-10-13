@@ -1,8 +1,6 @@
 import { prisma } from "./prisma";
-import {
-  DEFAULT_EMERGENCY_THRESHOLD_MINUTES,
-  TRUST_FEE_MINOR,
-} from "@/lib/domain/constants";
+import { DEFAULT_EMERGENCY_THRESHOLD_MINUTES } from "@/lib/domain/constants";
+import { getFeeConfig } from "./fee-config";
 import type { EmergencyPricingConfig } from "@/lib/domain/types";
 
 /**
@@ -36,10 +34,11 @@ export async function getActiveEmergencyConfig(
 
 /** Values the checkout and admin screens need to explain the current rules. */
 export async function getPricingContext(now: Date = new Date()) {
-  const config = await getActiveEmergencyConfig(now);
+  const [config, fees] = await Promise.all([getActiveEmergencyConfig(now), getFeeConfig()]);
   return {
     config,
     thresholdMinutes: config?.thresholdMinutes ?? DEFAULT_EMERGENCY_THRESHOLD_MINUTES,
-    trustFeeMinor: TRUST_FEE_MINOR,
+    trustFeeMinor: fees.rates.trustFeeMinor,
+    feeRates: fees.rates,
   };
 }

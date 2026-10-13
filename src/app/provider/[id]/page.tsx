@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { currentFeeRates } from "@/lib/server/fee-config";
+import { percent } from "@/lib/domain/fee-rates";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { getProviderToday } from "@/lib/server/provider-today";
@@ -44,6 +46,7 @@ export default async function ProviderPage({
   const { id } = await params;
 
   const viewer = await requireVendorPage(id, `/provider/${id}`);
+  const rates = await currentFeeRates();
 
   const [provider, today] = await Promise.all([
     prisma.provider.findUnique({
@@ -117,7 +120,12 @@ export default async function ProviderPage({
 
       <section id="bio-link" className="scroll-mt-20">
         {provider.slug ? (
-          <BioLink origin={siteUrl().replace(/^https?:\/\//, "")} slug={provider.slug} />
+          <BioLink
+            origin={siteUrl().replace(/^https?:\/\//, "")}
+            slug={provider.slug}
+            commissionPct={percent(rates.repeatCommissionBps)}
+            cardFeePct={percent(rates.cardFeeBps)}
+          />
         ) : (
           <Link
             href="/provider/onboarding?step=storefront"

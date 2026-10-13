@@ -276,8 +276,9 @@ function PromoForm({
         </label>
       </div>
       <p className="text-xs text-ink-muted">
-        On bookings through the directory GLAMNET keeps 30%, so there is plenty of room for a discount. On bookings through a
-        vendor&rsquo;s own link GLAMNET keeps only the trust fee and 2% card fee, so the discount there is small.
+        On a new client from the directory GLAMNET keeps its new-client commission, so there is plenty of room for a discount.
+        On bookings through a vendor&rsquo;s own link GLAMNET keeps only its booking and card fees, so the discount there is
+        small. The rates are under Settings.
       </p>
       <div className="flex gap-2">
         <Button

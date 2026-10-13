@@ -18,7 +18,10 @@ export const TRANSITION_BUFFER_MINUTES = 15;
  */
 export const DEFAULT_EMERGENCY_THRESHOLD_MINUTES = 720;
 
-/** Fixed £0.50 Trust Fee applied to every booking (spec §5). */
+/**
+ * Default £0.50 trust fee on marketplace and emergency bookings (spec §5).
+ * The fee in force is an admin setting — see fee-rates.ts.
+ */
 export const TRUST_FEE_MINOR = 50;
 
 /** Granularity of offered appointment start times. */

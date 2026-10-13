@@ -166,7 +166,7 @@ export default async function EarningsStatementPage({
         </section>
 
         <footer className="mt-8 border-t border-line pt-4 text-[11px] leading-relaxed text-ink-muted">
-          Fees are GLAMNET&rsquo;s commission as shown on each booking, the 2% card fee on bookings through your own
+          Fees are GLAMNET&rsquo;s commission as shown on each booking, the card fee on bookings through your own
           link, the booking fee where one applies, and any amount deducted after a dispute. Tips are passed to you in full. This statement is a record of your GLAMNET earnings, not a tax
           document; keep it with your own records.
         </footer>

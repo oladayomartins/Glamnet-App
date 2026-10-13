@@ -1,5 +1,6 @@
 import type { Booking } from "@prisma/client";
 import { prisma } from "./prisma";
+import { ratesForBooking } from "./fee-config";
 import { BookingError } from "./booking-service";
 import { paymentGateway, PaymentError } from "./payments";
 import { voidPaymentForBooking } from "./escrow";
@@ -62,7 +63,7 @@ const firstName = (name: string) => name.split(/\s+/)[0] || name;
 export async function cancellationQuote(bookingId: string, customerId: string, now = new Date()) {
   const booking = await load(bookingId);
   if (booking.customerId !== customerId) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
-  return quoteCustomerCancellation(booking, now);
+  return quoteCustomerCancellation(booking, now, await ratesForBooking(booking.feeConfigId));
 }
 
 /**
@@ -85,10 +86,11 @@ export async function cancelBooking(
   let travelInFee = 0;
   if (by.role === "CUSTOMER") {
     if (booking.customerId !== by.customerId) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
-    const quote = quoteCustomerCancellation(booking, now);
+    const rates = await ratesForBooking(booking.feeConfigId);
+    const quote = quoteCustomerCancellation(booking, now, rates);
     if (!quote.allowed) throw new BookingError(quote.explanation, "INVALID_TRANSITION", 409);
     feeMinor = quote.feeMinor;
-    travelInFee = quote.kind === "MISSED" ? travelInNoShowFeeMinor(booking) : 0;
+    travelInFee = quote.kind === "MISSED" ? travelInNoShowFeeMinor(booking, rates) : 0;
     if (input.acceptedFeeMinor !== undefined && feeMinor > input.acceptedFeeMinor) {
       throw new BookingError(
         `Cancelling now costs ${formatMoney(feeMinor)}. Please check and confirm again.`,
@@ -152,9 +154,10 @@ export async function markNoShow(bookingId: string, providerId: string, now = ne
     );
   }
 
-  const feeMinor = noShowFeeMinor(booking);
+  const rates = await ratesForBooking(booking.feeConfigId);
+  const feeMinor = noShowFeeMinor(booking, rates);
   await claim(booking, "NO_SHOW", "PROVIDER", `Client marked as a no-show; fee ${formatMoney(feeMinor)}.`, now);
-  const fee = feeMinor > 0 ? await collectFee(booking, feeMinor, travelInNoShowFeeMinor(booking), now) : null;
+  const fee = feeMinor > 0 ? await collectFee(booking, feeMinor, travelInNoShowFeeMinor(booking, rates), now) : null;
   if (!fee?.collected) await voidPaymentForBooking(await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } }));
 
   const charged = fee?.collected ? fee.feeMinor : 0;
@@ -257,6 +260,7 @@ async function collectFee(booking: FullBooking, feeMinor: number, travelInFee: n
       travelInFeeMinor: travelInFee,
       commissionBps: booking.commissionBps,
       firstDiscoveryBooking: booking.firstDiscoveryBooking,
+      cardFeeBps: (await ratesForBooking(booking.feeConfigId)).cardFeeBps,
     });
     // A vendor who hasn't finished payout set-up still earns their share; it
     // is kept back and paid by the team once they have.

@@ -18,11 +18,10 @@ import {
 import { getPricingContext } from "@/lib/server/emergency-config";
 import { BrandImage } from "@/components/brand-image";
 import { formatMoney } from "@/lib/format";
-import { TRUST_FEE_MINOR } from "@/lib/domain/constants";
+import { percent } from "@/lib/domain/fee-rates";
+import { currentFeeRates } from "@/lib/server/fee-config";
 import { DISPUTE_WINDOW_HOURS, REQUIRED_COMPLETION_PHOTOS } from "@/lib/domain/completion";
 import {
-  CARD_PROCESSING_FEE_BPS,
-  DISCOVERY_COMMISSION_BPS,
   decideCommission,
   trustFeeFor,
   settle,
@@ -31,11 +30,13 @@ import { listCategories } from "@/lib/server/categories";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Become a vendor",
-  description:
-    "Claim a free storefront on the UK's marketplace for the Black and Asian beauty community. 0% commission on clients from your own link, a calendar that cannot double-book, and payment released by your client's PIN.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const rates = await currentFeeRates();
+  return {
+    title: "Become a vendor",
+    description: `Claim a free storefront on the UK's marketplace for the Black and Asian beauty community. ${percent(rates.repeatCommissionBps)} commission on clients from your own link, a calendar that cannot double-book, and payment released by your client's PIN.`,
+  };
+}
 
 const SIGN_UP = "/sign-up?role=vendor";
 
@@ -60,22 +61,25 @@ function Container({ children, className = "" }: { children: ReactNode; classNam
  * would go, the page states the platform's own terms instead.
  */
 export default async function BecomeVendorPage() {
-  const [{ thresholdMinutes }, categories] = await Promise.all([getPricingContext(), listCategories()]);
+  const [{ thresholdMinutes, feeRates: rates }, categories] = await Promise.all([getPricingContext(), listCategories()]);
   const thresholdHours = Math.round(thresholdMinutes / 60);
 
   // Worked example on a £100 service, through the real settlement engine.
   // Each example carries the trust fee its route charges the client.
   const example = (source: "DIRECT_LINK" | "MARKETPLACE") => ({
-    totalMinor: 10_000 + trustFeeFor(source),
+    totalMinor: 10_000 + trustFeeFor(source, rates),
     commissionableMinor: 10_000,
-    trustFeeMinor: trustFeeFor(source),
+    trustFeeMinor: trustFeeFor(source, rates),
     tipMinor: 0,
-    commission: decideCommission({ source, hasPriorBooking: false }),
+    commission: decideCommission({ source, hasPriorBooking: false }, rates),
   });
   const ruleA = settle(example("DIRECT_LINK"));
   const ruleB = settle(example("MARKETPLACE"));
-  const commissionPct = DISCOVERY_COMMISSION_BPS / 100;
-  const cardFeePct = CARD_PROCESSING_FEE_BPS / 100;
+  // Rates are an admin setting: the page states whatever is in force.
+  const commissionPct = percent(rates.discoveryCommissionBps);
+  const repeatPct = percent(rates.repeatCommissionBps);
+  const cardFeePct = percent(rates.cardFeeBps);
+  const trustFee = rates.trustFeeMinor;
 
   return (
     <div data-page-width="full" className="-mt-6">
@@ -108,7 +112,7 @@ export default async function BecomeVendorPage() {
           </div>
           <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-ink-muted">
             <TrustItem>Free to list</TrustItem>
-            <TrustItem>0% commission on your own link</TrustItem>
+            <TrustItem>{repeatPct} commission on your own link</TrustItem>
             <TrustItem>Paid by PIN, never chased</TrustItem>
           </ul>
         </Container>
@@ -192,13 +196,13 @@ export default async function BecomeVendorPage() {
               <dl className="mt-3 space-y-1.5 text-sm">
                 <MockRow label="Asian Bridal Makeup" value="£180.00" />
                 <MockRow label="Gele Tie" value="£30.00" />
-                <MockRow label="Trust fee" value={formatMoney(TRUST_FEE_MINOR)} />
+                {trustFee > 0 ? <MockRow label="Trust fee" value={formatMoney(trustFee)} /> : null}
                 <MockRow label="Tip" value="£10.00" />
               </dl>
               <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3">
                 <span className="text-sm font-bold text-ink">Held on card</span>
                 <span data-numeric className="text-2xl font-bold text-accent-700">
-                  {formatMoney(18_000 + 3_000 + TRUST_FEE_MINOR + 1_000)}
+                  {formatMoney(18_000 + 3_000 + trustFee + 1_000)}
                 </span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
@@ -221,9 +225,9 @@ export default async function BecomeVendorPage() {
             Your three best transformations, your bio and socials, and a menu with your own prices
             and times — at glamnetapp.com/pro/your-name.
           </Feature>
-          <Feature icon={<LinkIcon size={20} weight="light" />} title="0% commission on your link">
+          <Feature icon={<LinkIcon size={20} weight="light" />} title={`${repeatPct} commission on your link`}>
             Put your link in your Instagram or TikTok bio. Clients who book through it — and every
-            client who comes back — cost you no commission, only the {cardFeePct}% card fee.
+            client who comes back — cost you {rates.repeatCommissionBps === 0 ? "no commission" : `only ${repeatPct} commission`}, plus the {cardFeePct} card fee.
           </Feature>
           <Feature icon={<CalendarCheck size={20} weight="light" />} title="A calendar that can't double-book">
             Set your weekly hours and block holidays. Clients only see times you are genuinely free,
@@ -238,8 +242,8 @@ export default async function BecomeVendorPage() {
             edited afterwards — so your rating means something.
           </Feature>
           <Feature icon={<SealCheck size={20} weight="light" />} title="A verified, trusted profile">
-            Upload your insurance, licence or certificate once. When we have checked it you get the verified
-            badge, and your storefront and calendar go live.
+            We review every storefront before it goes live, and you get the verified badge. Add your
+            insurance, licence or certificate if you have them — it&rsquo;s optional.
           </Feature>
         </div>
       </Band>
@@ -306,8 +310,8 @@ export default async function BecomeVendorPage() {
             title="Clients from your link, and every repeat client"
             payout={ruleA.providerPayoutMinor}
             lines={[
-              ["Marketplace commission", "0%"],
-              [`Card processing (${cardFeePct}%)`, formatMoney(ruleA.processingFeeMinor)],
+              [`Marketplace commission (${repeatPct})`, rates.repeatCommissionBps === 0 ? "0%" : formatMoney(ruleA.platformCommissionMinor)],
+              [`Card processing (${cardFeePct})`, formatMoney(ruleA.processingFeeMinor)],
             ]}
             highlight
           />
@@ -316,16 +320,20 @@ export default async function BecomeVendorPage() {
             title="A new client who found you on GLAMNET"
             payout={ruleB.providerPayoutMinor}
             lines={[
-              [`Acquisition commission (${commissionPct}%)`, formatMoney(ruleB.platformCommissionMinor)],
+              [`Acquisition commission (${commissionPct})`, formatMoney(ruleB.platformCommissionMinor)],
               ["Card processing", "we cover it"],
             ]}
           />
         </div>
         <p className="mx-auto mt-5 max-w-2xl text-center text-sm text-ink-muted">
           Tips always go to you in full, and so does any travel fee when you visit a client at
-          home. The {formatMoney(TRUST_FEE_MINOR)} trust fee is paid by the client, and only on
-          marketplace bookings: clients who book through your own link pay none. After that
-          first booking, the same client is yours at 0% for good.
+          home.{" "}
+          {trustFee > 0
+            ? rates.directTrustFeeMinor > 0
+              ? `The client pays a ${formatMoney(trustFee)} trust fee on marketplace bookings and ${formatMoney(rates.directTrustFeeMinor)} through your own link — it never comes out of your pay.`
+              : `The ${formatMoney(trustFee)} trust fee is paid by the client, and only on marketplace bookings: clients who book through your own link pay none.`
+            : "Clients pay no booking fee."}{" "}
+          After that first booking, the same client is yours at {repeatPct} for good.
         </p>
       </Band>
 
@@ -379,9 +387,9 @@ export default async function BecomeVendorPage() {
         </div>
         <div className="mx-auto mt-8 max-w-2xl divide-y divide-line border-y border-line">
           <Faq q="Is it really free to list?">
-            Yes. There is no sign-up fee or subscription. You only ever pay the {cardFeePct}% card
-            fee on bookings, plus a {commissionPct}% commission on the first booking from a new
-            client who found you through GLAMNET.
+            Yes. There is no sign-up fee or subscription. You only ever pay the {cardFeePct} card
+            fee on bookings{rates.repeatCommissionBps > 0 ? ` and ${repeatPct} commission on your own clients` : ""}, plus
+            a {commissionPct} commission on the first booking from a new client who found you through GLAMNET.
           </Faq>
           <Faq q="Who are the clients on GLAMNET?">
             The Black and Asian beauty community near you, anywhere in the UK, looking for a

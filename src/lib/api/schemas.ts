@@ -207,3 +207,16 @@ export const reviewReplySchema = z.object({
 export const clientNoteSchema = z.object({
   note: z.string().max(2_000),
 });
+
+/** Admin-set commission and fee rates: basis points and pence, whole numbers. */
+export const feeConfigSchema = z.object({
+  discoveryCommissionBps: z.number().int().min(0).max(10_000),
+  repeatCommissionBps: z.number().int().min(0).max(10_000),
+  cardFeeBps: z.number().int().min(0).max(1_000),
+  trustFeeMinor: z.number().int().min(0).max(5_000),
+  directTrustFeeMinor: z.number().int().min(0).max(5_000),
+  lateCancellationFeeBps: z.number().int().min(0).max(10_000),
+  noShowFeeBps: z.number().int().min(0).max(10_000),
+  travelFeeMinor: z.number().int().min(0).max(10_000),
+  note: z.string().max(300).optional(),
+});

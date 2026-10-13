@@ -133,7 +133,7 @@ export function ApprovalQueue({ providers, emptyMessage }: { providers: QueuePro
                 <div className="mt-2">
                   <p className="text-xs font-medium text-ink">Compliance documents</p>
                   {provider.documents.length === 0 ? (
-                    <p className="text-xs text-warning">None uploaded — cannot be approved until one is.</p>
+                    <p className="text-xs text-ink-muted">None uploaded (optional).</p>
                   ) : (
                     <div className="mt-1">
                       <DocumentReview providerId={provider.id} documents={provider.documents} />

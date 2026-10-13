@@ -7,11 +7,11 @@ import { UNSECURED_CANCEL_HOURS } from "@/lib/domain/payment-rules";
 import {
   BOOKING_GRACE_MINUTES,
   FREE_CANCELLATION_HOURS,
-  LATE_CANCELLATION_FEE_BPS,
   NO_SHOW_WAIT_MINUTES,
 } from "@/lib/domain/cancellation";
 
-const late = `${LATE_CANCELLATION_FEE_BPS / 100}%`;
+import { currentFeeRates } from "@/lib/server/fee-config";
+import { percent } from "@/lib/domain/fee-rates";
 
 export const metadata = {
   title: "Cancellations & refunds",
@@ -24,7 +24,13 @@ export const metadata = {
  * money is only held until the checkout PIN, so a free cancellation releases
  * the hold, and a fee is taken from it without touching the rest.
  */
-export default function CancellationsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function CancellationsPage() {
+  // The fee shares are an admin setting; this page states the ones in force.
+  const rates = await currentFeeRates();
+  const late = percent(rates.lateCancellationFeeBps);
+  const missed = rates.noShowFeeBps >= 10_000 ? "the full service price" : `${percent(rates.noShowFeeBps)} of the service price`;
   return (
     <LegalPage
       current="/cancellations"
@@ -87,7 +93,7 @@ export default function CancellationsPage() {
               <p>
                 If you&rsquo;re not there and your pro can&rsquo;t reach you, they can mark the appointment as missed{" "}
                 {NO_SHOW_WAIT_MINUTES} minutes after the start time (or after they arrived, if later). A missed
-                appointment is charged at the full service price, plus the travel fee for a home visit — the time and the
+                appointment is charged at {missed}, plus the travel fee for a home visit — the time and the
                 journey your pro gave up. The trust fee and any tip aren&rsquo;t charged.
               </p>
               <p>

@@ -20,7 +20,18 @@ const BIO_EDITORS = {
   tiktok: "https://www.tiktok.com/profile",
 } as const;
 
-export function BioLink({ origin, slug }: { origin: string; slug: string }) {
+export function BioLink({
+  origin,
+  slug,
+  commissionPct = "0%",
+  cardFeePct = "2%",
+}: {
+  origin: string;
+  slug: string;
+  /** The own-link commission and card fee in force (admin settings). */
+  commissionPct?: string;
+  cardFeePct?: string;
+}) {
   const [copied, setCopied] = useState(false);
   const [pasteInto, setPasteInto] = useState<string | null>(null);
   const link = `${origin}/pro/${slug}`;
@@ -57,13 +68,13 @@ export function BioLink({ origin, slug }: { origin: string; slug: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[17px] font-bold text-ink">Your booking link</p>
         <span className="rounded-full bg-metal px-3 py-1 text-xs font-bold text-metal-ink">
-          0% commission
+          {commissionPct} commission
         </span>
       </div>
       <p className="mt-2 break-all text-[15px] font-semibold text-ink">{link}</p>
       <p className="mt-1 text-sm text-ink-muted">
-        Clients who book through this link pay you with no marketplace commission — only the
-        2% card fee. Add it to your Instagram or TikTok bio.
+        Clients who book through this link pay you with {commissionPct === "0%" ? "no marketplace commission" : `only ${commissionPct} commission`}{" "}
+        — just the {cardFeePct} card fee on top. Add it to your Instagram or TikTok bio.
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <button
