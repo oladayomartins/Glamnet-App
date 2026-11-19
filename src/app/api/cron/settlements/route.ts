@@ -3,6 +3,7 @@ import { errorResponse } from "@/lib/api/respond";
 import { closeExpiredDisputeWindows } from "@/lib/server/escrow";
 import { runPaymentSweep } from "@/lib/server/payment-flow";
 import { sendCancellationReminders } from "@/lib/server/cancellations";
+import { retryHeldPayouts } from "@/lib/server/held-payouts";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,9 @@ export const dynamic = "force-dynamic";
  *   - hold saved cards for bookings now within five days;
  *   - cancel bookings still without a card a day before;
  *   - release holds on abandoned checkouts and unanswered broadcasts;
- *   - remind customers the day before free cancellation ends.
+ *   - remind customers the day before free cancellation ends;
+ *   - retry payouts still held for verified vendors (a refused transfer, a
+ *     dispute since ruled, or a bank that started working unnoticed).
  *
  * Run by Vercel Cron (vercel.json), which sends `Authorization: Bearer
  * $CRON_SECRET`. Without CRON_SECRET set the route refuses everything rather
@@ -32,7 +35,8 @@ export async function GET(request: Request) {
     const closed = await closeExpiredDisputeWindows();
     const payments = await runPaymentSweep();
     const reminders = await sendCancellationReminders();
-    return NextResponse.json({ closed, payments, reminders });
+    const heldPayouts = await retryHeldPayouts();
+    return NextResponse.json({ closed, payments, reminders, heldPayouts });
   } catch (error) {
     return errorResponse(error);
   }

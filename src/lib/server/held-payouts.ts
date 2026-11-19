@@ -56,13 +56,15 @@ export async function heldPayoutSummary(providerId: string) {
  * each transfer's idempotency key means a retry never pays twice. A booking
  * under dispute waits for its ruling.
  */
-export async function releaseHeldPayouts(providerId: string): Promise<{ released: number; totalMinor: number }> {
+export async function releaseHeldPayouts(
+  providerId: string,
+): Promise<{ released: number; totalMinor: number; failed: number }> {
   const gateway = paymentGateway();
   const provider = await prisma.provider.findUnique({
     where: { id: providerId },
     select: { isVerified: true, stripeAccountId: true, payoutsEnabled: true },
   });
-  if (!provider || mustHoldPayout(provider, gateway.mode)) return { released: 0, totalMinor: 0 };
+  if (!provider || mustHoldPayout(provider, gateway.mode)) return { released: 0, totalMinor: 0, failed: 0 };
 
   const held = await prisma.booking.findMany({
     where: { providerId, payoutHeld: true, NOT: { settlementStatus: "DISPUTED" } },
@@ -71,6 +73,7 @@ export async function releaseHeldPayouts(providerId: string): Promise<{ released
 
   let released = 0;
   let totalMinor = 0;
+  let failed = 0;
   for (const booking of held) {
     const amountMinor = heldAmountOf(booking);
     let transferId = "";
@@ -84,9 +87,10 @@ export async function releaseHeldPayouts(providerId: string): Promise<{ released
         }));
       } catch (error) {
         // One refused transfer mustn't hold up the rest; it stays held and is
-        // retried next time.
+        // retried by the daily job (retryHeldPayouts).
         if (error instanceof PaymentError) {
           console.error(`Held payout for booking ${booking.id} refused: ${error.message}`);
+          failed += 1;
           continue;
         }
         throw error;
@@ -109,5 +113,50 @@ export async function releaseHeldPayouts(providerId: string): Promise<{ released
     released += 1;
     totalMinor += amountMinor;
   }
-  return { released, totalMinor };
+  return { released, totalMinor, failed };
+}
+
+/**
+ * The daily retry, run by the settlements cron. Picks up every verified
+ * vendor who still has payouts held: one whose transfer Stripe refused, one
+ * whose dispute has since been ruled, or one whose bank only started working
+ * after a webhook we missed — so their Stripe status is re-read first.
+ *
+ * One vendor's or booking's failure never stops the rest; `failed` counts
+ * bookings Stripe refused plus vendors that errored, and both are tried
+ * again tomorrow.
+ */
+export async function retryHeldPayouts(): Promise<{
+  vendors: number;
+  released: number;
+  totalMinor: number;
+  failed: number;
+}> {
+  const gateway = paymentGateway();
+  const vendors = await prisma.provider.findMany({
+    where: {
+      isVerified: true,
+      bookings: { some: { payoutHeld: true, NOT: { settlementStatus: "DISPUTED" } } },
+    },
+    select: { id: true, stripeAccountId: true, payoutsEnabled: true },
+  });
+
+  const totals = { vendors: vendors.length, released: 0, totalMinor: 0, failed: 0 };
+  for (const vendor of vendors) {
+    try {
+      if (gateway.mode === "stripe" && vendor.stripeAccountId && !vendor.payoutsEnabled) {
+        const enabled = await gateway.payoutsEnabled(vendor.stripeAccountId);
+        if (!enabled) continue;
+        await prisma.provider.update({ where: { id: vendor.id }, data: { payoutsEnabled: true } });
+      }
+      const result = await releaseHeldPayouts(vendor.id);
+      totals.released += result.released;
+      totals.totalMinor += result.totalMinor;
+      totals.failed += result.failed;
+    } catch (error) {
+      totals.failed += 1;
+      console.error(`retryHeldPayouts: vendor ${vendor.id}`, error);
+    }
+  }
+  return totals;
 }
