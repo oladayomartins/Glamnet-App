@@ -44,7 +44,7 @@ export function DetailsForm({ name, phone, email }: { name: string; phone: strin
           onChange={(e) => setValues({ ...values, phone: e.target.value })}
           autoComplete="tel"
           inputMode="tel"
-          placeholder="So your pro can reach you on the day"
+          placeholder="So your vendor can reach you on the day"
           className={field}
         />
       </label>

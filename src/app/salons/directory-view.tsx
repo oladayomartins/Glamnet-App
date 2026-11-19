@@ -33,7 +33,7 @@ export interface DirectoryQuery {
  * /salons covers the whole UK; /[city]/salons is the same view for one city.
  * Category tiles filter it; a postcode (typed, suggested or from the phone's
  * location) sorts it nearest first within a radius, a row of chips narrows it
- * to one kind of space (or pros who come to you), and a map shows where
+ * to one kind of space (or vendors who come to you), and a map shows where
  * everyone is — by area only, never by address. Everything is in the URL.
  */
 export async function DirectoryView({
@@ -173,8 +173,8 @@ export async function DirectoryView({
       {vendors.length === 0 ? (
         <EmptyState icon={<Storefront size={24} weight="light" />} title="Nobody here yet">
           {place
-            ? `No verified pros within ${radiusMiles} miles of ${place.postcode ?? place.outcode} yet.`
-            : "No verified pros here yet."}{" "}
+            ? `No verified vendors within ${radiusMiles} miles of ${place.postcode ?? place.outcode} yet.`
+            : "No verified vendors here yet."}{" "}
           {space ? (
             <Link href={hrefWith({ space: null })} className="font-semibold text-accent-700">
               Show every kind of space
@@ -190,13 +190,13 @@ export async function DirectoryView({
           ) : null}
           {city && !place && !hub && !space ? (
             <span className="mt-4 block">
-              Pros are joining {city} now.{" "}
+              Vendors are joining {city} now.{" "}
               <Link href="/become-a-vendor" className="font-semibold text-accent-700">
                 Are you a vendor here? Be one of the first
               </Link>
               {" · "}
               <Link href="/salons" className="font-semibold text-accent-700">
-                See pros across the UK
+                See vendors across the UK
               </Link>
             </span>
           ) : null}
@@ -289,7 +289,7 @@ export async function DirectoryView({
               }))}
             />
             <p className="mt-2 text-xs text-ink-muted">
-              Pins show each pro&rsquo;s area, not their address. You get the exact address once you book.
+              Pins show each vendor&rsquo;s area, not their address. You get the exact address once you book.
             </p>
           </div>
         </div>

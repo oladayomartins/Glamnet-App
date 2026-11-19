@@ -19,7 +19,7 @@ const schema = z.object({
 
 /**
  * PATCH /api/customer/profile — the signed-in customer's own details.
- * The postcode is looked up so "pros near you" can measure from it; it is
+ * The postcode is looked up so "vendors near you" can measure from it; it is
  * never shown to anyone else.
  */
 export async function PATCH(request: Request) {

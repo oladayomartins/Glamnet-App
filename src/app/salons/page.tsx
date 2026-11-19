@@ -4,8 +4,8 @@ import { DirectoryView, type DirectoryQuery } from "./directory-view";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Beauty pros near you",
-  description: "Verified Black and Asian hair, makeup, nails and wellness pros across the UK, sorted by distance from your postcode.",
+  title: "Beauty vendors near you",
+  description: "Verified Black and Asian hair, makeup, nails and wellness vendors across the UK, sorted by distance from your postcode.",
   alternates: { canonical: "/salons" },
 };
 

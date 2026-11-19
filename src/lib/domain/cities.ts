@@ -1,5 +1,5 @@
 /**
- * The cities listed under "Browse by city", whether or not any pro has joined
+ * The cities listed under "Browse by city", whether or not any vendor has joined
  * there yet. Each one's provider count grows as vendors in that city go live.
  *
  * Admins manage the list (the City table). This built-in copy is what that
@@ -10,7 +10,7 @@
  * (the ONS district, or "London" for all of Greater London), because vendors
  * are counted by their Beauty Hub's city. A test checks the slugs stay unique.
  *
- * Photographed cities first, then by population; cities with more pros are
+ * Photographed cities first, then by population; cities with more vendors are
  * always shown first. Must match the seeded order in the City table.
  */
 export interface LaunchCity {
@@ -76,13 +76,13 @@ export interface CityTile {
 
 /**
  * The "Browse by city" rail: every launch city, plus any other city where a
- * pro is already live, each with its live-pro count. Busiest first; ties keep
+ * vendor is already live, each with its live-pro count. Busiest first; ties keep
  * the admin's order, and cities off the list follow alphabetically.
  */
 export function cityTiles(
   configured: readonly LaunchCity[],
   live: { city: string; hubId: string; sector: string; providerCount: number }[],
-  /** Cities an admin has hidden: never shown, even once pros are live there. */
+  /** Cities an admin has hidden: never shown, even once vendors are live there. */
   hidden: ReadonlySet<string> = new Set(),
 ): CityTile[] {
   const byCity = new Map<string, { hubId: string; sector: string; providerCount: number; best: number }>();

@@ -50,7 +50,7 @@ export async function requireApiRole(
 }
 
 /**
- * A signed-in vendor, approved or not — for the Pro Portal, where a pending
+ * A signed-in vendor, approved or not — for the Vendor Portal, where a pending
  * applicant has to be able to build their storefront before review.
  */
 export async function requireApiVendor(): Promise<

@@ -55,7 +55,7 @@ export function LocationFilter({
         onChange={setValue}
         allowOutcode
         placeholder="e.g. M1 1AE or SW1A"
-        hint="Anywhere in the UK. We sort pros nearest first."
+        hint="Anywhere in the UK. We sort vendors nearest first."
         onResolved={(place) => {
           // Using location lands straight on the results.
           if (place?.postcode && place.postcode !== near && document.activeElement?.tagName !== "INPUT") {

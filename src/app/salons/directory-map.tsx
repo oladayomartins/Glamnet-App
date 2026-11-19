@@ -38,7 +38,7 @@ export function DirectoryMap({
   const centre = near ?? markers[0] ?? { lat: 54.0, lng: -2.5 };
   return (
     <MapView
-      label="Map of pros"
+      label="Map of vendors"
       center={centre}
       zoom={near ? 12 : markers.length ? 11 : 5}
       markers={markers}

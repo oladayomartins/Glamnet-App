@@ -97,7 +97,7 @@ export function StorefrontBooking({
   signedInAsCustomer,
   vendorArea,
 }: {
-  /** The centre of the pro's area (public, approximate). */
+  /** The centre of the vendor's area (public, approximate). */
   vendorArea?: { lat: number; lng: number } | null;
   slug: string;
   providerName: string;

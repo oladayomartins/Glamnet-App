@@ -42,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         select: { name: true },
       }),
-      // Only cities with a live pro: an empty directory page is not worth indexing.
+      // Only cities with a live vendor: an empty directory page is not worth indexing.
       prisma.hub.findMany({
         where: { providers: { some: { approvalStatus: "APPROVED" } } },
         select: { id: true, city: true },

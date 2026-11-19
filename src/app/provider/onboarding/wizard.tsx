@@ -128,10 +128,10 @@ async function send(url: string, method: string, body?: unknown) {
 }
 
 /**
- * The Pro onboarding wizard (Directory §C, Flow 3).
+ * The Vendor onboarding wizard (Directory §C, Flow 3).
  *
  * One question per screen, a progress bar, and a live preview of the
- * storefront beside the form on wide screens, so a pro watches their page
+ * storefront beside the form on wide screens, so a vendor watches their page
  * assemble as they answer. Steps slide in from the direction of travel;
  * every animation is switched off under prefers-reduced-motion.
  *
@@ -140,7 +140,7 @@ async function send(url: string, method: string, body?: unknown) {
  */
 export function OnboardingWizard(props: {
   initialStep: string | null;
-  /** A brand-new pro: open with the welcome instead of step one. */
+  /** A brand-new vendor: open with the welcome instead of step one. */
   welcome?: boolean;
   payoutsNotice: string | null;
   siteOrigin: string;
@@ -311,7 +311,7 @@ export function OnboardingWizard(props: {
         );
       case "specialties": {
         // Dropping a hub drops its services, so the menu never lists a craft
-        // the pro has just said they do not do.
+        // the vendor has just said they do not do.
         const allowed = new Set(props.catalogue.filter((item) => hubs.includes(item.category)).map((item) => item.id));
         setMenu((current) => current.filter((entry) => allowed.has(entry.serviceId)));
         return go(index + 1);

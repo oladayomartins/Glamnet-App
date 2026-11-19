@@ -1,9 +1,9 @@
 /**
  * The directory's "where does it happen" filter: the kind of space a client
- * visits, or a pro who comes to them. One choice at a time, carried in the
+ * visits, or a vendor who comes to them. One choice at a time, carried in the
  * URL as ?space=<slug> so a filtered search can be shared.
  *
- * "Comes to you" is not a workspace type: it matches mobile-only pros and pros
+ * "Comes to you" is not a workspace type: it matches mobile-only vendors and vendors
  * with a workspace who also travel, because a client asking for a home visit
  * does not care which of the two they get.
  */

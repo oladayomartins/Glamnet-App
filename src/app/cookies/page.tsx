@@ -61,7 +61,7 @@ export default function CookiesPage() {
           body: (
             <div className="space-y-3">
               <p>
-                If you accept, we use Google Analytics to see which pages are visited, how people find pros and where
+                If you accept, we use Google Analytics to see which pages are visited, how people find vendors and where
                 bookings get stuck. Google processes this for us. Google signals and ad personalisation are switched
                 off, and one-time links (like sign-in and unsubscribe links) are stripped before anything is sent. If
                 you&rsquo;re signed in we attach an internal account number — never your name or email — so we can

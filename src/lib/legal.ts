@@ -15,7 +15,7 @@ export const LEGAL = {
   registeredAddress: "",
   /** ICO registration number (data protection fee). */
   icoNumber: "",
-  /** Where customers, pros and data requests go. */
+  /** Where customers, vendors and data requests go. */
   contactEmail: "support@glamnetapp.com",
   /** When the policies last changed. Update with any change to the text. */
   lastUpdated: "25 September 2026",

@@ -289,7 +289,7 @@ export async function reassignBooking(actorEmail: string, bookingId: string, raw
           audience: "CUSTOMER",
           channel: "PUSH",
           bookingType: booking.bookingType,
-          title: "Your booking has a new pro",
+          title: "Your booking has a new vendor",
           body: `${nextVendor.name} will now look after your ${when} appointment. The price hasn't changed.`,
         },
         {
@@ -310,7 +310,7 @@ export async function reassignBooking(actorEmail: string, bookingId: string, raw
                 channel: "PUSH",
                 bookingType: booking.bookingType,
                 title: "A booking was moved",
-                body: `Your ${when} booking has been moved to another pro. Please don't travel to it.`,
+                body: `Your ${when} booking has been moved to another vendor. Please don't travel to it.`,
               },
             ]
           : []),
@@ -330,12 +330,12 @@ export async function reassignBooking(actorEmail: string, bookingId: string, raw
       to: booking.customer.email,
       name: firstName(booking.customer.name),
       bookingId,
-      subject: "Your GLAMNET booking has a new pro",
-      heading: "A new pro for your appointment",
-      lead: `${booking.provider?.name ?? "Your pro"} can no longer make it, so ${nextVendor.name} will look after you instead. Your time and price are unchanged.${
+      subject: "Your GLAMNET booking has a new vendor",
+      heading: "A new vendor for your appointment",
+      lead: `${booking.provider?.name ?? "Your vendor"} can no longer make it, so ${nextVendor.name} will look after you instead. Your time and price are unchanged.${
         booking.serviceLocation === "VENDOR_PREMISES" ? " The address may have changed — open your booking for where to go." : ""
       }`,
-      facts: [["Appointment", when], ["New pro", nextVendor.name]],
+      facts: [["Appointment", when], ["New vendor", nextVendor.name]],
       cta: "View booking",
     }),
     deliverBookingNotice({
@@ -357,8 +357,8 @@ export async function reassignBooking(actorEmail: string, bookingId: string, raw
             bookingId,
             path: "/provider",
             subject: "A GLAMNET booking was moved",
-            heading: "Booking moved to another pro",
-            lead: `Your ${when} booking has been given to another pro. Please don't travel to it. ${input.note}`,
+            heading: "Booking moved to another vendor",
+            lead: `Your ${when} booking has been given to another vendor. Please don't travel to it. ${input.note}`,
             facts: [["Appointment", when]],
             cta: "Open your dashboard",
           }),

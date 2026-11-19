@@ -98,7 +98,7 @@ export async function getMarketingData() {
         sector: true,
         _count: {
           // Counted exactly as the city directory lists them, so the number on
-          // a tile is the number of pros you see after tapping it.
+          // a tile is the number of vendors you see after tapping it.
           select: {
             providers: {
               where: { approvalStatus: "APPROVED", isVerified: true, isAcceptingWork: true, slug: { not: null } },
@@ -179,8 +179,8 @@ export async function getMarketingData() {
     }
   }
 
-  // Every launch city is listed from day one; the counts grow as pros there
-  // go live, and a city off the list joins once it has a live pro.
+  // Every launch city is listed from day one; the counts grow as vendors there
+  // go live, and a city off the list joins once it has a live vendor.
   const cities = cityTiles(
     await listCities(),
     hubs.map((hub) => ({

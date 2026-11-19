@@ -59,7 +59,7 @@ export default async function ProviderPendingPage() {
           </h1>
           <p className="mt-2 text-[15px] text-ink-muted">
             {submitted
-              ? "Every pro on GLAMNET is checked before going live, so clients can book with confidence. We'll email you as soon as you're approved."
+              ? "Every vendor on GLAMNET is checked before going live, so clients can book with confidence. We'll email you as soon as you're approved."
               : "Finish setting up your storefront and submit it, and we'll check your documents."}
           </p>
           <Link

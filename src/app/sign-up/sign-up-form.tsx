@@ -24,7 +24,7 @@ export function SignUpForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  // A pro's base postcode: any in the UK. It places them in the directory;
+  // A vendor's base postcode: any in the UK. It places them in the directory;
   // only the area (e.g. "S10") is ever shown publicly.
   const [postcode, setPostcode] = useState("");
   const [place, setPlace] = useState<ResolvedPlace | null>(null);
@@ -104,7 +104,7 @@ export function SignUpForm({
         {(
           [
             ["CUSTOMER", "Book beauty", <ShoppingBag key="c" size={16} aria-hidden />],
-            ["PROVIDER", "I'm a pro", <Scissors key="p" size={16} aria-hidden />],
+            ["PROVIDER", "I'm a vendor", <Scissors key="p" size={16} aria-hidden />],
           ] as const
         ).map(([value, label, icon]) => (
           <button
@@ -124,7 +124,7 @@ export function SignUpForm({
       </div>
 
       {/* A Google account cannot carry the vendor role through sign-up, so
-          pros register with email and go straight into the storefront wizard. */}
+          vendors register with email and go straight into the storefront wizard. */}
       {!isVendor ? <GoogleButton next={destination} label="Sign up with Google" /> : null}
 
       <form onSubmit={submit} className="space-y-3">

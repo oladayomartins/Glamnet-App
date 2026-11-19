@@ -9,11 +9,11 @@ type State = "loading" | "hidden" | "ios-install" | "denied" | "off" | "on" | "b
 const COPY = {
   PROVIDER: {
     title: "Get booking requests on your phone",
-    body: "Emergency requests go to the first pro who says yes. Turn on notifications so you hear about them even with GLAMNET closed.",
+    body: "Emergency requests go to the first vendor who says yes. Turn on notifications so you hear about them even with GLAMNET closed.",
   },
   CUSTOMER: {
     title: "Know the moment something changes",
-    body: "Get a notification when a pro accepts, when your checkout PIN is ready, and if anything needs your attention.",
+    body: "Get a notification when a vendor accepts, when your checkout PIN is ready, and if anything needs your attention.",
   },
   ADMIN: {
     title: "Get alerts for disputes and chargebacks",

@@ -49,7 +49,7 @@ export default async function HowItWorksPage() {
         </h1>
         <p className="mt-3 max-w-xl text-base text-ink-muted">
           Four steps from &ldquo;I need my hair done&rdquo; to a verified
-          pro doing it — at their studio or at your door.
+          vendor doing it — at their studio or at your door.
         </p>
       </section>
 

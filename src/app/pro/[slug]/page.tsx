@@ -97,7 +97,7 @@ export default async function StorefrontPage({
       ? store.reviews.reduce((sum, review) => sum + review.rating, 0) / store.reviews.length
       : null;
 
-  // "Next available", for the shortest service on the menu: whether this pro
+  // "Next available", for the shortest service on the menu: whether this vendor
   // can fit the customer in at all, before they choose anything.
   const shortest = Math.min(
     ...store.menu.filter((item) => item.kind === "SERVICE").map((item) => item.durationMinutes),
@@ -300,7 +300,7 @@ export default async function StorefrontPage({
             href={`/${citySlug(store.hub.city)}/salons`}
             className="mt-3 inline-flex text-sm font-semibold text-accent-700"
           >
-            See pros in {store.hub.city}
+            See vendors in {store.hub.city}
           </Link>
         </Card>
       )}

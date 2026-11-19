@@ -24,7 +24,7 @@ export function formatAddress(value: AddressValue): string {
 }
 
 /**
- * Where the pro should come to: postcode first (with suggestions and "Use my
+ * Where the vendor should come to: postcode first (with suggestions and "Use my
  * location"), then the house number and street, suggested from the streets
  * around that postcode. The postcode is checked against the UK postcode list
  * before the booking can be placed.
@@ -36,7 +36,7 @@ export function AddressFields({
 }: {
   value: AddressValue;
   onChange: (value: AddressValue) => void;
-  /** The pro's area, to say roughly how far they travel. */
+  /** The vendor's area, to say roughly how far they travel. */
   from?: { lat: number; lng: number; name: string } | null;
 }) {
   const miles =
@@ -49,7 +49,7 @@ export function AddressFields({
         value={value.postcode}
         onChange={(postcode) => onChange({ ...value, postcode, place: value.postcode === postcode ? value.place : null })}
         onResolved={(place) => onChange({ ...value, postcode: place?.postcode ?? value.postcode, place })}
-        hint="The pro only sees your address once they are confirmed."
+        hint="The vendor only sees your address once they are confirmed."
       />
       {miles ? (
         <p className="-mt-2 text-xs text-ink-muted">

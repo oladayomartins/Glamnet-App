@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 const PERKS = [
   { icon: <Lightning size={20} weight="fill" />, title: "One tap to open", body: "GLAMNET sits on your home screen and opens full screen, like any app." },
-  { icon: <BellRinging size={20} weight="fill" />, title: "Booking updates", body: "Hear the moment a pro accepts, your PIN is ready or a request comes in." },
+  { icon: <BellRinging size={20} weight="fill" />, title: "Booking updates", body: "Hear the moment a vendor accepts, your PIN is ready or a request comes in." },
   { icon: <WifiSlash size={20} weight="fill" />, title: "Honest offline", body: "No signal? It says so plainly, rather than a blank page." },
 ];
 
@@ -118,7 +118,7 @@ export default async function InstallPage() {
         <p className="text-[15px] text-ink-muted">
           Open GLAMNET from its new icon, sign in, and allow notifications when asked.{" "}
           <strong className="text-ink">Vendors:</strong> this is how emergency requests reach you first, even with the app
-          closed. <strong className="text-ink">Customers:</strong> you&rsquo;ll hear when a pro accepts and when your PIN is
+          closed. <strong className="text-ink">Customers:</strong> you&rsquo;ll hear when a vendor accepts and when your PIN is
           ready.
         </p>
         {user ? (

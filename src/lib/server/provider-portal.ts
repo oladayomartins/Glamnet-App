@@ -9,7 +9,7 @@ import { isTrustedImageUrl } from "@/lib/imagekit";
 import { deleteImageKitFiles } from "./imagekit-admin";
 
 /**
- * The Pro Portal (Open Marketplace Directory §C, Flow 3): everything a
+ * The Vendor Portal (Open Marketplace Directory §C, Flow 3): everything a
  * vendor edits about their own storefront. Every function takes the vendor
  * id from the session — never from a request body — so one vendor can never
  * edit another's page.
@@ -287,7 +287,7 @@ export async function onboardingGaps(providerId: string): Promise<string[]> {
   if (provider._count.availability === 0) gaps.push("Set the days and hours you work.");
   // A linked bank is not needed to submit: it is needed to be *paid*, and
   // releasing a payment already refuses without one. Requiring it here left
-  // pros stuck whenever bank linking itself was unavailable.
+  // vendors stuck whenever bank linking itself was unavailable.
   return gaps;
 }
 

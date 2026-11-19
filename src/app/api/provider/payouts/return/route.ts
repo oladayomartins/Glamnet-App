@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * GET /api/provider/payouts/return — Stripe hands the vendor back here.
  *
  * Like /api/provider/payouts this is a page navigation, so every outcome,
- * including an expired session or a Stripe error, lands the pro back in the
+ * including an expired session or a Stripe error, lands the vendor back in the
  * wizard with a message rather than on a page of raw JSON.
  */
 export async function GET(request: Request) {

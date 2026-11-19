@@ -24,14 +24,14 @@ export default async function SignUpPage({
 
   return (
     <AuthLayout
-      eyebrow={vendorFirst ? "For pros" : "Join GLAMNET"}
+      eyebrow={vendorFirst ? "For vendors" : "Join GLAMNET"}
       title={vendorFirst ? "Claim your free storefront" : "Create your account"}
       lede={
         vendorFirst
           ? `Your own booking page, your prices, and ${ownLinkCommission} commission on clients from your link.`
-          : "Book verified Black and Asian beauty pros across the UK — at their studio or at your door."
+          : "Book verified Black and Asian beauty vendors across the UK — at their studio or at your door."
       }
-      reassurance="Every pro is checked before their storefront goes live."
+      reassurance="Every vendor is checked before their storefront goes live."
       footer={
         <>
           Already have an account?{" "}
