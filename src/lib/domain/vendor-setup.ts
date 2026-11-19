@@ -151,3 +151,11 @@ export const LISTED_VENDOR: { approvalStatus: { in: string[] }; onboardedAt: { n
   approvalStatus: { in: ["PENDING", "APPROVED"] },
   onboardedAt: { not: null },
 };
+
+/**
+ * Cookie holding the percentage a vendor collapsed their dashboard setup
+ * banner at. Read by the layout on the server, written by the banner.
+ */
+export function setupBannerCookie(providerId: string): string {
+  return `glamnet_setup_banner_${providerId}`;
+}

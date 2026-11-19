@@ -38,9 +38,12 @@ const PULL_THRESHOLD = 72;
  */
 export function VendorShell({
   providerId,
+  banner,
   children,
 }: {
   providerId: string;
+  /** Shown above every page, under the tabs: the setup reminder. */
+  banner?: ReactNode;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -119,6 +122,8 @@ export function VendorShell({
       <nav aria-label="Vendor" className="mb-6 hidden flex-wrap gap-1 md:flex">
         {tabs("top")}
       </nav>
+
+      {banner}
 
       {children}
 
