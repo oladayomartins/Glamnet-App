@@ -23,7 +23,7 @@ export function SiteFooter({
     {
       heading: "Customers",
       links: [
-        { href: "/salons", label: "Find a pro near you" },
+        { href: "/salons", label: "Find a vendor near you" },
         { href: "/search", label: "Find a service" },
         { href: "/book", label: "Book a service" },
         { href: "/how-it-works", label: "How it works" },

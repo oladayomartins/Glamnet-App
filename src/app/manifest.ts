@@ -34,7 +34,7 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     // Long-press the app icon (Android, Windows, macOS) for these.
     shortcuts: [
-      { name: "Find a pro", short_name: "Find a pro", url: "/salons", icons: [{ src: "/icon-192.png", sizes: "192x192" }] },
+      { name: "Find a vendor", short_name: "Find a vendor", url: "/salons", icons: [{ src: "/icon-192.png", sizes: "192x192" }] },
       { name: "Book a service", short_name: "Book", url: "/search", icons: [{ src: "/icon-192.png", sizes: "192x192" }] },
       { name: "My bookings", short_name: "Bookings", url: "/account", icons: [{ src: "/icon-192.png", sizes: "192x192" }] },
       { name: "Vendor dashboard", short_name: "Dashboard", url: "/provider", icons: [{ src: "/icon-192.png", sizes: "192x192" }] },

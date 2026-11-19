@@ -298,7 +298,7 @@ export default async function AccountPage({
                 href={customer?.postcode ? `/salons?near=${encodeURIComponent(customer.postcode)}` : "/salons"}
                 className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
               >
-                Find a pro
+                Find a vendor
               </Link>
             }
           >

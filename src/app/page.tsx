@@ -718,7 +718,7 @@ export default async function MarketingPage() {
                   href="/salons"
                   className="inline-flex min-h-11 items-center gap-2 rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
                 >
-                  Find a pro
+                  Find a vendor
                   <ArrowRight size={15} weight="bold" aria-hidden />
                 </Link>
                 <Link
