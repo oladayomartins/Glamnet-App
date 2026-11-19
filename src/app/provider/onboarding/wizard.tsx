@@ -99,7 +99,7 @@ const STEPS = [
   { key: "lookbook", label: "Lookbook", title: "Show your best work", lede: "Three transformations sell better than any description. Optional for now." },
   { key: "compliance", label: "Documents", title: "Documents", lede: "Add ID, insurance, a licence or a certificate. You can skip this and still go live — it's needed for your verified badge and to be paid." },
   { key: "payouts", label: "Payouts", title: "Link your bank", lede: "Payments reach you through Stripe. You can skip this and still go live — your earnings are kept safe until you're verified." },
-  { key: "review", label: "Go live", title: "Ready when you are", lede: "Go live with the basics now, and finish the rest to get verified." },
+  { key: "review", label: "Go live", title: "Ready when you are", lede: "You go live as soon as the basics are in. Finish the rest to get verified." },
 ] as const;
 
 const WORKSPACES = [
@@ -1146,7 +1146,7 @@ export function OnboardingWizard(props: {
                       ? props.setup.readyForApproval
                         ? "You're live. Everything's done — we're checking your details, and you'll get your verified badge and your payouts once we approve you."
                         : "You're live, marked “Not verified”. Clients can book you now; finish the items above and we'll check you for your verified badge."
-                      : "Go live now and clients can book you straight away, shown as “Not verified”. Your earnings are kept safe and paid out once you reach 100% and we've approved you."}
+                      : "Finish the items marked “Needed to go live” and you're listed straight away — no need to wait for us — shown as “Not verified”. Your earnings are kept safe and paid out once you reach 100% and we've approved you."}
                 </p>
               </div>
             ) : null}

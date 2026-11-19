@@ -4,6 +4,7 @@ import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
 import { requireApiRole } from "@/lib/auth/api-guard";
 import { requireOwnProvider } from "@/lib/auth/provider-guard";
+import { autoListIfReady } from "@/lib/server/provider-portal";
 
 const windowSchema = z
   .object({
@@ -49,6 +50,9 @@ export async function PUT(
         data: windows.map((window) => ({ ...window, providerId: id })),
       }),
     ]);
+
+    // Hours are often the last basic a new vendor fills in.
+    await autoListIfReady(id);
 
     const saved = await prisma.providerAvailability.findMany({
       where: { providerId: id },
