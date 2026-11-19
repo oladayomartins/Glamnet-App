@@ -12,7 +12,7 @@ export default async function AdminCitiesPage() {
   await requireRole("ADMIN", "/admin/cities");
   const [cities, hubs] = await Promise.all([
     prisma.city.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
-    // Counted as the home page counts them: live, bookable pros.
+    // Counted as the home page counts them: live, bookable vendors.
     prisma.hub.findMany({
       select: {
         city: true,
@@ -36,7 +36,7 @@ export default async function AdminCitiesPage() {
     <div>
       <AdminHeader
         title="Cities"
-        lede="The cities under “Browse by city” on the home page. Cities with more live pros show first; ties follow the order you set here."
+        lede="The cities under “Browse by city” on the home page. Cities with more live vendors show first; ties follow the order you set here."
       />
       <CityManager
         cities={cities.map((city) => ({

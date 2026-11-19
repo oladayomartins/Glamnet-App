@@ -304,7 +304,7 @@ export function BookingLauncher({
                   {coveredCities.length > 0 ? (
                     <>
                       <p className="px-3 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">
-                        Areas with pros on GLAMNET
+                        Areas with vendors on GLAMNET
                       </p>
                       <ul className="grid grid-cols-2 gap-0.5">
                         {coveredCities.map((entry) => (

@@ -29,7 +29,7 @@ export default async function TermsPage() {
         <>
           <p>
             {whoWeAre()} These terms apply when you use GLAMNET, whether you&rsquo;re booking a beauty service
-            (&ldquo;customer&rdquo;) or offering one (&ldquo;pro&rdquo;). By creating an account or making a booking
+            (&ldquo;customer&rdquo;) or offering one (&ldquo;vendor&rdquo;). By creating an account or making a booking
             you agree to them. They sit alongside our <Link href="/privacy" className="font-semibold text-accent-700 hover:underline">privacy policy</Link> and{" "}
             <Link href="/cancellations" className="font-semibold text-accent-700 hover:underline">cancellation and refund policy</Link>.
           </p>
@@ -42,12 +42,12 @@ export default async function TermsPage() {
           body: (
             <>
               <p>
-                GLAMNET is a marketplace. We help you find independent beauty pros, book them, and pay safely. The
-                beauty service itself is provided by the pro, who is independent of us and responsible for their work.
+                GLAMNET is a marketplace. We help you find independent beauty vendors, book them, and pay safely. The
+                beauty service itself is provided by the vendor, who is independent of us and responsible for their work.
               </p>
               <p>
-                When you book, your contract for the service is with the pro. We collect payment on the pro&rsquo;s
-                behalf as their commercial agent, which means that once you&rsquo;ve paid us, you&rsquo;ve paid the pro.
+                When you book, your contract for the service is with the vendor. We collect payment on the vendor&rsquo;s
+                behalf as their commercial agent, which means that once you&rsquo;ve paid us, you&rsquo;ve paid the vendor.
               </p>
             </>
           ),
@@ -58,7 +58,7 @@ export default async function TermsPage() {
             <Bullets
               items={[
                 "You must be 18 or over to have an account.",
-                "Give accurate details and keep them up to date, including your phone number so your pro can reach you on the day.",
+                "Give accurate details and keep them up to date, including your phone number so your vendor can reach you on the day.",
                 "Keep your sign-in secure. You're responsible for bookings made from your account.",
                 "We may suspend or close an account that breaks these terms, puts anyone at risk, or is used for fraud.",
               ]}
@@ -70,12 +70,12 @@ export default async function TermsPage() {
           body: (
             <>
               <p>
-                The price you see before you confirm is the full price. It is made up of the pro&rsquo;s price for each
+                The price you see before you confirm is the full price. It is made up of the vendor&rsquo;s price for each
                 service, any travel fee for home visits, and a {formatMoney(rates.trustFeeMinor)} trust fee on bookings
                 made through the GLAMNET marketplace (
                 {rates.directTrustFeeMinor > 0
-                  ? `${formatMoney(rates.directTrustFeeMinor)} when you book through a pro’s own link`
-                  : "there is no trust fee when you book through a pro’s own link"}
+                  ? `${formatMoney(rates.directTrustFeeMinor)} when you book through a vendor’s own link`
+                  : "there is no trust fee when you book through a vendor’s own link"}
                 ), less any promo code.
               </p>
               <p>
@@ -97,7 +97,7 @@ export default async function TermsPage() {
                   your card; if we still can&rsquo;t secure payment a day before, the booking is cancelled.
                 </>,
                 <>
-                  When your appointment is finished, you&rsquo;ll see a 4-digit checkout PIN. Giving it to your pro confirms
+                  When your appointment is finished, you&rsquo;ll see a 4-digit checkout PIN. Giving it to your vendor confirms
                   the service was carried out, and releases payment. Please only give it once you&rsquo;re happy.
                 </>,
                 <>Card details are handled by Stripe and never stored by GLAMNET.</>,
@@ -111,7 +111,7 @@ export default async function TermsPage() {
             <>
               <p>
                 You can raise a problem from your booking page before giving your PIN, or within {DISPUTE_WINDOW_HOURS}{" "}
-                hours after. We review the booking, the photos the pro takes of the finished work, and what both of you
+                hours after. We review the booking, the photos the vendor takes of the finished work, and what both of you
                 tell us, and decide fairly. That can mean a full or partial refund.
               </p>
               <p>
@@ -131,17 +131,17 @@ export default async function TermsPage() {
               it costs {pct(rates.lateCancellationFeeBps)} of the service price, and a missed appointment is charged at{" "}
               {rates.noShowFeeBps >= 10_000 ? "the full service price" : `${pct(rates.noShowFeeBps)} of the service price`} (plus
               travel for a home visit). Fees come out of the amount already held on your card,
-              are shown before you confirm, and can be disputed for {DISPUTE_WINDOW_HOURS} hours. If your pro cancels,
+              are shown before you confirm, and can be disputed for {DISPUTE_WINDOW_HOURS} hours. If your vendor cancels,
               nothing is charged.
             </p>
           ),
         },
         {
-          heading: "For pros",
+          heading: "For vendors",
           body: (
             <Bullets
               items={[
-                "Every pro is checked before going live. You must hold the insurance, licences and qualifications your services need, and keep them current.",
+                "You can go live once your storefront has the basics, and you are shown to clients as \u201cNot verified\u201d until you have completed every step and we have checked your details. Until then we keep your earnings and pay them to you once you are verified. You must hold the insurance, licences and qualifications your services need, and keep them current.",
                 "You set your own prices and availability, and must honour bookings you accept. If you have to cancel, the client pays nothing, and you must give them a reason. Cancelling repeatedly, or at short notice, can lead to removal.",
                 <>
                   If a client cancels within {FREE_CANCELLATION_HOURS} hours or doesn&rsquo;t turn up, you receive your share of the
@@ -181,8 +181,8 @@ export default async function TermsPage() {
           body: (
             <>
               <p>
-                We run GLAMNET with reasonable care and skill, check pros before they go live, and handle payments
-                securely. Pros are responsible for the services they provide.
+                We run GLAMNET with reasonable care and skill, check vendors before they are verified, and handle payments
+                securely. Vendors are responsible for the services they provide.
               </p>
               <p>
                 We&rsquo;re not responsible for losses we couldn&rsquo;t reasonably foresee, or for business losses. We

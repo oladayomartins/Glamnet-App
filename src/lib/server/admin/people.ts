@@ -2,6 +2,8 @@ import { prisma } from "../prisma";
 import { z } from "zod";
 import { deliverApprovalEmail, deliverBookingNotice } from "../notifications";
 import { AdminError, audit } from "./core";
+import { vendorSetup } from "../provider-portal";
+import { releaseHeldPayouts } from "../held-payouts";
 
 /**
  * Vendors and accounts: vetting, suspension and promotion.
@@ -26,8 +28,16 @@ export async function decideVendor(
   });
   if (!provider) throw new AdminError("That vendor no longer exists.", 404, "NOT_FOUND");
 
-  if (decision === "APPROVED" && !provider.onboardedAt && provider.approvalStatus === "PENDING") {
-    throw new AdminError("This vendor has not finished setting up their storefront yet.");
+  if (decision === "APPROVED" && !provider.approvedAt) {
+    // Verified means every step is done: approval is the last item, not a
+    // shortcut past the others.
+    const setup = await vendorSetup(providerId);
+    if (!setup.readyForApproval) {
+      const missing = setup.items.filter((item) => !item.done && item.key !== "approval").map((item) => item.label);
+      throw new AdminError(
+        `This vendor is ${setup.percent}% set up. Still missing: ${missing.join("; ")}.`,
+      );
+    }
   }
   if (decision === "APPROVED" && provider.appUser?.suspendedAt) {
     throw new AdminError("This vendor's login is suspended. Reinstate the account on the Accounts page first.");
@@ -39,6 +49,8 @@ export async function decideVendor(
 
   const now = new Date();
   const live = decision === "APPROVED";
+  // Sent back to review: unverified, but still listed if they had gone live.
+  const listed = live || (decision === "PENDING" && provider.onboardedAt !== null);
 
   await prisma.$transaction(async (tx) => {
     // First approval signs off the documents on file; a suspension or
@@ -55,9 +67,9 @@ export async function decideVendor(
         approvalStatus: decision,
         approvedAt: live ? (provider.approvedAt ?? now) : decision === "SUSPENDED" ? provider.approvedAt : null,
         approvalNote: note,
-        isAcceptingWork: live,
+        isAcceptingWork: listed,
         isVerified: live,
-        // A vendor taken offline stops being promoted too.
+        // A vendor taken offline, or no longer verified, stops being promoted.
         ...(live ? {} : { isFeatured: false }),
       },
     });
@@ -72,6 +84,9 @@ export async function decideVendor(
 
   // Suspension has no email template of its own; the vendor sees the reason
   // on their dashboard. Approvals and rejections are what applicants wait on.
+  // Earnings kept back while they were unverified go out now.
+  if (live) await releaseHeldPayouts(providerId).catch((error) => console.error("releaseHeldPayouts", error));
+
   if (decision === "APPROVED" || decision === "REJECTED") {
     await deliverApprovalEmail({ name: provider.name, email: provider.email, decision, note });
   }

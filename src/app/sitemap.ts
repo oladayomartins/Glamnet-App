@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { citySlug } from "@/lib/domain/postcode";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/server/prisma";
@@ -38,20 +39,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       prisma.service.findMany({
         where: {
           isActive: true,
-          providers: { some: { provider: { approvalStatus: "APPROVED" } } },
+          providers: { some: { provider: { ...LISTED_VENDOR } } },
         },
         select: { name: true },
       }),
-      // Only cities with a live pro: an empty directory page is not worth indexing.
+      // Only cities with a live vendor: an empty directory page is not worth indexing.
       prisma.hub.findMany({
-        where: { providers: { some: { approvalStatus: "APPROVED" } } },
+        where: { providers: { some: { ...LISTED_VENDOR } } },
         select: { id: true, city: true },
       }),
       // Only vendors a customer can actually reach: the profile route 404s
       // for anyone pending, rejected or not taking work, and a sitemap full
       // of 404s is worse than a shorter one.
       prisma.provider.findMany({
-        where: { approvalStatus: "APPROVED", isAcceptingWork: true },
+        where: { ...LISTED_VENDOR, isAcceptingWork: true },
         select: { id: true },
       }),
     ]);

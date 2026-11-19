@@ -91,7 +91,7 @@ export default async function BecomeVendorPage() {
         />
         <Container className="relative py-20 text-center sm:py-28">
           <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-accent-700">
-            For Black and Asian hair, beauty &amp; wellness pros
+            For Black and Asian hair, beauty &amp; wellness vendors
           </p>
           <h1 className="mx-auto mt-4 max-w-3xl font-display text-[2.5rem] font-extrabold leading-[1.05] tracking-[-0.035em] text-ink sm:text-6xl">
             Get booked by clients who value what you do.
@@ -262,8 +262,8 @@ export default async function BecomeVendorPage() {
               </p>
               <ul className="mt-5 space-y-2.5">
                 <CheckItem>Listed by specialty hub and postcode sector</CheckItem>
-                <CheckItem>Nearest pros shown first — your local clients find you</CheckItem>
-                <CheckItem>Bridal clients are offered nail overlays from pros nearby</CheckItem>
+                <CheckItem>Nearest vendors shown first — your local clients find you</CheckItem>
+                <CheckItem>Bridal clients are offered nail overlays from vendors nearby</CheckItem>
               </ul>
             </>
           }
@@ -375,7 +375,7 @@ export default async function BecomeVendorPage() {
             &ldquo;You set the price. The client&rsquo;s card is held before you pick up a brush,
             and it&rsquo;s released the moment they tell you they&rsquo;re happy.&rdquo;
           </blockquote>
-          <figcaption className="mt-5 text-sm text-ink-muted">The GLAMNET promise to every pro</figcaption>
+          <figcaption className="mt-5 text-sm text-ink-muted">The GLAMNET promise to every vendor</figcaption>
         </figure>
       </Band>
 
@@ -408,8 +408,10 @@ export default async function BecomeVendorPage() {
             problem, and then the booking is closed.
           </Faq>
           <Faq q="How long does it take to set up?">
-            The storefront takes a few minutes. You go live once we have checked your insurance or
-            licence and your bank is linked.
+            The storefront takes a few minutes, and you can go live as soon as your menu, link,
+            area and hours are in. Until you&rsquo;ve finished every step and we&rsquo;ve checked your
+            ID or insurance, you&rsquo;re shown as &ldquo;Not verified&rdquo; and your earnings are kept
+            safe for you. Once you&rsquo;re verified you get the badge, and everything held is paid out.
           </Faq>
           <Faq q="Do I need my own website?">
             No. Your storefront is your website — a link you can share anywhere, with your lookbook,
@@ -429,7 +431,7 @@ export default async function BecomeVendorPage() {
             Your craft deserves a bigger stage.
           </h2>
           <p className="mx-auto mt-3 max-w-md text-[15px] text-metal-ink/80">
-            Join the independent pros building their client list on GLAMNET. Free to list, set up in
+            Join the independent vendors building their client list on GLAMNET. Free to list, set up in
             minutes.
           </p>
           <Link

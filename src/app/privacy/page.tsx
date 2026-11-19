@@ -26,11 +26,11 @@ export default function PrivacyPage() {
             <Bullets
               items={[
                 <><strong>Account details:</strong> your name, email address, phone number and, if you add one, a profile photo.</>,
-                <><strong>Location:</strong> the postcode or area you search from, and for home visits the address you give. Your full address is only shown to your pro once they&rsquo;re on their way.</>,
+                <><strong>Location:</strong> the postcode or area you search from, and for home visits the address you give. Your full address is only shown to your vendor once they&rsquo;re on their way.</>,
                 <><strong>Bookings:</strong> the services, times, prices, notes and any reference photo you add; the booking&rsquo;s history; ratings and reviews; and anything you tell us in a dispute.</>,
-                <><strong>Completion photos:</strong> the three photos your pro takes of the finished work, kept as the record for any dispute.</>,
+                <><strong>Completion photos:</strong> the three photos your vendor takes of the finished work, kept as the record for any dispute.</>,
                 <><strong>Payments:</strong> handled by Stripe. We keep Stripe&rsquo;s references and the amounts, never your full card number.</>,
-                <><strong>For pros:</strong> business details, services and prices, portfolio photos, working area, insurance and licence documents for our checks, and the payout details you give Stripe.</>,
+                <><strong>For vendors:</strong> business details, services and prices, portfolio photos, working area, insurance and licence documents for our checks, and the payout details you give Stripe.</>,
                 <><strong>Notifications:</strong> if you turn on notifications, a technical address for your device from your browser&rsquo;s push service.</>,
                 <><strong>Usage analytics (only if you accept analytics cookies):</strong> the pages you visit, searches, the steps of a booking you reach, your device and browser type and approximate location (town or region), collected through Google Analytics and linked to an internal account number if you&rsquo;re signed in.</>,
                 <><strong>Technical data:</strong> basic logs (like IP address and browser type) that our hosting keeps for security and troubleshooting.</>,
@@ -43,8 +43,8 @@ export default function PrivacyPage() {
           body: (
             <Bullets
               items={[
-                <><strong>To provide bookings</strong> — matching you with pros, taking payment, releasing it on your PIN, and handling problems. Basis: our contract with you.</>,
-                <><strong>To keep GLAMNET safe</strong> — checking pros, preventing fraud, and resolving disputes. Basis: our legitimate interests in a trustworthy marketplace, and our contract with you.</>,
+                <><strong>To provide bookings</strong> — matching you with vendors, taking payment, releasing it on your PIN, and handling problems. Basis: our contract with you.</>,
+                <><strong>To keep GLAMNET safe</strong> — checking vendors, preventing fraud, and resolving disputes. Basis: our legitimate interests in a trustworthy marketplace, and our contract with you.</>,
                 <><strong>To keep records</strong> the law requires, such as financial records. Basis: legal obligation.</>,
                 <><strong>To understand and improve GLAMNET</strong> — measuring which pages, searches and booking steps work. Basis: your consent, given on the cookie banner and withdrawable any time from &ldquo;Cookie settings&rdquo;.</>,
                 <><strong>To send notifications</strong> to your device. Basis: your consent, which you can withdraw at any time by turning them off.</>,
@@ -58,14 +58,14 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>
-                <strong>Your pro</strong> sees what they need for the booking: your name, the services, your notes and
+                <strong>Your vendor</strong> sees what they need for the booking: your name, the services, your notes and
                 reference photo, your phone number, and your address once they&rsquo;re on their way.{" "}
-                <strong>Customers</strong> see a pro&rsquo;s public storefront, and the pro&rsquo;s name on bookings.
+                <strong>Customers</strong> see a vendor&rsquo;s public storefront, and the vendor&rsquo;s name on bookings.
               </p>
               <p>We use trusted providers to run GLAMNET, who only process data on our instructions:</p>
               <Bullets
                 items={[
-                  "Stripe — payments, card holds and pro payouts",
+                  "Stripe — payments, card holds and vendor payouts",
                   "Supabase — sign-in and our database",
                   "Vercel — hosting the website and app",
                   "Resend — sending emails",
@@ -100,7 +100,7 @@ export default function PrivacyPage() {
                 "Your account, for as long as you have one.",
                 "Bookings and payment records, for six years after the booking, as tax and accounting law requires.",
                 "Completion photos and dispute records, with the booking they belong to.",
-                "Pros' verification documents, while they're on GLAMNET and for a year after, in case of a complaint.",
+                "Vendors' verification documents, while they're on GLAMNET and for a year after, in case of a complaint.",
                 "Device notification addresses, until you turn notifications off or the address stops working.",
                 "Analytics data, for 14 months, after which Google deletes it.",
               ]}

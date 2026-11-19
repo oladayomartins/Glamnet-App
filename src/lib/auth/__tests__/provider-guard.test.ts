@@ -11,7 +11,8 @@ const user = (overrides: Partial<SessionUser> = {}): SessionUser => ({
   role: "PROVIDER",
   customerId: null,
   providerId: "provider-1",
-  providerApproved: true,
+  providerLive: true,
+  providerVerified: true,
   ...overrides,
 });
 

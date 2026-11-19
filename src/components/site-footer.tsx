@@ -23,7 +23,7 @@ export function SiteFooter({
     {
       heading: "Customers",
       links: [
-        { href: "/salons", label: "Find a pro near you" },
+        { href: "/salons", label: "Find a vendor near you" },
         { href: "/search", label: "Find a service" },
         { href: "/book", label: "Book a service" },
         { href: "/how-it-works", label: "How it works" },
@@ -63,7 +63,7 @@ export function SiteFooter({
             <GlamNetLogo height={30} />
             <p className="mt-4 max-w-xs text-sm text-on-obsidian-muted">
               The UK&rsquo;s marketplace for the Black and Asian beauty
-              community — verified independent pros in home salons, studios,
+              community — verified independent vendors in home salons, studios,
               chairs and mobile.
             </p>
           </div>

@@ -222,7 +222,7 @@ const ALLOWED_PARAMS = new Set([
   "sector",
   "service",
   "city",
-  // Storefront attribution: marketplace directory vs. the pro's own link.
+  // Storefront attribution: marketplace directory vs. the vendor's own link.
   "via",
 ]);
 
@@ -305,13 +305,13 @@ export function serviceItem(service: {
 
 /**
  * Where a booking came from. The marketplace's two engines are measured
- * separately: a broadcast to nearby pros versus a direct booking with one.
+ * separately: a broadcast to nearby vendors versus a direct booking with one.
  */
 export type BookingChannel = "broadcast" | "search_offer" | "storefront";
 
 /**
  * For storefront bookings: found through the marketplace directory, or via
- * the pro's own shared link (which carries 0% commission). The split is the
+ * the vendor's own shared link (which carries 0% commission). The split is the
  * marketplace's core health metric, so it rides on every storefront event.
  */
 export type BookingSource = "marketplace" | "direct_link";
@@ -359,9 +359,9 @@ export interface EventMap {
   review_submitted: { rating: number; has_note: boolean };
   vendor_onboarding_step: { step_name: string; step_number: number };
   vendor_application_submitted: Record<string, never>;
-  /** A pro tapping accept on a broadcast; "failed" is usually another pro getting there first. */
+  /** A vendor tapping accept on a broadcast; "failed" is usually another vendor getting there first. */
   vendor_accept_booking: { outcome: "accepted" | "failed" };
-  /** A pro turning a broadcast down. */
+  /** A vendor turning a broadcast down. */
   vendor_decline_booking: { outcome: "declined" | "failed" };
   apply_promo_code: { coupon: string; success: boolean };
   /** The install banner or guide offering "Add to home screen", and what came of it. */

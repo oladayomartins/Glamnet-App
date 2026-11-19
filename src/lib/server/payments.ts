@@ -74,6 +74,17 @@ export interface PaymentGateway {
     payoutMinor: number;
     captureMinor?: number;
   }): Promise<{ transferId: string }>;
+  /**
+   * Pay a vendor their share of a charge captured earlier, which GLAMNET kept
+   * back while they were unverified. Linked to the original charge so the
+   * transfer waits on its funds.
+   */
+  transferHeldPayout(input: {
+    bookingId: string;
+    paymentIntentId: string;
+    destinationAccountId: string;
+    amountMinor: number;
+  }): Promise<{ transferId: string }>;
   void(paymentIntentId: string): Promise<void>;
 
   /** The Stripe Customer a saved card belongs to, created on first use. */
@@ -307,6 +318,35 @@ class StripeGateway implements PaymentGateway {
         source_transaction: captured.latest_charge ?? undefined,
         metadata: { bookingId: input.bookingId },
       },
+      `transfer-${input.bookingId}`,
+    );
+    return { transferId: transfer.id };
+  }
+
+  async transferHeldPayout(input: {
+    bookingId: string;
+    paymentIntentId: string;
+    destinationAccountId: string;
+    amountMinor: number;
+  }) {
+    if (input.amountMinor <= 0) return { transferId: "" };
+    const intent = await this.call<{ latest_charge: string | null }>(
+      "GET",
+      `/payment_intents/${encodeURIComponent(input.paymentIntentId)}`,
+    );
+    const transfer = await this.call<{ id: string }>(
+      "POST",
+      "/transfers",
+      {
+        amount: input.amountMinor,
+        currency: "gbp",
+        destination: input.destinationAccountId,
+        transfer_group: `booking_${input.bookingId}`,
+        source_transaction: intent.latest_charge ?? undefined,
+        metadata: { bookingId: input.bookingId, held: "true" },
+      },
+      // The same key a release would have used: a held payout and an
+      // immediate one can never both go out for one booking.
       `transfer-${input.bookingId}`,
     );
     return { transferId: transfer.id };
@@ -546,6 +586,10 @@ class SimulatedGateway implements PaymentGateway {
 
   async captureAndTransfer(input: { bookingId: string; payoutMinor: number }) {
     return { transferId: input.payoutMinor > 0 ? `sim_tr_${input.bookingId}` : "" };
+  }
+
+  async transferHeldPayout(input: { bookingId: string; amountMinor: number }) {
+    return { transferId: input.amountMinor > 0 ? `sim_tr_${input.bookingId}` : "" };
   }
 
   async void() {}

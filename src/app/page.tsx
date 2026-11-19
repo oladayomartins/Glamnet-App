@@ -62,8 +62,8 @@ const CATEGORY_ICONS: Record<string, ReactNode> = {
 const HOW_IT_WORKS = [
   {
     icon: <MagnifyingGlass size={20} weight="light" />,
-    title: "Find your pro",
-    body: "Search by service and postcode, then compare verified pros nearest first — their work, prices and reviews.",
+    title: "Find your vendor",
+    body: "Search by service and postcode, then compare verified vendors nearest first — their work, prices and reviews.",
   },
   {
     icon: <CalendarCheck size={20} weight="light" />,
@@ -73,27 +73,27 @@ const HOW_IT_WORKS = [
   {
     icon: <LockKey size={20} weight="light" />,
     title: "Pay with your PIN",
-    body: "Happy with the result? Give your pro your 4-digit PIN to release the payment. Not happy? Keep the PIN and tell us — the money stays on hold.",
+    body: "Happy with the result? Give your vendor your 4-digit PIN to release the payment. Not happy? Keep the PIN and tell us — the money stays on hold.",
   },
 ];
 
 /**
  * Below this many, a count reads as "nobody is here" rather than as proof, so
- * the page says what is true of every pro instead. The numbers are never
+ * the page says what is true of every vendor instead. The numbers are never
  * rounded up or invented — they are left out until they help.
  */
 const SHOW_COUNTS_FROM = 10;
 
 function prosLabel(count: number): string | null {
-  return count >= SHOW_COUNTS_FROM ? `${count} pros` : null;
+  return count >= SHOW_COUNTS_FROM ? `${count} vendors` : null;
 }
 
 /** The platform's own promises — shown where a marketplace would put reviews. */
 const PROMISES = [
   {
     icon: <SealCheck size={22} weight="fill" />,
-    title: "Every pro is checked",
-    body: "Insurance or practitioner licence reviewed before a storefront ever goes live.",
+    title: "Look for the verified badge",
+    body: "Verified vendors have finished every step and had their ID, insurance or licence checked by us. New vendors say so until they have.",
   },
   {
     icon: <Receipt size={22} weight="light" />,
@@ -103,7 +103,7 @@ const PROMISES = [
   {
     icon: <LockKey size={22} weight="fill" />,
     title: "Paid only when you're happy",
-    body: "Your card is held, not charged, until you give your pro the PIN — with 24 hours to raise a problem after.",
+    body: "Your card is held, not charged, until you give your vendor the PIN — with 24 hours to raise a problem after.",
   },
 ];
 
@@ -182,7 +182,7 @@ export default async function MarketingPage() {
     specialities: provider.specialities,
   }));
 
-  // Paid home-page spotlight. Its own row, apart from "Featured pros", which
+  // Paid home-page spotlight. Its own row, apart from "Featured vendors", which
   // promises it is never ranked by payment. Fresh order on every visit so
   // everyone who bought it gets turns at the front.
   const spotlight = rotate(
@@ -306,19 +306,19 @@ export default async function MarketingPage() {
             {/* 800, which is heavier than Instrument Sans could go at all —
                 the reason the display family exists. */}
             <h1 className="mt-4 font-display text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[3.4rem] lg:text-[3.75rem]">
-              Beauty pros who know your hair, your skin, your culture
+              Beauty vendors who know your hair, your skin, your culture
             </h1>
 
             {/* Two lengths. On a phone the full paragraph pushes the search
                 bar off the first screen, so phones get the specialisms only;
                 the promises it drops are on the page further down. */}
             <p className="mt-5 max-w-lg text-base text-ink-muted sm:hidden">
-              Braids, Asian bridal, gele, nails and massage from verified pros
+              Braids, Asian bridal, gele, nails and massage from verified vendors
               who specialise in Black and Asian beauty.
             </p>
             <p className="mt-5 hidden max-w-lg text-base text-ink-muted sm:block">
               Braids, twists, Asian bridal, gele, BIAB and massage from
-              verified independent pros who specialise in Black and Asian
+              verified independent vendors who specialise in Black and Asian
               beauty — at their home salon, studio or chair, or at your door.
               Real availability, one honest price, paid only when you&rsquo;re
               happy.
@@ -355,14 +355,14 @@ export default async function MarketingPage() {
               <HeroFigure
                 icon={<ShieldCheck size={15} weight="fill" aria-hidden />}
                 value={
-                  stats.providerCount >= SHOW_COUNTS_FROM
-                    ? String(stats.providerCount)
-                    : "100%"
+                  stats.verifiedCount >= SHOW_COUNTS_FROM
+                    ? String(stats.verifiedCount)
+                    : "Verified"
                 }
                 label={
-                  stats.providerCount >= SHOW_COUNTS_FROM
-                    ? "Vetted pros"
-                    : "Pros vetted"
+                  stats.verifiedCount >= SHOW_COUNTS_FROM
+                    ? "Verified vendors"
+                    : "Badge = checked by us"
                 }
               />
               <HeroFigure
@@ -477,7 +477,7 @@ export default async function MarketingPage() {
                   {category.name}
                 </span>
                 <span className="mt-0.5 block text-xs text-ink-muted">
-                  {prosLabel(category.providerCount) ?? "View pros"}
+                  {prosLabel(category.providerCount) ?? "View vendors"}
                 </span>
               </Link>
             ))}
@@ -491,7 +491,7 @@ export default async function MarketingPage() {
                 <SquaresFour size={28} weight="light" aria-hidden />
               </span>
               <span className="mt-2.5 block text-sm font-semibold text-brand-700">
-                All pros
+                All vendors
               </span>
               <span className="mt-0.5 block text-xs text-ink-muted">
                 Every specialty
@@ -505,7 +505,7 @@ export default async function MarketingPage() {
       {cards.length > 0 ? (
         <Container className="pt-14 sm:pt-16">
           <BlockHeading
-            title="Featured pros"
+            title="Featured vendors"
             lede="Ranked by rating and completed work, never by what they paid us."
             action={<SeeAll href="/salons" />}
           />
@@ -518,8 +518,8 @@ export default async function MarketingPage() {
 
       {spotlight.length > 0 ? (
         <Container className="pt-14 sm:pt-16">
-          <BlockHeading title="Sponsored pros" lede="Vetted pros who pay to be shown here." />
-          <Rail label="Sponsored pros">
+          <BlockHeading title="Sponsored vendors" lede="Verified vendors who pay to be shown here." />
+          <Rail label="Sponsored vendors">
             {spotlight.map((provider) => (
               <div key={provider.id} className="w-[220px] shrink-0 snap-start sm:w-[250px]">
                 <ProviderCard provider={provider} />
@@ -551,7 +551,7 @@ export default async function MarketingPage() {
           <Container>
             <BlockHeading
               title="Browse by city"
-              lede="Verified pros close to home, sorted by distance from your postcode."
+              lede="Verified vendors close to home, sorted by distance from your postcode."
             />
             <Rail label="Cities">
               {cities.map((city) => (
@@ -611,7 +611,7 @@ export default async function MarketingPage() {
                     <span className="mt-0.5 block text-xs text-white/80">
                       {city.providerCount > 0
                         ? (prosLabel(city.providerCount) ?? "Taking bookings")
-                        : "Pros joining soon"}
+                        : "Vendors joining soon"}
                     </span>
                   </span>
                 </Link>
@@ -665,7 +665,7 @@ export default async function MarketingPage() {
         <Container>
           <BlockHeading
             title="Why book through GLAMNET"
-            lede="Three promises that hold for every booking, with every pro."
+            lede="Three promises that hold for every booking, with every vendor."
           />
           <ul className="grid gap-4 md:grid-cols-3">
             {PROMISES.map((promise) => (
@@ -710,7 +710,7 @@ export default async function MarketingPage() {
               <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
                 Book a verified specialist in Black and Asian beauty, see the
                 full price upfront, and pay only when you&rsquo;re happy. Are you
-                a pro? List your business free, with {percent(feeRates.repeatCommissionBps)} commission on
+                a vendor? List your business free, with {percent(feeRates.repeatCommissionBps)} commission on
                 clients you bring.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
@@ -718,7 +718,7 @@ export default async function MarketingPage() {
                   href="/salons"
                   className="inline-flex min-h-11 items-center gap-2 rounded-full bg-metal px-6 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam active:scale-[0.98]"
                 >
-                  Find a pro
+                  Find a vendor
                   <ArrowRight size={15} weight="bold" aria-hidden />
                 </Link>
                 <Link
@@ -758,11 +758,11 @@ export default async function MarketingPage() {
                     <span className="font-semibold text-ink">
                       {stats.providerCount}
                     </span>{" "}
-                    vetted pros taking bookings across {stats.cityCount}{" "}
+                    vendors taking bookings across {stats.cityCount}{" "}
                     {stats.cityCount === 1 ? "city" : "cities"}
                   </>
                 ) : (
-                  "Vetted pros taking bookings now"
+                  "Vendors taking bookings now"
                 )}
               </p>
             </div>

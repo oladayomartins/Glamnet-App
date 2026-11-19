@@ -30,8 +30,8 @@ export const DISCOVERY_ROWS: DiscoveryRowSpec[] = [
     key: "new",
     title: "New to GLAMNET",
     // The point of this row: a vendor with no reviews yet has no other way to
-    // be seen, and "newly vetted" is a true thing to say about them.
-    lede: "Just vetted and taking bookings.",
+    // be seen.
+    lede: "Just joined and taking bookings.",
     minimumVendors: 2,
   },
   {

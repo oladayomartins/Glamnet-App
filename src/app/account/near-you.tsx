@@ -7,7 +7,7 @@ import { PostcodeField, type ResolvedPlace } from "@/components/postcode-field";
 import { Button } from "@/components/ui";
 
 /**
- * "Find pros near you", remembering the postcode on the customer's profile so
+ * "Find vendors near you", remembering the postcode on the customer's profile so
  * the next visit starts from it.
  */
 export function NearYou({ savedPostcode }: { savedPostcode: string }) {
@@ -46,11 +46,11 @@ export function NearYou({ savedPostcode }: { savedPostcode: string }) {
         onResolved={setPlace}
         allowOutcode
         placeholder="e.g. M1 1AE"
-        hint={savedPostcode ? "We remember this so pros near you show up first." : "Anywhere in the UK."}
+        hint={savedPostcode ? "We remember this so vendors near you show up first." : "Anywhere in the UK."}
       />
       <Button type="submit" disabled={busy || !postcode.trim()} className="sm:mt-6">
         <MagnifyingGlass size={16} weight="bold" aria-hidden />
-        {busy ? "Searching…" : "Find pros"}
+        {busy ? "Searching…" : "Find vendors"}
       </Button>
     </form>
   );

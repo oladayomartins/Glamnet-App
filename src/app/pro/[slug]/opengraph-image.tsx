@@ -14,7 +14,7 @@ import { isTrustedImageUrl } from "@/lib/imagekit";
  * Fonts are bundled in assets/fonts rather than fetched, so a slow font host
  * can never fail the preview.
  */
-export const alt = "Work by a verified GLAMNET pro";
+export const alt = "Work by a verified GLAMNET vendor";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

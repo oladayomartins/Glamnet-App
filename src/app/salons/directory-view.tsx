@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { MapPin, SealCheck, Star, Storefront } from "@phosphor-icons/react/dist/ssr";
+import { VerifiedBadge } from "@/components/verified-badge";
+import { MapPin, Star, Storefront } from "@phosphor-icons/react/dist/ssr";
 import { listDirectory, workspaceLabel } from "@/lib/server/storefront";
 import { listCategories } from "@/lib/server/categories";
 import { backfillHubCoordinates, lookupPlace } from "@/lib/server/geo";
@@ -33,7 +34,7 @@ export interface DirectoryQuery {
  * /salons covers the whole UK; /[city]/salons is the same view for one city.
  * Category tiles filter it; a postcode (typed, suggested or from the phone's
  * location) sorts it nearest first within a radius, a row of chips narrows it
- * to one kind of space (or pros who come to you), and a map shows where
+ * to one kind of space (or vendors who come to you), and a map shows where
  * everyone is — by area only, never by address. Everything is in the URL.
  */
 export async function DirectoryView({
@@ -99,7 +100,7 @@ export async function DirectoryView({
           {hub ? hub.name : "Every salon, chair and studio"}
         </h1>
         <p className="mt-2 max-w-2xl text-[15px] text-ink-muted">
-          Verified independents {where}. Choose a category, add your postcode, and book the person
+          Independent vendors {where} — look for the verified badge. Choose a category, add your postcode, and book the person
           you actually want.
         </p>
       </header>
@@ -173,8 +174,8 @@ export async function DirectoryView({
       {vendors.length === 0 ? (
         <EmptyState icon={<Storefront size={24} weight="light" />} title="Nobody here yet">
           {place
-            ? `No verified pros within ${radiusMiles} miles of ${place.postcode ?? place.outcode} yet.`
-            : "No verified pros here yet."}{" "}
+            ? `No vendors within ${radiusMiles} miles of ${place.postcode ?? place.outcode} yet.`
+            : "No vendors here yet."}{" "}
           {space ? (
             <Link href={hrefWith({ space: null })} className="font-semibold text-accent-700">
               Show every kind of space
@@ -190,13 +191,13 @@ export async function DirectoryView({
           ) : null}
           {city && !place && !hub && !space ? (
             <span className="mt-4 block">
-              Pros are joining {city} now.{" "}
+              Vendors are joining {city} now.{" "}
               <Link href="/become-a-vendor" className="font-semibold text-accent-700">
-                Are you a pro here? Be one of the first
+                Are you a vendor here? Be one of the first
               </Link>
               {" · "}
               <Link href="/salons" className="font-semibold text-accent-700">
-                See pros across the UK
+                See vendors across the UK
               </Link>
             </span>
           ) : null}
@@ -238,7 +239,7 @@ export async function DirectoryView({
                   <div className="p-4">
                     <p className="flex items-center gap-1.5 font-display text-lg font-bold text-ink">
                       {vendor.name}
-                      <SealCheck size={16} weight="fill" className="text-accent-500" aria-label="Verified" />
+                      <VerifiedBadge verified={vendor.isVerified} />
                     </p>
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-ink-muted">
                       <span className="flex items-center gap-1" data-numeric>
@@ -289,7 +290,7 @@ export async function DirectoryView({
               }))}
             />
             <p className="mt-2 text-xs text-ink-muted">
-              Pins show each pro&rsquo;s area, not their address. You get the exact address once you book.
+              Pins show each vendor&rsquo;s area, not their address. You get the exact address once you book.
             </p>
           </div>
         </div>

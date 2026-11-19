@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
  * onboarding to link their bank. Also Stripe's refresh_url, for a link that
  * expired mid-form.
  *
- * This is a page navigation, not an API call, so a failure must land the pro
+ * This is a page navigation, not an API call, so a failure must land the vendor
  * back in the wizard with a message — never on a blank page of JSON. The
- * underlying reason is logged for us; the pro gets plain words.
+ * underlying reason is logged for us; the vendor gets plain words.
  */
 export async function GET(request: Request) {
   const back = new URL("/provider/onboarding", request.url);

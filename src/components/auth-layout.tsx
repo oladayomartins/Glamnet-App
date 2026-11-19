@@ -87,7 +87,7 @@ function BrandPanel() {
         <Tile shape={PIN_FLIPPED} className="bg-obsidian">
           <span className="flex h-full flex-col items-center justify-center gap-2 text-center text-on-obsidian">
             <SealCheck size={34} weight="fill" className="text-[var(--glam-gold)]" />
-            <span className="px-3 font-display text-[15px] font-bold leading-tight">Verified pros only</span>
+            <span className="px-3 font-display text-[15px] font-bold leading-tight">Look for the verified badge</span>
           </span>
         </Tile>
         <Tile shape={PIN_FLIPPED} className="translate-y-4 bg-obsidian">

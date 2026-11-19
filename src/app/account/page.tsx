@@ -1,6 +1,8 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import Link from "next/link";
+import { VerifiedBadge } from "@/components/verified-badge";
 import { redirect } from "next/navigation";
-import { CalendarBlank, CalendarCheck, LockKey, MagnifyingGlass, SealCheck, Star } from "@phosphor-icons/react/dist/ssr";
+import { CalendarBlank, CalendarCheck, LockKey, MagnifyingGlass, Star } from "@phosphor-icons/react/dist/ssr";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/server/prisma";
 import { listCategories } from "@/lib/server/categories";
@@ -41,7 +43,7 @@ export default async function AccountPage({
   // Every sign-in, sign-up and email link lands here, so this is where each
   // account type is sent to its own dashboard. The role was fixed at sign-up
   // and is read from the database, never from the URL. /provider picks the
-  // storefront wizard, the review screen or the live dashboard for a pro.
+  // storefront wizard, the review screen or the live dashboard for a vendor.
   if (user.role === "PROVIDER") redirect("/provider");
   if (user.role === "ADMIN") redirect("/admin");
 
@@ -83,7 +85,7 @@ export default async function AccountPage({
     user.customerId ? prisma.booking.count({ where: { customerId: user.customerId } }) : Promise.resolve(0),
   ]);
 
-  // Pros near the remembered postcode, for the first thing on the page.
+  // Vendors near the remembered postcode, for the first thing on the page.
   const home =
     customer?.latitude != null && customer.longitude != null
       ? { lat: customer.latitude, lng: customer.longitude }
@@ -97,7 +99,7 @@ export default async function AccountPage({
     ? await prisma.savedVendor.findMany({
         where: {
           customerId: customer.id,
-          provider: { approvalStatus: "APPROVED", isAcceptingWork: true, slug: { not: null } },
+          provider: { ...LISTED_VENDOR, isAcceptingWork: true, slug: { not: null } },
         },
         orderBy: { createdAt: "desc" },
         take: 8,
@@ -113,14 +115,14 @@ export default async function AccountPage({
 
   return (
     <div data-page-width="wide" className="space-y-10 pb-6">
-      {/* --- Welcome + find pros ------------------------------------------ */}
+      {/* --- Welcome + find vendors ------------------------------------------ */}
       <section className="overflow-hidden rounded-glam-lg border border-accent-500/30 bg-[radial-gradient(80%_120%_at_0%_0%,color-mix(in_oklab,var(--glam-gold)_18%,transparent),transparent_70%)] bg-surface p-6 sm:p-8">
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent-700">Your GLAMNET</p>
         <h1 className="mt-1 font-display text-3xl font-bold tracking-[-0.02em] text-ink sm:text-4xl">
           Hi {firstName}, who are we booking today?
         </h1>
         <p className="mt-2 max-w-xl text-[15px] text-ink-muted">
-          Verified independent pros near you, with real availability. Your card is only held, and paid when
+          Verified independent vendors near you, with real availability. Your card is only held, and paid when
           you&rsquo;re happy.
         </p>
         <div className="mt-6 max-w-2xl">
@@ -192,7 +194,7 @@ export default async function AccountPage({
               </Link>
             }
           >
-            Pros near you
+            Vendors near you
           </SectionTitle>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {nearby.map((vendor) => (
@@ -219,7 +221,7 @@ export default async function AccountPage({
                   <div className="p-3">
                     <p className="flex items-center gap-1.5 font-display font-bold text-ink">
                       {vendor.name}
-                      <SealCheck size={14} weight="fill" className="text-accent-500" aria-label="Verified" />
+                      <VerifiedBadge verified={vendor.isVerified} size={14} />
                     </p>
                     <p className="mt-0.5 flex items-center justify-between text-xs text-ink-muted">
                       <span className="flex items-center gap-1" data-numeric>
@@ -242,9 +244,9 @@ export default async function AccountPage({
       {everBooked === 0 ? (
         <section className="grid gap-3 sm:grid-cols-3">
           {[
-            { icon: MagnifyingGlass, title: "Find your pro", body: "Browse by specialty and postcode — their looks, menus and reviews." },
+            { icon: MagnifyingGlass, title: "Find your vendor", body: "Browse by specialty and postcode — their looks, menus and reviews." },
             { icon: CalendarCheck, title: "Book a real slot", body: "Pick a time from their own calendar. Your card is only held." },
-            { icon: LockKey, title: "Pay with your PIN", body: "Happy with the result? Give your pro your 4-digit PIN and they're paid." },
+            { icon: LockKey, title: "Pay with your PIN", body: "Happy with the result? Give your vendor your 4-digit PIN and they're paid." },
           ].map(({ icon: Icon, title, body }, index) => (
             <Card key={title} className="p-4">
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-100 text-accent-700">
@@ -298,7 +300,7 @@ export default async function AccountPage({
                 href={customer?.postcode ? `/salons?near=${encodeURIComponent(customer.postcode)}` : "/salons"}
                 className="inline-flex min-h-11 items-center rounded-full bg-metal px-6 text-sm font-bold text-metal-ink active:scale-[0.98]"
               >
-                Find a pro
+                Find a vendor
               </Link>
             }
           >

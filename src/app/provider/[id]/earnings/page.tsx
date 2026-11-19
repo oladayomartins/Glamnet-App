@@ -11,6 +11,7 @@ import {
 } from "@/components/ui";
 import { formatDay, formatMoney, formatTime } from "@/lib/format";
 import { vendorLedger } from "@/lib/server/vendor-ledger";
+import { heldPayoutSummary } from "@/lib/server/held-payouts";
 import { KIND_LABELS, PERIOD_LABELS, parsePeriod, periodRange, type PeriodKey } from "@/lib/domain/ledger";
 
 export const dynamic = "force-dynamic";
@@ -46,12 +47,13 @@ export default async function EarningsPage({
   const period: PeriodKey = parsePeriod(rawPeriod);
   const range = periodRange(period);
 
-  const [provider, rows] = await Promise.all([
+  const [provider, rows, held] = await Promise.all([
     prisma.provider.findUnique({
       where: { id },
       select: { id: true, name: true },
     }),
     vendorLedger(id, range.from, range.to),
+    heldPayoutSummary(id),
   ]);
 
   if (!provider) notFound();
@@ -78,6 +80,19 @@ export default async function EarningsPage({
           {provider.name} · completed work and cancellation fees
         </p>
       </div>
+
+      {held.totalMinor > 0 ? (
+        <p role="status" className="rounded-glam border-l-4 border-accent-500 bg-sunken p-3 text-sm text-ink">
+          <strong data-numeric>{formatMoney(held.totalMinor)}</strong> from {held.count}{" "}
+          {held.count === 1 ? "booking is" : "bookings is"} kept safe for you until you&rsquo;re verified, then paid to
+          your bank automatically.{" "}
+          {isOwner ? (
+            <Link href="/provider/onboarding?step=review" className="font-semibold text-accent-700">
+              Finish setting up
+            </Link>
+          ) : null}
+        </p>
+      ) : null}
 
       <nav className="flex flex-wrap gap-2" aria-label="Period">
         {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map((key) => (

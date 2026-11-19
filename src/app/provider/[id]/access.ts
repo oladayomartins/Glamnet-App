@@ -8,6 +8,6 @@ import { requireUser } from "@/lib/auth/session";
 export async function requireVendorPage(providerId: string, path: string) {
   const viewer = await requireUser(path);
   if (viewer.role !== "ADMIN" && viewer.providerId !== providerId) redirect("/forbidden");
-  if (viewer.role === "PROVIDER" && !viewer.providerApproved) redirect("/provider/pending");
+  if (viewer.role === "PROVIDER" && !viewer.providerLive) redirect("/provider/pending");
   return viewer;
 }

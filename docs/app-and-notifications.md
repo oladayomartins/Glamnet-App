@@ -36,7 +36,7 @@ and a notification is the fastest way to see one.
   has a **Send a test** button for checking a device.
 - **App icon.** Shows a count of unread notifications where the phone
   supports badges; it clears when the app is opened. Long-pressing the icon
-  offers shortcuts (Find a pro, Book, My bookings, Vendor dashboard).
+  offers shortcuts (Find a vendor, Book, My bookings, Vendor dashboard).
 - **Offline.** With no connection a page load shows a plain "You're offline"
   screen (`public/offline.html`) that reloads itself when the connection is
   back. Nothing is served from a cache: a stale price or time slot would be

@@ -522,6 +522,11 @@ model Booking {
   paymentStatus         String    @default("NOT_STARTED")
   paymentIntentId       String    @default("")
   transferId            String    @default("")
+  /// The vendor's share was captured from the client but is being kept by
+  /// GLAMNET because the vendor isn't verified yet (or has no bank linked).
+  /// It is transferred, less any clawback, the moment they are — see
+  /// releaseHeldPayouts in lib/server/held-payouts.ts.
+  payoutHeld            Boolean   @default(false)
   /// Bookings too far ahead for a card hold (Stripe drops one after about
   /// seven days) save the card with a SetupIntent at checkout instead, and
   /// the hold is placed off-session nearer the date.
@@ -588,6 +593,7 @@ model Booking {
   @@index([providerId, appointmentStartAt])
   @@index([appointmentStartAt])
   @@index([customerId, providerId])
+  @@index([providerId, payoutHeld])
   @@index([settlementStatus, disputeWindowClosesAt])
   @@index([paymentStatus, appointmentStartAt])
   /// Finance, the Overview and the admin bookings list all range over this.

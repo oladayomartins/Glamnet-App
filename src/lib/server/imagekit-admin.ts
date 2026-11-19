@@ -2,13 +2,13 @@
  * Server-side housekeeping for the ImageKit media library.
  *
  * Uploads go straight from the browser to ImageKit, so the only thing the
- * server has to do afterwards is tidy up: when a pro replaces their profile
+ * server has to do afterwards is tidy up: when a vendor replaces their profile
  * photo or a lookbook image, the old file is deleted rather than left in the
  * library, where it would count against storage forever and stay publicly
  * reachable by its URL.
  *
  * Best-effort by design. A failed delete is logged and forgotten — it must
- * never undo the save the pro just made.
+ * never undo the save the vendor just made.
  */
 
 const IMAGEKIT_API = "https://api.imagekit.io/v1/files";

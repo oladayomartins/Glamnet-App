@@ -25,7 +25,8 @@ const vendor = (providerId: string, role: SessionUser["role"] = "PROVIDER"): Ses
   role,
   customerId: null,
   providerId,
-  providerApproved: true,
+  providerLive: true,
+  providerVerified: true,
 });
 
 const call = (

@@ -13,7 +13,7 @@ import { AdminError, audit } from "./core";
  * An admin gives a postcode (or outward code) in the city centre; the city's
  * name is taken from that postcode, never typed. Vendors are counted by the
  * city their own postcode resolves to, so a hand-typed name that differed by
- * a word ("Newcastle" vs "Newcastle upon Tyne") would sit at 0 pros forever.
+ * a word ("Newcastle" vs "Newcastle upon Tyne") would sit at 0 vendors forever.
  * The tile can still show a friendlier label.
  */
 export const cityInput = z.object({
@@ -84,7 +84,7 @@ export async function deleteCity(actorEmail: string, id: string) {
   const current = await prisma.city.findUnique({ where: { id } });
   if (!current) throw new AdminError("That city is no longer on the list.", 404, "NOT_FOUND");
   // Only the listing goes. Vendors and their areas are untouched, and a city
-  // with live pros comes back on the rail by itself (without a photo).
+  // with live vendors comes back on the rail by itself (without a photo).
   await prisma.city.delete({ where: { id } });
   if (current.imageFileId) await deleteImageKitFiles([current.imageFileId]);
   await audit(actorEmail, "city.delete", { type: "City", id }, current.name);

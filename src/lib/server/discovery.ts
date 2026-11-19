@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { prisma } from "./prisma";
 import {
   TOP_RATED_MIN_RATING,
@@ -15,8 +16,7 @@ import type { DiscoveryRowKey } from "@/lib/domain/discovery-rows";
 
 /** Only vendors a customer could actually book right now. */
 const LIVE = {
-  approvalStatus: "APPROVED",
-  isVerified: true,
+  ...LISTED_VENDOR,
   isAcceptingWork: true,
   slug: { not: null },
 } as const;
@@ -29,6 +29,7 @@ const CARD_SELECT = {
   rating: true,
   completedBookings: true,
   workspaceSector: true,
+  isVerified: true,
   hub: { select: { city: true, sector: true } },
 } as const;
 
@@ -42,6 +43,7 @@ export interface DiscoveryVendor {
   /** Null when there is nothing honest to show — see reputation.ts. */
   rating: number | null;
   reviewCount: number;
+  isVerified: boolean;
 }
 
 /** How recently a vendor must have been approved to count as new. */
@@ -59,6 +61,7 @@ function shape(
     avatarUrl: string;
     rating: number;
     workspaceSector: string;
+    isVerified: boolean;
     hub: { city: string; sector: string };
   },
   reviewCount: number,
@@ -73,11 +76,12 @@ function shape(
     // The same rule the storefront follows: no score until someone gave one.
     rating: reviewCount > 0 ? provider.rating : null,
     reviewCount,
+    isVerified: provider.isVerified,
   };
 }
 
 /**
- * Recently vetted vendors.
+ * Recently joined vendors.
  *
  * This row exists for them rather than for the customer: a vendor with no
  * reviews has no other route to a first booking, and "newly vetted" is a true

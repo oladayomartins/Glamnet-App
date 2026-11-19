@@ -85,8 +85,8 @@ export function CityManager({ cities }: { cities: City[] }) {
                   {!city.imageUrl ? <Pill tone="muted">no photo</Pill> : null}
                 </div>
                 <p className="text-xs text-ink-muted">
-                  {city.liveCount} live {city.liveCount === 1 ? "pro" : "pros"}
-                  {city.label && city.label !== city.name ? ` · counts pros in ${city.name}` : ""}
+                  {city.liveCount} live {city.liveCount === 1 ? "vendor" : "vendors"}
+                  {city.label && city.label !== city.name ? ` · counts vendors in ${city.name}` : ""}
                 </p>
                 <p className="mt-0.5 font-mono text-[11px] text-ink-muted">
                   /{city.slug} · {city.outcode} · order {city.sortOrder}
@@ -197,12 +197,12 @@ function CityForm({
           />
           <span className="mt-1 block text-xs">
             {term.length < 2 ? (
-              <span className="text-ink-muted">Pros are counted by the city their postcode is in.</span>
+              <span className="text-ink-muted">Vendors are counted by the city their postcode is in.</span>
             ) : resolved === undefined ? (
               <span className="text-ink-muted">Looking up…</span>
             ) : resolved ? (
               <span className="text-normal-ink">
-                Counts pros in <strong>{resolved}</strong>
+                Counts vendors in <strong>{resolved}</strong>
               </span>
             ) : (
               <span className="text-warning">We couldn&rsquo;t find that postcode.</span>

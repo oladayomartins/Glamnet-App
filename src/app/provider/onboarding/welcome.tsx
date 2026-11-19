@@ -22,7 +22,7 @@ const NEEDS = [
 ] as const;
 
 /**
- * The first thing a brand-new pro sees: what GLAMNET does for them, what the
+ * The first thing a brand-new vendor sees: what GLAMNET does for them, what the
  * set-up asks for, and one button to start. Shown once, before step one.
  */
 export function WelcomeIntro({

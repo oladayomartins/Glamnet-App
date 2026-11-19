@@ -38,7 +38,7 @@ export function PhotoPicker({ initial }: { initial: UploadedImage | null }) {
         value={photo}
         onChange={change}
         label="Profile photo"
-        hint="Helps your pro recognise you on the day. JPEG, PNG or WebP."
+        hint="Helps your vendor recognise you on the day. JPEG, PNG or WebP."
       />
       {error ? (
         <p role="alert" className="mt-2 text-xs text-warning">

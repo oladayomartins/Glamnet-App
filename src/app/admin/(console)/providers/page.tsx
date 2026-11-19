@@ -5,6 +5,7 @@ import { prisma } from "@/lib/server/prisma";
 import { signedFileUrl } from "@/lib/server/private-files";
 import { AdminHeader, fieldClass } from "../_components/bits";
 import { ApprovalQueue, type QueueProvider } from "./approval-queue";
+import { setupProgress } from "@/lib/domain/vendor-setup";
 import { PAGE_SIZE, Pager, listHref, pageFrom } from "../_components/pager";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +13,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Vendors" };
 
 const TABS = [
-  { key: "PENDING", label: "Awaiting review" },
-  { key: "APPROVED", label: "Live" },
+  { key: "PENDING", label: "Not verified" },
+  { key: "APPROVED", label: "Verified" },
   { key: "SUSPENDED", label: "Suspended" },
   { key: "REJECTED", label: "Rejected" },
   { key: "ALL", label: "All" },
@@ -55,7 +56,15 @@ export default async function AdminProvidersPage({
       take: PAGE_SIZE,
       include: {
         hub: { select: { name: true, sector: true, city: true } },
-        _count: { select: { services: true, bookings: true } },
+        _count: {
+          select: {
+            services: true,
+            bookings: true,
+            availability: true,
+            lookbook: true,
+            documents: { where: { status: { not: "REJECTED" } } },
+          },
+        },
         documents: { orderBy: { uploadedAt: "desc" } },
       },
     }),
@@ -70,7 +79,23 @@ export default async function AdminProvidersPage({
 
   // Compliance documents are private files; each link is signed for ten
   // minutes, enough to review, useless if it leaks.
-  const queue: QueueProvider[] = providers.map((p) => ({
+  const queue: QueueProvider[] = providers.map((p) => {
+    const setup = setupProgress({
+      name: p.name,
+      avatarUrl: p.avatarUrl,
+      slug: p.slug,
+      bio: p.bio,
+      workspaceType: p.workspaceType,
+      workspaceSector: p.workspaceSector,
+      workspaceAddress: p.workspaceAddress,
+      serviceCount: p._count.services,
+      availabilityCount: p._count.availability,
+      lookbookCount: p._count.lookbook,
+      documentCount: p._count.documents,
+      payoutsEnabled: p.payoutsEnabled,
+      approvalStatus: p.approvalStatus,
+    });
+    return {
     id: p.id,
     name: p.name,
     email: p.email,
@@ -86,6 +111,9 @@ export default async function AdminProvidersPage({
     submitted: p.onboardedAt !== null,
     payoutsEnabled: p.payoutsEnabled,
     isFeatured: p.isFeatured,
+    setupPercent: setup.percent,
+    readyForApproval: setup.readyForApproval,
+    missing: setup.items.filter((item) => !item.done && item.key !== "approval").map((item) => item.label),
     documents: p.documents.map((document) => ({
       id: document.id,
       kind: document.kind,
@@ -97,7 +125,10 @@ export default async function AdminProvidersPage({
       reviewedAt: document.reviewedAt?.toISOString() ?? null,
       expiresAt: document.expiresAt?.toISOString() ?? null,
     })),
-  }));
+    };
+  })
+    // Ready to verify first: that's the decision waiting on an admin.
+    .sort((a, b) => Number(b.readyForApproval && b.status === "PENDING") - Number(a.readyForApproval && a.status === "PENDING"));
 
   const href = (status: Tab) => `/admin/providers?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
 
@@ -105,7 +136,7 @@ export default async function AdminProvidersPage({
     <div>
       <AdminHeader
         title="Vendors"
-        lede="Approve applications once their documents check out, suspend a vendor who breaks the rules, and feature the best at the top of the directory."
+        lede="Vendors go live with the basics, marked “Not verified”. Verify them once every step is done and their documents check out — that gives them the badge, urgent requests and their held payouts. Suspend a vendor who breaks the rules, and feature the best."
       />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">

@@ -38,13 +38,13 @@ export default async function CancellationsPage() {
       intro={
         <>
           <p>
-            On GLAMNET your money is held, not taken, until you give your pro the checkout PIN at the end of the
+            On GLAMNET your money is held, not taken, until you give your vendor the checkout PIN at the end of the
             appointment. Cancel in good time and the hold on your card is simply released.
           </p>
           <p>
-            Our pros are independent, and a slot cancelled at the last minute is one they usually can&rsquo;t fill. So,
+            Our vendors are independent, and a slot cancelled at the last minute is one they usually can&rsquo;t fill. So,
             like most UK salons, we ask for {FREE_CANCELLATION_HOURS} hours&rsquo; notice. The fees below are set to
-            cover what a pro typically loses — not to penalise anyone — and you&rsquo;ll always see the exact cost before
+            cover what a vendor typically loses — not to penalise anyone — and you&rsquo;ll always see the exact cost before
             you cancel.
           </p>
         </>
@@ -58,7 +58,7 @@ export default async function CancellationsPage() {
               <Bullets
                 items={[
                   <>
-                    <strong>Before a pro accepts</strong> — free. A request also lapses on its own if nobody accepts
+                    <strong>Before a vendor accepts</strong> — free. A request also lapses on its own if nobody accepts
                     within {BROADCAST_ACCEPTANCE_WINDOW_MINUTES} minutes, and the hold is released straight away.
                   </>,
                   <>
@@ -67,15 +67,15 @@ export default async function CancellationsPage() {
                   </>,
                   <>
                     <strong>Within {BOOKING_GRACE_MINUTES} minutes of booking</strong> — free, even for an appointment
-                    less than a day away, as long as your pro hasn&rsquo;t set off.
+                    less than a day away, as long as your vendor hasn&rsquo;t set off.
                   </>,
                   <>
                     <strong>Less than {FREE_CANCELLATION_HOURS} hours before</strong> — {late} of the service price.
                     The trust fee, any tip and any travel fee aren&rsquo;t charged, and the rest of the hold is released.
                   </>,
                   <>
-                    <strong>Once your pro is on their way, or after the start time</strong> — this counts as a missed
-                    appointment (below). Once your pro has arrived, please contact us at {LEGAL.contactEmail}.
+                    <strong>Once your vendor is on their way, or after the start time</strong> — this counts as a missed
+                    appointment (below). Once your vendor has arrived, please contact us at {LEGAL.contactEmail}.
                   </>,
                 ]}
               />
@@ -91,14 +91,14 @@ export default async function CancellationsPage() {
           body: (
             <>
               <p>
-                If you&rsquo;re not there and your pro can&rsquo;t reach you, they can mark the appointment as missed{" "}
+                If you&rsquo;re not there and your vendor can&rsquo;t reach you, they can mark the appointment as missed{" "}
                 {NO_SHOW_WAIT_MINUTES} minutes after the start time (or after they arrived, if later). A missed
                 appointment is charged at {missed}, plus the travel fee for a home visit — the time and the
-                journey your pro gave up. The trust fee and any tip aren&rsquo;t charged.
+                journey your vendor gave up. The trust fee and any tip aren&rsquo;t charged.
               </p>
               <p>
                 If you were there, or something outside your control stopped you, tell us from your booking page within{" "}
-                {DISPUTE_WINDOW_HOURS} hours. We check the pro&rsquo;s arrival time and what you both tell us, and refund
+                {DISPUTE_WINDOW_HOURS} hours. We check the vendor&rsquo;s arrival time and what you both tell us, and refund
                 the fee if it wasn&rsquo;t fair.
               </p>
             </>
@@ -108,18 +108,18 @@ export default async function CancellationsPage() {
           heading: "Where the fee goes",
           body: (
             <p>
-              A cancellation or missed-appointment fee goes to your pro, less the same commission and card fees as a
+              A cancellation or missed-appointment fee goes to your vendor, less the same commission and card fees as a
               completed booking. It is taken from the amount already held on your card — never more than that.
             </p>
           ),
         },
         {
-          heading: "If your pro cancels",
+          heading: "If your vendor cancels",
           body: (
             <p>
               It&rsquo;s free for you, whenever it happens: the hold on your card is released in full, and you&rsquo;re
-              free to book someone else straight away. Pros must give a reason, which you&rsquo;ll see. We review every
-              cancellation a pro makes within {FREE_CANCELLATION_HOURS} hours, and pros who cancel repeatedly can be
+              free to book someone else straight away. Vendors must give a reason, which you&rsquo;ll see. We review every
+              cancellation a vendor makes within {FREE_CANCELLATION_HOURS} hours, and vendors who cancel repeatedly can be
               removed from GLAMNET.
             </p>
           ),
@@ -130,7 +130,7 @@ export default async function CancellationsPage() {
             <p>
               For appointments booked well ahead, we hold your card a few days before. If that fails, we&rsquo;ll ask you
               to update your card. If payment still isn&rsquo;t secured {UNSECURED_CANCEL_HOURS} hours before the
-              appointment, the booking is cancelled so your pro isn&rsquo;t left travelling to an unpaid job. Nothing is
+              appointment, the booking is cancelled so your vendor isn&rsquo;t left travelling to an unpaid job. Nothing is
               charged.
             </p>
           ),
@@ -144,7 +144,7 @@ export default async function CancellationsPage() {
                 can do this before giving the PIN, or up to {DISPUTE_WINDOW_HOURS} hours after.
               </p>
               <p>
-                We&rsquo;ll look at the booking, the photos your pro took of the finished work, and what you both tell
+                We&rsquo;ll look at the booking, the photos your vendor took of the finished work, and what you both tell
                 us. Depending on what happened, we may refund you in full or in part. If your payment hadn&rsquo;t been
                 taken yet, we only take what&rsquo;s fair and release the rest.
               </p>

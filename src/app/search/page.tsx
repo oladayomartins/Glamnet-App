@@ -150,7 +150,7 @@ export default async function SearchPage({
         <p className="mt-1 text-[15px] text-ink-muted" data-numeric>
           {rows.length} {rows.length === 1 ? "provider" : "providers"} can take
           this work, soonest first
-          {sponsoredIds.size > 0 ? " · Sponsored pros pay to be shown at the top" : ""}
+          {sponsoredIds.size > 0 ? " · Sponsored vendors pay to be shown at the top" : ""}
         </p>
       </div>
 

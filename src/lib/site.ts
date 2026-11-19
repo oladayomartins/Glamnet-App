@@ -36,7 +36,7 @@ export function isProductionSite(): boolean {
 export const SITE_NAME = "GLAMNET";
 export const SITE_TAGLINE = "The UK's marketplace for the Black and Asian beauty community";
 export const SITE_DESCRIPTION =
-  "The UK's marketplace for the Black and Asian beauty community. Find and book verified pros who specialise in your hair, skin and culture — braids, twists, Asian bridal, gele, nails and massage. Real availability, one honest price, and paid only when you're happy.";
+  "The UK's marketplace for the Black and Asian beauty community. Find and book verified vendors who specialise in your hair, skin and culture — braids, twists, Asian bridal, gele, nails and massage. Real availability, one honest price, and paid only when you're happy.";
 
 /**
  * The GA4 measurement ID for this deployment, or null when analytics is off.

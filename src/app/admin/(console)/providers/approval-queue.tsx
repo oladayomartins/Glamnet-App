@@ -24,6 +24,10 @@ export interface QueueProvider {
   submitted: boolean;
   payoutsEnabled: boolean;
   isFeatured: boolean;
+  /** Setup percentage; approval is only allowed once everything else is done. */
+  setupPercent: number;
+  readyForApproval: boolean;
+  missing: string[];
   documents: ReviewDocument[];
 }
 
@@ -50,7 +54,7 @@ export function ApprovalQueue({ providers, emptyMessage }: { providers: QueuePro
     }
     const question =
       decision === "APPROVED"
-        ? `Approve ${name}? Their storefront goes live and they can take bookings.`
+        ? `Verify ${name}? They get the verified badge and urgent requests, and any payouts held for them are sent to their bank.`
         : decision === "REJECTED"
           ? `Reject ${name}'s application? They are emailed your note.`
           : decision === "SUSPENDED"
@@ -117,7 +121,7 @@ export function ApprovalQueue({ providers, emptyMessage }: { providers: QueuePro
                 {provider.bio ? <p className="mt-1 text-sm text-ink">{provider.bio}</p> : null}
                 <p className="mt-1 text-xs text-ink-muted">
                   {provider.serviceCount} services · {provider.bookingCount} bookings ·{" "}
-                  {provider.submitted ? "wizard submitted" : "wizard not finished"} ·{" "}
+                  {provider.submitted ? "live" : "not live yet"} ·{" "}
                   {provider.payoutsEnabled ? "payouts linked" : "no payout account"}
                 </p>
                 {provider.slug ? (
@@ -130,10 +134,21 @@ export function ApprovalQueue({ providers, emptyMessage }: { providers: QueuePro
                   </Link>
                 ) : null}
 
+                <p className="mt-2 text-xs">
+                  <span data-numeric className={`font-semibold ${provider.readyForApproval ? "text-normal-ink" : "text-accent-700"}`}>
+                    {provider.setupPercent}% set up
+                  </span>
+                  {provider.missing.length > 0 ? (
+                    <span className="text-ink-muted"> · missing: {provider.missing.join(", ")}</span>
+                  ) : provider.status === "PENDING" ? (
+                    <span className="text-ink-muted"> · ready to verify</span>
+                  ) : null}
+                </p>
+
                 <div className="mt-2">
                   <p className="text-xs font-medium text-ink">Compliance documents</p>
                   {provider.documents.length === 0 ? (
-                    <p className="text-xs text-ink-muted">None uploaded (optional).</p>
+                    <p className="text-xs text-ink-muted">None uploaded yet — needed to verify.</p>
                   ) : (
                     <div className="mt-1">
                       <DocumentReview providerId={provider.id} documents={provider.documents} />
@@ -151,11 +166,15 @@ export function ApprovalQueue({ providers, emptyMessage }: { providers: QueuePro
                 <>
                   {noteField("Note (shown to the applicant if rejected)")}
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => decide(provider.id, "APPROVED")} disabled={working}>
-                      {busy === `${provider.id}:APPROVED` ? "Approving…" : "Approve"}
+                    <Button
+                      onClick={() => decide(provider.id, "APPROVED")}
+                      disabled={working || !provider.readyForApproval}
+                      title={provider.readyForApproval ? undefined : "Every other step must be done first"}
+                    >
+                      {busy === `${provider.id}:APPROVED` ? "Verifying…" : "Verify"}
                     </Button>
                     <Button variant="secondary" onClick={() => decide(provider.id, "REJECTED")} disabled={working}>
-                      Reject
+                      Reject and take offline
                     </Button>
                   </div>
                 </>
@@ -184,7 +203,7 @@ export function ApprovalQueue({ providers, emptyMessage }: { providers: QueuePro
               ) : (
                 <div className="flex flex-wrap gap-2">
                   <Button variant="secondary" onClick={() => decide(provider.id, "APPROVED")} disabled={working}>
-                    {provider.status === "SUSPENDED" ? "Reinstate" : "Approve after all"}
+                    {provider.status === "SUSPENDED" ? "Reinstate" : "Verify after all"}
                   </Button>
                   {provider.status === "REJECTED" ? (
                     <Button variant="ghost" onClick={() => decide(provider.id, "PENDING")} disabled={working}>

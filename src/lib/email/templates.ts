@@ -259,23 +259,23 @@ export function providerApprovalEmail(
 ): EmailBody {
   const copy = {
     APPROVED: {
-      subject: "You're approved to take GLAMNET bookings",
-      heading: "You're approved",
-      lead: "Your application has been reviewed and approved. You will start receiving booking requests for your services and area right away.",
-      tag: "APPROVED",
-      cta: "Set your availability",
+      subject: "You're verified on GLAMNET",
+      heading: "You're verified",
+      lead: "We've checked your details and you're now verified. Clients see your verified badge, you'll receive urgent requests in your area, and any earnings we were holding for you are on their way to your bank.",
+      tag: "VERIFIED",
+      cta: "Open your dashboard",
     },
     REJECTED: {
       subject: "An update on your GLAMNET application",
       heading: "We can't approve your application yet",
-      lead: "We've reviewed your application and can't approve it at this stage. You are welcome to get in touch if anything has changed.",
+      lead: "We've reviewed your storefront and can't approve it at this stage, so it has been taken offline. You are welcome to get in touch if anything has changed.",
       tag: "APPLICATION UPDATE",
       cta: "View your application",
     },
     PENDING: {
-      subject: "Your GLAMNET application is under review",
-      heading: "Your application is back under review",
-      lead: "Your application has been returned to review. We'll be in touch once a decision is made.",
+      subject: "Your GLAMNET verification is under review",
+      heading: "Your verification is back under review",
+      lead: "Your verified badge has been paused while we review your details again. Your storefront stays live, marked \"Not verified\", and new earnings are held until we're done.",
       tag: "UNDER REVIEW",
       cta: "View your application",
     },

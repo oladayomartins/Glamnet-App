@@ -20,7 +20,7 @@ export interface UserMenuProps {
   role: "CUSTOMER" | "PROVIDER" | "ADMIN";
 }
 
-const ROLE_LABEL = { CUSTOMER: "Client", PROVIDER: "Beauty pro", ADMIN: "Admin" } as const;
+const ROLE_LABEL = { CUSTOMER: "Client", PROVIDER: "Beauty vendor", ADMIN: "Admin" } as const;
 
 /** Each account type's own shortcuts, then installing the app. */
 function linksFor(role: UserMenuProps["role"]) {

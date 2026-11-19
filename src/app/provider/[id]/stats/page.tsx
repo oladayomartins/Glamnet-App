@@ -135,7 +135,7 @@ export default async function StorefrontStatsPage({
           <p className="text-xs text-ink-muted">
             A view is one visit to your storefront page. Bookings are storefront bookings made in the period (own link
             and directory), and earned is what you&rsquo;re paid for the ones already completed. Requests sent out to
-            several pros aren&rsquo;t included.
+            several vendors aren&rsquo;t included.
           </p>
         </>
       )}

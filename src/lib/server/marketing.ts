@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { prisma } from "./prisma";
 import {
   addDays,
@@ -24,7 +25,7 @@ export async function getMarketingData() {
 
   const [providers, services, hubs] = await Promise.all([
     prisma.provider.findMany({
-      where: { approvalStatus: "APPROVED", isAcceptingWork: true },
+      where: { ...LISTED_VENDOR, isAcceptingWork: true },
       // Admin-featured vendors lead the rail.
       orderBy: [{ isFeatured: "desc" }, { rating: "desc" }, { completedBookings: "desc" }],
       select: {
@@ -98,10 +99,10 @@ export async function getMarketingData() {
         sector: true,
         _count: {
           // Counted exactly as the city directory lists them, so the number on
-          // a tile is the number of pros you see after tapping it.
+          // a tile is the number of vendors you see after tapping it.
           select: {
             providers: {
-              where: { approvalStatus: "APPROVED", isVerified: true, isAcceptingWork: true, slug: { not: null } },
+              where: { ...LISTED_VENDOR, isAcceptingWork: true, slug: { not: null } },
             },
           },
         },
@@ -179,8 +180,8 @@ export async function getMarketingData() {
     }
   }
 
-  // Every launch city is listed from day one; the counts grow as pros there
-  // go live, and a city off the list joins once it has a live pro.
+  // Every launch city is listed from day one; the counts grow as vendors there
+  // go live, and a city off the list joins once it has a live vendor.
   const cities = cityTiles(
     await listCities(),
     hubs.map((hub) => ({
@@ -236,7 +237,7 @@ export async function getMarketingData() {
         fromMinor: basePrices.length > 0 ? Math.min(...basePrices) : null,
         vetted: provider.approvalStatus === "APPROVED",
         /** Set when the vendor has a live storefront to link to. */
-        storefrontSlug: provider.isVerified && provider.slug ? provider.slug : null,
+        storefrontSlug: provider.slug ?? null,
         freeTonight: isFreeTonight(schedule, now),
         specialities: [
           ...new Set(provider.services.map((link) => link.service.category)),
@@ -251,6 +252,8 @@ export async function getMarketingData() {
     searchHints,
     stats: {
       providerCount: providers.length,
+      /** Approved by GLAMNET — what "vetted" claims count, never the listed total. */
+      verifiedCount: providers.filter((provider) => provider.approvalStatus === "APPROVED").length,
       averageRating,
       serviceCount: services.filter((s) => s.kind !== "ADDON").length,
       cityCount: cities.filter((city) => city.providerCount > 0).length,

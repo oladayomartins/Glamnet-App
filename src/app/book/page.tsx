@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 /** Step 1 of the booking journey (spec §13): Select Beauty Hub. */
 export default async function BookPage() {
   const [hubs, { config, thresholdMinutes }] = await Promise.all([
-    // Quick picks: only areas that already have live pros.
+    // Quick picks: only areas that already have live vendors.
     prisma.hub.findMany({
       where: { providers: { some: { approvalStatus: "APPROVED", isAcceptingWork: true } } },
       orderBy: { name: "asc" },
@@ -34,7 +34,7 @@ export default async function BookPage() {
           Where are you?
         </h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          Enter your postcode to see the pros who cover you and the times they
+          Enter your postcode to see the vendors who cover you and the times they
           are genuinely free — service duration, travel and the 15-minute
           transition period all accounted for.
         </p>
@@ -59,7 +59,7 @@ export default async function BookPage() {
       </Card>
 
       <section>
-        <SectionTitle hint="Areas with pros already on GLAMNET">
+        <SectionTitle hint="Areas with vendors already on GLAMNET">
           Or pick an area
         </SectionTitle>
 

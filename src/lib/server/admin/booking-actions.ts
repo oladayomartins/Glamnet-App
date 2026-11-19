@@ -39,6 +39,7 @@ export function refundability(booking: {
   cancellationFeeMinor: number;
   cancellationFeePayoutMinor: number;
   transferId: string;
+  payoutHeld: boolean;
 }): { ok: true; chargeMinor: number; payoutMinor: number; canRecover: boolean } | { ok: false; reason: string } {
   if (booking.settlementStatus === "DISPUTED") return { ok: false, reason: "Under dispute — rule on the dispute instead." };
   if (booking.refundedMinor > 0) return { ok: false, reason: `Already refunded ${formatMoney(booking.refundedMinor)}.` };
@@ -48,7 +49,7 @@ export function refundability(booking: {
   if (booking.paymentStatus !== "ESCROW_RELEASED") return { ok: false, reason: "No card payment to refund." };
   const { chargeMinor, payoutMinor } = disputedAmountsOf(booking);
   if (chargeMinor <= 0) return { ok: false, reason: "Nothing was charged." };
-  return { ok: true, chargeMinor, payoutMinor, canRecover: Boolean(booking.transferId) && payoutMinor > 0 };
+  return { ok: true, chargeMinor, payoutMinor, canRecover: (Boolean(booking.transferId) || booking.payoutHeld) && payoutMinor > 0 };
 }
 
 /**
@@ -100,7 +101,8 @@ export async function refundBooking(actorEmail: string, bookingId: string, raw: 
   let reversalId = "";
   try {
     ({ refundId } = await gateway.refund({ bookingId, paymentIntentId: booking.paymentIntentId, amountMinor: input.refundMinor }));
-    if (input.clawbackMinor > 0) {
+    // A held payout isn't reversed: the clawback is just never paid out.
+    if (input.clawbackMinor > 0 && !booking.payoutHeld) {
       ({ reversalId } = await gateway.reverseTransfer({
         bookingId,
         transferId: booking.transferId,
@@ -289,7 +291,7 @@ export async function reassignBooking(actorEmail: string, bookingId: string, raw
           audience: "CUSTOMER",
           channel: "PUSH",
           bookingType: booking.bookingType,
-          title: "Your booking has a new pro",
+          title: "Your booking has a new vendor",
           body: `${nextVendor.name} will now look after your ${when} appointment. The price hasn't changed.`,
         },
         {
@@ -310,7 +312,7 @@ export async function reassignBooking(actorEmail: string, bookingId: string, raw
                 channel: "PUSH",
                 bookingType: booking.bookingType,
                 title: "A booking was moved",
-                body: `Your ${when} booking has been moved to another pro. Please don't travel to it.`,
+                body: `Your ${when} booking has been moved to another vendor. Please don't travel to it.`,
               },
             ]
           : []),
@@ -330,12 +332,12 @@ export async function reassignBooking(actorEmail: string, bookingId: string, raw
       to: booking.customer.email,
       name: firstName(booking.customer.name),
       bookingId,
-      subject: "Your GLAMNET booking has a new pro",
-      heading: "A new pro for your appointment",
-      lead: `${booking.provider?.name ?? "Your pro"} can no longer make it, so ${nextVendor.name} will look after you instead. Your time and price are unchanged.${
+      subject: "Your GLAMNET booking has a new vendor",
+      heading: "A new vendor for your appointment",
+      lead: `${booking.provider?.name ?? "Your vendor"} can no longer make it, so ${nextVendor.name} will look after you instead. Your time and price are unchanged.${
         booking.serviceLocation === "VENDOR_PREMISES" ? " The address may have changed — open your booking for where to go." : ""
       }`,
-      facts: [["Appointment", when], ["New pro", nextVendor.name]],
+      facts: [["Appointment", when], ["New vendor", nextVendor.name]],
       cta: "View booking",
     }),
     deliverBookingNotice({
@@ -357,8 +359,8 @@ export async function reassignBooking(actorEmail: string, bookingId: string, raw
             bookingId,
             path: "/provider",
             subject: "A GLAMNET booking was moved",
-            heading: "Booking moved to another pro",
-            lead: `Your ${when} booking has been given to another pro. Please don't travel to it. ${input.note}`,
+            heading: "Booking moved to another vendor",
+            lead: `Your ${when} booking has been given to another vendor. Please don't travel to it. ${input.note}`,
             facts: [["Appointment", when]],
             cta: "Open your dashboard",
           }),

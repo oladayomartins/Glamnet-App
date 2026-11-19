@@ -1,7 +1,9 @@
 import { prisma } from "./prisma";
+import { setupProgress, type SetupProgress } from "@/lib/domain/vendor-setup";
 import { normaliseAmenities } from "@/lib/domain/vendor-tags";
 import { BookingError } from "./booking-service";
 import { paymentGateway } from "./payments";
+import { releaseHeldPayouts } from "./held-payouts";
 import { isValidSlug } from "@/lib/domain/storefront";
 import { formatPostcode } from "@/lib/domain/postcode";
 import { hubForPlace, lookupPostcode } from "./geo";
@@ -9,7 +11,7 @@ import { isTrustedImageUrl } from "@/lib/imagekit";
 import { deleteImageKitFiles } from "./imagekit-admin";
 
 /**
- * The Pro Portal (Open Marketplace Directory §C, Flow 3): everything a
+ * The Vendor Portal (Open Marketplace Directory §C, Flow 3): everything a
  * vendor edits about their own storefront. Every function takes the vendor
  * id from the session — never from a request body — so one vendor can never
  * edit another's page.
@@ -259,18 +261,57 @@ export async function refreshPayoutStatus(providerId: string) {
   if (!provider.stripeAccountId) return false;
   const enabled = await paymentGateway().payoutsEnabled(provider.stripeAccountId);
   await prisma.provider.update({ where: { id: providerId }, data: { payoutsEnabled: enabled } });
+  if (enabled) await releaseHeldPayouts(providerId).catch((error) => console.error("releaseHeldPayouts", error));
   return enabled;
 }
 
 /** What the wizard still needs before the application can be submitted. */
+/** The vendor's setup checklist and percentage — see lib/domain/vendor-setup.ts. */
+export async function vendorSetup(providerId: string): Promise<SetupProgress> {
+  const provider = await prisma.provider.findUniqueOrThrow({
+    where: { id: providerId },
+    include: {
+      _count: {
+        select: {
+          services: true,
+          availability: true,
+          lookbook: true,
+          documents: { where: { status: { not: "REJECTED" } } },
+        },
+      },
+    },
+  });
+  return setupProgress({
+    name: provider.name,
+    avatarUrl: provider.avatarUrl,
+    slug: provider.slug,
+    bio: provider.bio,
+    workspaceType: provider.workspaceType,
+    workspaceSector: provider.workspaceSector,
+    workspaceAddress: provider.workspaceAddress,
+    serviceCount: provider._count.services,
+    availabilityCount: provider._count.availability,
+    lookbookCount: provider._count.lookbook,
+    documentCount: provider._count.documents,
+    payoutsEnabled: provider.payoutsEnabled,
+    approvalStatus: provider.approvalStatus,
+  });
+}
+
+/**
+ * What still stops a vendor going live: the bookable basics only. Photo,
+ * bio, lookbook, documents and bank can all be skipped — the vendor is listed
+ * as "Not verified" and their earnings are held until they finish and an
+ * admin approves them.
+ */
 export async function onboardingGaps(providerId: string): Promise<string[]> {
   const provider = await prisma.provider.findUniqueOrThrow({
     where: { id: providerId },
-    include: { _count: { select: { services: true, documents: true, availability: true } } },
+    include: { _count: { select: { services: true, availability: true } } },
   });
   const gaps: string[] = [];
+  if (provider.name.trim().length < 2) gaps.push("Add your name or business name.");
   if (!provider.slug) gaps.push("Choose your storefront link.");
-  if (provider.bio.trim().length < 20) gaps.push("Write a short bio (20 characters or more).");
   if (!provider.workspaceSector) {
     gaps.push(provider.workspaceType === "MOBILE" ? "Add the postcode you travel from." : "Add your workspace postcode.");
   }
@@ -278,35 +319,34 @@ export async function onboardingGaps(providerId: string): Promise<string[]> {
     gaps.push("Add your workspace's street address.");
   }
   if (provider._count.services === 0) gaps.push("Add at least one service to your menu.");
-  // Insurance, licence or certificate: optional. Uploading one helps the
-  // review, but a vendor can submit and go live without it.
   // Without hours a vendor goes live unbookable: their storefront reads
-  // "Closed" every day and the availability engine offers nobody a slot. It is
-  // checked here as well as in the wizard so the review step cannot submit
-  // around it.
+  // "Closed" every day and the availability engine offers nobody a slot.
   if (provider._count.availability === 0) gaps.push("Set the days and hours you work.");
-  // A linked bank is not needed to submit: it is needed to be *paid*, and
-  // releasing a payment already refuses without one. Requiring it here left
-  // pros stuck whenever bank linking itself was unavailable.
   return gaps;
 }
 
+/** Go live: the vendor is listed straight away, unverified until approved. */
 export async function completeOnboarding(providerId: string) {
   const gaps = await onboardingGaps(providerId);
   if (gaps.length > 0) {
     throw new BookingError(gaps.join(" "), "INVALID_TRANSITION", 422);
   }
+  const provider = await prisma.provider.findUniqueOrThrow({ where: { id: providerId } });
   return prisma.provider.update({
     where: { id: providerId },
-    data: { onboardedAt: new Date() },
+    data: {
+      onboardedAt: provider.onboardedAt ?? new Date(),
+      ...(provider.onboardedAt ? {} : { isAcceptingWork: true }),
+    },
   });
 }
 
 /** Pause or resume new bookings — the vacation toggle. */
 export async function setAcceptingWork(providerId: string, accepting: boolean) {
   const provider = await prisma.provider.findUniqueOrThrow({ where: { id: providerId } });
-  if (accepting && provider.approvalStatus !== "APPROVED") {
-    throw new BookingError("Your account has not been approved yet.", "INVALID_TRANSITION", 409);
+  const live = provider.onboardedAt !== null && (provider.approvalStatus === "APPROVED" || provider.approvalStatus === "PENDING");
+  if (accepting && !live) {
+    throw new BookingError("Your storefront isn't live.", "INVALID_TRANSITION", 409);
   }
   return prisma.provider.update({ where: { id: providerId }, data: { isAcceptingWork: accepting } });
 }

@@ -34,7 +34,7 @@ export function PostcodeStart() {
         onResolved={(place) => void go(place)}
         allowOutcode
         autoFocus
-        hint={busy ? "Finding pros near you…" : "Anywhere in the UK. We show pros within 10 miles."}
+        hint={busy ? "Finding vendors near you…" : "Anywhere in the UK. We show vendors within 10 miles."}
       />
       {error ? <p className="mt-1 text-sm text-warning">{error}</p> : null}
     </div>
