@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { prisma } from "./prisma";
 import {
   TOP_RATED_MIN_RATING,
@@ -15,8 +16,7 @@ import type { DiscoveryRowKey } from "@/lib/domain/discovery-rows";
 
 /** Only vendors a customer could actually book right now. */
 const LIVE = {
-  approvalStatus: "APPROVED",
-  isVerified: true,
+  ...LISTED_VENDOR,
   isAcceptingWork: true,
   slug: { not: null },
 } as const;

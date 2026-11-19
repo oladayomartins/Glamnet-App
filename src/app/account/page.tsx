@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarBlank, CalendarCheck, LockKey, MagnifyingGlass, SealCheck, Star } from "@phosphor-icons/react/dist/ssr";
@@ -97,7 +98,7 @@ export default async function AccountPage({
     ? await prisma.savedVendor.findMany({
         where: {
           customerId: customer.id,
-          provider: { approvalStatus: "APPROVED", isAcceptingWork: true, slug: { not: null } },
+          provider: { ...LISTED_VENDOR, isAcceptingWork: true, slug: { not: null } },
         },
         orderBy: { createdAt: "desc" },
         take: 8,

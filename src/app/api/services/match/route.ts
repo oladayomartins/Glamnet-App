@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
         isActive: true,
         kind: "SERVICE",
         providers: {
-          some: { provider: { approvalStatus: "APPROVED", isAcceptingWork: true } },
+          some: { provider: { ...LISTED_VENDOR, isAcceptingWork: true } },
         },
       },
       orderBy: [{ category: "asc" }, { name: "asc" }],

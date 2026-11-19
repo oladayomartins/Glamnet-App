@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { prisma } from "./prisma";
 import { addDays, startOfLocalDay, type ProviderSchedule } from "@/lib/domain/availability";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
@@ -67,7 +68,7 @@ export async function getProviderProfile(
   const horizonEnd = addDays(dayStart, NEXT_OPENING_HORIZON_DAYS);
 
   const provider = await prisma.provider.findFirst({
-    where: { id, approvalStatus: "APPROVED", isAcceptingWork: true },
+    where: { id, ...LISTED_VENDOR, isAcceptingWork: true },
     select: {
       id: true,
       name: true,

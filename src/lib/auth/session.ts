@@ -19,7 +19,10 @@ export interface SessionUser {
   customerId: string | null;
   providerId: string | null;
   /** Vendors only: whether an admin has approved them yet. */
-  providerApproved: boolean;
+  /** Listed with the basics done (verified or not): the vendor's dashboard is open. */
+  providerLive: boolean;
+  /** Approved by an admin: the verified badge, urgent requests and payouts. */
+  providerVerified: boolean;
 }
 
 /**
@@ -235,7 +238,10 @@ async function loadSessionUser(): Promise<(SessionUser & { suspendedAt: Date | n
     role: appUser.role as Role,
     customerId: appUser.customer?.id ?? null,
     providerId: appUser.provider?.id ?? null,
-    providerApproved: appUser.provider?.approvalStatus === "APPROVED",
+    providerLive:
+      Boolean(appUser.provider?.onboardedAt) &&
+      (appUser.provider?.approvalStatus === "APPROVED" || appUser.provider?.approvalStatus === "PENDING"),
+    providerVerified: appUser.provider?.approvalStatus === "APPROVED",
     suspendedAt: appUser.suspendedAt,
   };
 }
@@ -267,6 +273,6 @@ export async function requireApprovedProvider(
   returnTo: string,
 ): Promise<SessionUser> {
   const user = await requireRole("PROVIDER", returnTo);
-  if (!user.providerApproved) redirect("/provider/pending");
+  if (!user.providerLive) redirect("/provider/pending");
   return user;
 }

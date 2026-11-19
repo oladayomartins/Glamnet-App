@@ -10,7 +10,7 @@ export default async function ProviderPendingPage() {
   const user = await requireRole("PROVIDER", "/provider/pending");
 
   // Already approved: no reason to sit on a waiting screen.
-  if (user.providerApproved) {
+  if (user.providerLive) {
     return (
       <Card className="p-6">
         <h1 className="font-display text-2xl font-bold text-ink">

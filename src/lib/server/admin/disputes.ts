@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "../prisma";
 import { paymentGateway, PaymentError } from "../payments";
 import { holdSavedCard } from "../payment-flow";
+import { mustHoldPayout, releaseHeldPayouts } from "../held-payouts";
 import { deliverBookingNotice } from "../notifications";
 import {
   disputedAmountsOf,
@@ -51,7 +52,7 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
     where: { id: bookingId },
     include: {
       customer: { select: { name: true, email: true } },
-      provider: { select: { id: true, name: true, email: true, stripeAccountId: true, payoutsEnabled: true } },
+      provider: { select: { id: true, name: true, email: true, stripeAccountId: true, payoutsEnabled: true, isVerified: true } },
     },
   });
   if (!booking) throw new AdminError("Booking not found.", 404, "NOT_FOUND");
@@ -88,20 +89,21 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
       `${formatMoney(booking.refundedMinor)} has already been refunded on this booking. Rule with no further refund, or refund the rest in the Stripe dashboard.`,
     );
   }
-  if (plan.stage === "RELEASED" && plan.clawbackMinor > 0 && !booking.transferId) {
+  if (plan.stage === "RELEASED" && plan.clawbackMinor > 0 && !booking.transferId && !booking.payoutHeld) {
     throw new AdminError("There's no transfer to the vendor on record to recover from.");
   }
-  if (
-    plan.stage === "HELD" &&
-    plan.captureMinor > 0 &&
-    gateway.mode === "stripe" &&
-    plan.vendorPayMinor > 0 &&
-    (!booking.provider?.stripeAccountId || !booking.provider.payoutsEnabled)
-  ) {
-    throw new AdminError("The vendor hasn't finished their payout set-up, so they can't be paid yet.");
-  }
+  // A vendor who isn't verified, or can't be paid yet, has their share kept
+  // back like any other held payout, rather than blocking the ruling.
+  const holdVendorPay =
+    plan.stage === "HELD" && plan.vendorPayMinor > 0 && (!booking.provider || mustHoldPayout(booking.provider, gateway.mode));
 
-  const money = { transferId: booking.transferId, refundId: "", transferReversalId: "", captured: false };
+  const money = {
+    transferId: booking.transferId,
+    refundId: "",
+    transferReversalId: "",
+    captured: false,
+    payoutHeld: booking.payoutHeld || holdVendorPay,
+  };
 
   try {
     if (plan.stage === "HELD") {
@@ -122,7 +124,7 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
           bookingId: booking.id,
           paymentIntentId,
           destinationAccountId: booking.provider?.stripeAccountId || `sim_acct_${booking.providerId}`,
-          payoutMinor: plan.vendorPayMinor,
+          payoutMinor: holdVendorPay ? 0 : plan.vendorPayMinor,
           captureMinor: plan.captureMinor,
         });
         money.transferId = transferId;
@@ -136,7 +138,8 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
           amountMinor: plan.refundMinor,
         }));
       }
-      if (plan.clawbackMinor > 0) {
+      // On a held payout the clawback is simply not paid out later.
+      if (plan.clawbackMinor > 0 && !booking.payoutHeld) {
         ({ reversalId: money.transferReversalId } = await gateway.reverseTransfer({
           bookingId: booking.id,
           transferId: booking.transferId!,
@@ -162,6 +165,7 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
         refundId: money.refundId,
         transferReversalId: money.transferReversalId,
         transferId: money.transferId,
+        payoutHeld: money.payoutHeld,
         ...(plan.stage !== "NONE" ? { paymentStatus: plan.paymentStatus } : {}),
         ...(money.captured && !booking.escrowReleasedAt ? { escrowReleasedAt: now } : {}),
         disputeResolution: input.note,
@@ -240,6 +244,11 @@ export async function resolveDispute(actorEmail: string, bookingId: string, raw:
       facts: [["Our note", input.note]],
       cta: "View booking",
     });
+  }
+
+  // A held payout waits out its dispute; once ruled, it goes if it can.
+  if (money.payoutHeld && booking.providerId) {
+    await releaseHeldPayouts(booking.providerId).catch((error) => console.error("releaseHeldPayouts", error));
   }
 
   return updated;

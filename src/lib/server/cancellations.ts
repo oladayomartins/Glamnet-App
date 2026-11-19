@@ -4,6 +4,7 @@ import { ratesForBooking } from "./fee-config";
 import { BookingError } from "./booking-service";
 import { paymentGateway, PaymentError } from "./payments";
 import { voidPaymentForBooking } from "./escrow";
+import { mustHoldPayout } from "./held-payouts";
 import { deliverBookingNotice, formatAppointment } from "./notifications";
 import {
   noShowAllowedFrom,
@@ -42,7 +43,7 @@ export const ADMIN_CANCELLABLE = ["REQUESTED", "BROADCAST", ...PROVIDER_CANCELLA
 
 type FullBooking = Booking & {
   customer: { name: string; email: string; stripeCustomerId: string };
-  provider: { name: string; email: string; stripeAccountId: string; payoutsEnabled: boolean } | null;
+  provider: { name: string; email: string; stripeAccountId: string; payoutsEnabled: boolean; isVerified: boolean } | null;
 };
 
 async function load(bookingId: string): Promise<FullBooking> {
@@ -50,7 +51,7 @@ async function load(bookingId: string): Promise<FullBooking> {
     where: { id: bookingId },
     include: {
       customer: { select: { name: true, email: true, stripeCustomerId: true } },
-      provider: { select: { name: true, email: true, stripeAccountId: true, payoutsEnabled: true } },
+      provider: { select: { name: true, email: true, stripeAccountId: true, payoutsEnabled: true, isVerified: true } },
     },
   });
   if (!booking) throw new BookingError("Booking not found.", "NOT_FOUND", 404);
@@ -262,9 +263,10 @@ async function collectFee(booking: FullBooking, feeMinor: number, travelInFee: n
       firstDiscoveryBooking: booking.firstDiscoveryBooking,
       cardFeeBps: (await ratesForBooking(booking.feeConfigId)).cardFeeBps,
     });
-    // A vendor who hasn't finished payout set-up still earns their share; it
-    // is kept back and paid by the team once they have.
-    const payoutHeld = gateway.mode === "stripe" && (!booking.provider?.stripeAccountId || !booking.provider.payoutsEnabled);
+    // A vendor who isn't verified, or hasn't finished payout set-up, still
+    // earns their share; it is kept back and paid out automatically once
+    // they are (lib/server/held-payouts.ts).
+    const payoutHeld = !booking.provider || mustHoldPayout(booking.provider, gateway.mode);
     const { transferId } = await gateway.captureAndTransfer({
       bookingId: booking.id,
       paymentIntentId,
@@ -279,6 +281,7 @@ async function collectFee(booking: FullBooking, feeMinor: number, travelInFee: n
         paymentIntentId,
         holdAttempts,
         transferId,
+        payoutHeld,
         paymentStatus: "ESCROW_RELEASED",
         cancellationFeeMinor: feeMinor,
         cancellationFeePayoutMinor: vendorShare,
@@ -295,7 +298,7 @@ async function collectFee(booking: FullBooking, feeMinor: number, travelInFee: n
           channel: "IN_APP",
           bookingType: booking.bookingType,
           title: "Cancellation fee payout held",
-          body: `${formatMoney(vendorShare)} is owed to ${booking.provider?.name ?? "the vendor"}, who hasn't finished payout set-up. Pay it once they have.`,
+          body: `${formatMoney(vendorShare)} is owed to ${booking.provider?.name ?? "the vendor"}, who isn't verified or hasn't finished payout set-up. It goes out automatically once they are.`,
         },
       });
     }
@@ -428,7 +431,7 @@ async function tellEveryone(
       heading: "Booking cancelled",
       lead:
         facts.payout > 0
-          ? `The client cancelled less than ${FREE_CANCELLATION_HOURS} hours before. Under the cancellation policy you'll receive ${formatMoney(facts.payout)}${facts.fee?.collected && facts.fee.payoutHeld ? " once your payout set-up is finished" : ""}. Please don't travel to it.`
+          ? `The client cancelled less than ${FREE_CANCELLATION_HOURS} hours before. Under the cancellation policy you'll receive ${formatMoney(facts.payout)}${facts.fee?.collected && facts.fee.payoutHeld ? " once you're verified and your bank is linked" : ""}. Please don't travel to it.`
           : "This booking has been cancelled and your time is free again. Please don't travel to it.",
       facts: [["Appointment", when]],
       cta: "View booking",

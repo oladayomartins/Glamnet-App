@@ -21,7 +21,7 @@ export default async function ProviderIndexPage() {
   // admin sees the roster.
   const viewer = await requireUser("/provider");
   if (viewer.role === "PROVIDER") {
-    if (viewer.providerApproved) redirect(`/provider/${viewer.providerId}`);
+    if (viewer.providerLive) redirect(`/provider/${viewer.providerId}`);
     // A new applicant builds their storefront first; the waiting screen is
     // for applications that have actually been submitted.
     const onboarded = viewer.providerId

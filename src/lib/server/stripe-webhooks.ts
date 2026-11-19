@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { releaseHeldPayouts } from "./held-payouts";
 import { onHoldCancelled, securePayment } from "./payment-flow";
 import { formatMoney } from "@/lib/domain/pricing";
 import { confirmPromotion, expirePromotionCheckout } from "./promotions";
@@ -61,6 +62,12 @@ const HANDLERS: Record<string, Handler> = {
       where: { stripeAccountId: str(account.id) },
       data: { payoutsEnabled: account.payouts_enabled === true },
     });
+    // A verified vendor whose bank has just started working is paid what
+    // was held for them.
+    if (account.payouts_enabled === true) {
+      const vendors = await prisma.provider.findMany({ where: { stripeAccountId: str(account.id) }, select: { id: true } });
+      for (const vendor of vendors) await releaseHeldPayouts(vendor.id);
+    }
   },
 
   /**

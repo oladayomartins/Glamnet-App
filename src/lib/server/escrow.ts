@@ -4,6 +4,7 @@ import { prisma } from "./prisma";
 import { BookingError } from "./booking-service";
 import { paymentGateway, PaymentError } from "./payments";
 import { holdSavedCard } from "./payment-flow";
+import { mustHoldPayout } from "./held-payouts";
 import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import {
   canDispute,
@@ -276,22 +277,20 @@ export async function releaseWithPin(
   // Money first, then the record: a booking must never say "released" for a
   // transfer that did not happen.
   let transferId = "";
+  let payoutHeld = false;
   if (booking.paymentStatus === "AUTHORISED" && booking.paymentIntentId) {
     const provider = await prisma.provider.findUniqueOrThrow({ where: { id: providerId } });
     const gateway = paymentGateway();
-    if (gateway.mode === "stripe" && (!provider.stripeAccountId || !provider.payoutsEnabled)) {
-      throw new BookingError(
-        "Link your payout account before releasing payment. The PIN will still work afterwards.",
-        "INVALID_TRANSITION",
-        409,
-      );
-    }
+    // An unverified vendor (or one without a working bank) still closes the
+    // job and the client is still charged: only their share is kept back,
+    // and paid the moment they're verified. See lib/server/held-payouts.ts.
+    payoutHeld = mustHoldPayout(provider, gateway.mode);
     try {
       ({ transferId } = await gateway.captureAndTransfer({
         bookingId,
         paymentIntentId: booking.paymentIntentId,
         destinationAccountId: provider.stripeAccountId || `sim_acct_${providerId}`,
-        payoutMinor: booking.providerPayoutMinor,
+        payoutMinor: payoutHeld ? 0 : booking.providerPayoutMinor,
       }));
     } catch (error) {
       if (error instanceof PaymentError) {
@@ -308,6 +307,7 @@ export async function releaseWithPin(
         status: "PAYMENT_RELEASED",
         paymentStatus: booking.paymentStatus === "AUTHORISED" ? "ESCROW_RELEASED" : booking.paymentStatus,
         transferId,
+        payoutHeld,
         escrowReleasedAt: now,
         disputeWindowClosesAt: disputeWindowClosesAt(now),
         // Single use: the code is spent the moment it matches.
@@ -322,7 +322,9 @@ export async function releaseWithPin(
         actor: "PROVIDER",
         note:
           booking.paymentStatus === "AUTHORISED"
-            ? "PIN verified; escrow released to the vendor."
+            ? payoutHeld
+              ? "PIN verified; client charged. Vendor's payout held until they're verified."
+              : "PIN verified; escrow released to the vendor."
             : "PIN verified; no card hold was on file for this booking.",
       },
     });

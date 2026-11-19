@@ -39,6 +39,7 @@ export function refundability(booking: {
   cancellationFeeMinor: number;
   cancellationFeePayoutMinor: number;
   transferId: string;
+  payoutHeld: boolean;
 }): { ok: true; chargeMinor: number; payoutMinor: number; canRecover: boolean } | { ok: false; reason: string } {
   if (booking.settlementStatus === "DISPUTED") return { ok: false, reason: "Under dispute — rule on the dispute instead." };
   if (booking.refundedMinor > 0) return { ok: false, reason: `Already refunded ${formatMoney(booking.refundedMinor)}.` };
@@ -48,7 +49,7 @@ export function refundability(booking: {
   if (booking.paymentStatus !== "ESCROW_RELEASED") return { ok: false, reason: "No card payment to refund." };
   const { chargeMinor, payoutMinor } = disputedAmountsOf(booking);
   if (chargeMinor <= 0) return { ok: false, reason: "Nothing was charged." };
-  return { ok: true, chargeMinor, payoutMinor, canRecover: Boolean(booking.transferId) && payoutMinor > 0 };
+  return { ok: true, chargeMinor, payoutMinor, canRecover: (Boolean(booking.transferId) || booking.payoutHeld) && payoutMinor > 0 };
 }
 
 /**
@@ -100,7 +101,8 @@ export async function refundBooking(actorEmail: string, bookingId: string, raw: 
   let reversalId = "";
   try {
     ({ refundId } = await gateway.refund({ bookingId, paymentIntentId: booking.paymentIntentId, amountMinor: input.refundMinor }));
-    if (input.clawbackMinor > 0) {
+    // A held payout isn't reversed: the clawback is just never paid out.
+    if (input.clawbackMinor > 0 && !booking.payoutHeld) {
       ({ reversalId } = await gateway.reverseTransfer({
         bookingId,
         transferId: booking.transferId,

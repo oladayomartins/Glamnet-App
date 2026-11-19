@@ -60,7 +60,7 @@ export default async function OnboardingPage({
       cardFeePct={percent(feeRates.cardFeeBps)}
       testPayments={paymentGateway().mode === "simulated"}
       uploadsEnabled={isImageKitConfigured()}
-      approved={user.providerApproved}
+      approved={user.providerLive}
       submitted={provider.onboardedAt !== null}
       gaps={gaps}
       categories={categories.map(({ slug, name, emoji, blurb, imageUrl }) => ({ slug, name, emoji, blurb, imageUrl }))}

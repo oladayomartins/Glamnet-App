@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { prisma } from "./prisma";
 import type { ProviderSchedule } from "@/lib/domain/availability";
 import type { MatchCandidate } from "@/lib/domain/matching";
@@ -57,7 +58,7 @@ export async function loadCandidates(
     // whatever route the request arrived by.
     where: {
       isAcceptingWork: true,
-      approvalStatus: "APPROVED",
+      ...LISTED_VENDOR,
       ...(box
         ? {
             OR: [

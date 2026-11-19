@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { prisma } from "./prisma";
 import { BookingError, settlementFields } from "./booking-service";
 import { getActiveEmergencyConfig } from "./emergency-config";
@@ -50,8 +51,7 @@ export const CHECKOUT_HOLD_MINUTES = 30;
  * break it. They only stop being bookable (LIVE_VENDOR).
  */
 const PUBLISHED_VENDOR = {
-  approvalStatus: "APPROVED",
-  isVerified: true,
+  ...LISTED_VENDOR,
   slug: { not: null },
 } as const;
 

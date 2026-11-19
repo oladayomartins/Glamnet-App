@@ -1,3 +1,4 @@
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Clock } from "@phosphor-icons/react/dist/ssr";
@@ -55,7 +56,7 @@ export default async function ConfirmPage({
         ? prisma.provider.findFirst({
             where: {
               id: query.provider,
-              approvalStatus: "APPROVED",
+              ...LISTED_VENDOR,
               isAcceptingWork: true,
             },
             select: { name: true },
