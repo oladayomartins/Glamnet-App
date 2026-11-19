@@ -252,6 +252,8 @@ export async function getMarketingData() {
     searchHints,
     stats: {
       providerCount: providers.length,
+      /** Approved by GLAMNET — what "vetted" claims count, never the listed total. */
+      verifiedCount: providers.filter((provider) => provider.approvalStatus === "APPROVED").length,
       averageRating,
       serviceCount: services.filter((s) => s.kind !== "ADDON").length,
       cityCount: cities.filter((city) => city.providerCount > 0).length,

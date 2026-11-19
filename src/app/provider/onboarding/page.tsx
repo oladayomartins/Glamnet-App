@@ -3,7 +3,8 @@ import { currentFeeRates } from "@/lib/server/fee-config";
 import { percent } from "@/lib/domain/fee-rates";
 import { prisma } from "@/lib/server/prisma";
 import { requireRole } from "@/lib/auth/session";
-import { onboardingGaps } from "@/lib/server/provider-portal";
+import { onboardingGaps, vendorSetup } from "@/lib/server/provider-portal";
+import { heldPayoutSummary } from "@/lib/server/held-payouts";
 import { paymentGateway } from "@/lib/server/payments";
 import { isImageKitConfigured } from "@/lib/imagekit";
 import { siteUrl } from "@/lib/site";
@@ -15,7 +16,9 @@ export const dynamic = "force-dynamic";
 /**
  * The 2-minute sign-up wizard (Directory §C, Flow 3):
  * profile → storefront link & socials → workspace → menu → lookbook →
- * documents (optional) → payouts → submit for review.
+ * documents → payouts → go live. Only the bookable basics are needed to go
+ * live (listed as "Not verified"); the rest counts towards the setup
+ * percentage and the verified badge — see lib/domain/vendor-setup.ts.
  *
  * Also the vendor's place to edit their storefront later, so it opens for
  * approved vendors too, not only applicants.
@@ -30,7 +33,7 @@ export default async function OnboardingPage({
   const { step, payouts } = await searchParams;
 
   const feeRates = await currentFeeRates();
-  const [provider, catalogue, gaps, categories] = await Promise.all([
+  const [provider, catalogue, gaps, categories, setup, held] = await Promise.all([
     prisma.provider.findUniqueOrThrow({
       where: { id: user.providerId },
       include: {
@@ -46,6 +49,8 @@ export default async function OnboardingPage({
     }),
     onboardingGaps(user.providerId),
     listCategories(),
+    vendorSetup(user.providerId),
+    heldPayoutSummary(user.providerId),
   ]);
 
   const hubOrder = categories.map((hub) => hub.name);
@@ -60,9 +65,11 @@ export default async function OnboardingPage({
       cardFeePct={percent(feeRates.cardFeeBps)}
       testPayments={paymentGateway().mode === "simulated"}
       uploadsEnabled={isImageKitConfigured()}
-      approved={user.providerLive}
-      submitted={provider.onboardedAt !== null}
+      approved={user.providerVerified}
+      submitted={user.providerLive}
       gaps={gaps}
+      setup={setup}
+      heldMinor={held.totalMinor}
       categories={categories.map(({ slug, name, emoji, blurb, imageUrl }) => ({ slug, name, emoji, blurb, imageUrl }))}
       profile={{
         name: provider.name,

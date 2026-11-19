@@ -92,8 +92,8 @@ function prosLabel(count: number): string | null {
 const PROMISES = [
   {
     icon: <SealCheck size={22} weight="fill" />,
-    title: "Every vendor is checked",
-    body: "Insurance or practitioner licence reviewed before a storefront ever goes live.",
+    title: "Look for the verified badge",
+    body: "Verified vendors have finished every step and had their ID, insurance or licence checked by us. New vendors say so until they have.",
   },
   {
     icon: <Receipt size={22} weight="light" />,
@@ -355,14 +355,14 @@ export default async function MarketingPage() {
               <HeroFigure
                 icon={<ShieldCheck size={15} weight="fill" aria-hidden />}
                 value={
-                  stats.providerCount >= SHOW_COUNTS_FROM
-                    ? String(stats.providerCount)
-                    : "100%"
+                  stats.verifiedCount >= SHOW_COUNTS_FROM
+                    ? String(stats.verifiedCount)
+                    : "Verified"
                 }
                 label={
-                  stats.providerCount >= SHOW_COUNTS_FROM
-                    ? "Vetted vendors"
-                    : "Vendors vetted"
+                  stats.verifiedCount >= SHOW_COUNTS_FROM
+                    ? "Verified vendors"
+                    : "Badge = checked by us"
                 }
               />
               <HeroFigure
@@ -518,7 +518,7 @@ export default async function MarketingPage() {
 
       {spotlight.length > 0 ? (
         <Container className="pt-14 sm:pt-16">
-          <BlockHeading title="Sponsored vendors" lede="Vetted vendors who pay to be shown here." />
+          <BlockHeading title="Sponsored vendors" lede="Verified vendors who pay to be shown here." />
           <Rail label="Sponsored vendors">
             {spotlight.map((provider) => (
               <div key={provider.id} className="w-[220px] shrink-0 snap-start sm:w-[250px]">
@@ -758,11 +758,11 @@ export default async function MarketingPage() {
                     <span className="font-semibold text-ink">
                       {stats.providerCount}
                     </span>{" "}
-                    vetted vendors taking bookings across {stats.cityCount}{" "}
+                    vendors taking bookings across {stats.cityCount}{" "}
                     {stats.cityCount === 1 ? "city" : "cities"}
                   </>
                 ) : (
-                  "Vetted vendors taking bookings now"
+                  "Vendors taking bookings now"
                 )}
               </p>
             </div>

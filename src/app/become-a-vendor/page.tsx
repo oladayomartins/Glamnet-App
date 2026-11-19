@@ -408,8 +408,10 @@ export default async function BecomeVendorPage() {
             problem, and then the booking is closed.
           </Faq>
           <Faq q="How long does it take to set up?">
-            The storefront takes a few minutes. You go live once we have checked your insurance or
-            licence and your bank is linked.
+            The storefront takes a few minutes, and you can go live as soon as your menu, link,
+            area and hours are in. Until you&rsquo;ve finished every step and we&rsquo;ve checked your
+            ID or insurance, you&rsquo;re shown as &ldquo;Not verified&rdquo; and your earnings are kept
+            safe for you. Once you&rsquo;re verified you get the badge, and everything held is paid out.
           </Faq>
           <Faq q="Do I need my own website?">
             No. Your storefront is your website — a link you can share anywhere, with your lookbook,

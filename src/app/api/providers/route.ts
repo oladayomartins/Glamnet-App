@@ -1,4 +1,3 @@
-import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { errorResponse } from "@/lib/api/respond";
@@ -8,7 +7,7 @@ export async function GET() {
   try {
     const providers = await prisma.provider.findMany({
       // Pending and rejected applicants are not part of the marketplace.
-      where: { ...LISTED_VENDOR },
+      where: { approvalStatus: "APPROVED" },
       orderBy: [{ rating: "desc" }, { name: "asc" }],
       select: {
         id: true,

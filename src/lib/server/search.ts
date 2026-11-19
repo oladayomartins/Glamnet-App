@@ -1,4 +1,3 @@
-import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { lookupPlace } from "./geo";
 import { distanceKm, outwardCode } from "@/lib/domain/postcode";
 import { prisma } from "./prisma";
@@ -16,7 +15,7 @@ import { prisma } from "./prisma";
 export async function searchableAreas() {
   const hubs = await prisma.hub.findMany({
     where: {
-      providers: { some: { ...LISTED_VENDOR, isAcceptingWork: true } },
+      providers: { some: { approvalStatus: "APPROVED", isAcceptingWork: true } },
     },
     orderBy: { city: "asc" },
     select: { id: true, name: true, city: true, sector: true, latitude: true, longitude: true },

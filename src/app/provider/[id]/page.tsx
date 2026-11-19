@@ -11,6 +11,9 @@ import { AcceptingSwitch } from "./accepting-switch";
 import { requireVendorPage } from "./access";
 import { BioLink } from "@/components/bio-link";
 import { siteUrl } from "@/lib/site";
+import { vendorSetup } from "@/lib/server/provider-portal";
+import { heldPayoutSummary } from "@/lib/server/held-payouts";
+import { SetupMeter } from "@/components/setup-meter";
 
 /** The dashboard reads live figures, so it must not be prerendered. */
 export const dynamic = "force-dynamic";
@@ -48,12 +51,14 @@ export default async function ProviderPage({
   const viewer = await requireVendorPage(id, `/provider/${id}`);
   const rates = await currentFeeRates();
 
-  const [provider, today] = await Promise.all([
+  const [provider, today, setup, held] = await Promise.all([
     prisma.provider.findUnique({
       where: { id },
       include: { hub: { select: { name: true, sector: true } } },
     }),
     getProviderToday(id),
+    vendorSetup(id),
+    heldPayoutSummary(id),
   ]);
 
   if (!provider || !today) notFound();
@@ -109,6 +114,22 @@ export default async function ProviderPage({
           </Link>
         </div>
       </header>
+
+      {/* Until verified, how far they are and what's held for them comes
+          first: it's what stands between them and being paid. */}
+      {setup.verified && held.totalMinor === 0 ? null : (
+        <section aria-label="Your setup">
+          <SetupMeter setup={setup} heldMinor={held.totalMinor} live />
+          {setup.verified ? null : (
+            <Link
+              href="/provider/onboarding?step=review"
+              className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full bg-metal px-5 text-sm font-bold text-metal-ink transition duration-[180ms] ease-glam hover:brightness-105"
+            >
+              {setup.readyForApproval ? "See your checklist" : "Finish setting up"}
+            </Link>
+          )}
+        </section>
+      )}
 
       <AcceptingSwitch providerId={provider.id} initial={provider.isAcceptingWork} />
 

@@ -1,4 +1,3 @@
-import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import Link from "next/link";
 import { prisma } from "@/lib/server/prisma";
 import { getPricingContext } from "@/lib/server/emergency-config";
@@ -18,10 +17,10 @@ export default async function BookPage() {
   const [hubs, { config, thresholdMinutes }] = await Promise.all([
     // Quick picks: only areas that already have live vendors.
     prisma.hub.findMany({
-      where: { providers: { some: { ...LISTED_VENDOR, isAcceptingWork: true } } },
+      where: { providers: { some: { approvalStatus: "APPROVED", isAcceptingWork: true } } },
       orderBy: { name: "asc" },
       take: 12,
-      include: { _count: { select: { providers: { where: { ...LISTED_VENDOR } } } } },
+      include: { _count: { select: { providers: { where: { approvalStatus: "APPROVED" } } } } },
     }),
     getPricingContext(),
   ]);

@@ -21,7 +21,6 @@ import {
   MapPin,
   Minus,
   Plus,
-  SealCheck,
   Sparkle,
   Storefront,
   TiktokLogo,
@@ -42,6 +41,9 @@ import {
 import { aboutPrompts } from "@/lib/domain/about-sections";
 import { WelcomeIntro } from "./welcome";
 import { BioLink } from "@/components/bio-link";
+import { SetupMeter } from "@/components/setup-meter";
+import { VerifiedBadge } from "@/components/verified-badge";
+import type { SetupProgress } from "@/lib/domain/vendor-setup";
 import { BrandImage } from "@/components/brand-image";
 import { DocumentUpload } from "@/components/document-upload";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
@@ -95,9 +97,9 @@ const STEPS = [
   { key: "workspace", label: "Workspace", title: "Where do clients find you?", lede: "Only your postcode sector is ever shown publicly." },
   { key: "hours", label: "Hours", title: "When do you work?", lede: "Clients can only book inside these hours. Change them any time." },
   { key: "lookbook", label: "Lookbook", title: "Show your best work", lede: "Three transformations sell better than any description. Optional for now." },
-  { key: "compliance", label: "Documents", title: "Documents (optional)", lede: "Got insurance, a licence or a certificate? Add it here — it's optional, and you can skip this step." },
-  { key: "payouts", label: "Payouts", title: "Link your bank", lede: "Payments are released to you by your client's PIN, straight through Stripe." },
-  { key: "review", label: "Go live", title: "Ready when you are", lede: "Here's everything in one place." },
+  { key: "compliance", label: "Documents", title: "Documents", lede: "Add ID, insurance, a licence or a certificate. You can skip this and still go live — it's needed for your verified badge and to be paid." },
+  { key: "payouts", label: "Payouts", title: "Link your bank", lede: "Payments reach you through Stripe. You can skip this and still go live — your earnings are kept safe until you're verified." },
+  { key: "review", label: "Go live", title: "Ready when you are", lede: "Go live with the basics now, and finish the rest to get verified." },
 ] as const;
 
 const WORKSPACES = [
@@ -149,9 +151,15 @@ export function OnboardingWizard(props: {
   cardFeePct: string;
   testPayments: boolean;
   uploadsEnabled: boolean;
+  /** Verified: approved by GLAMNET after every step. */
   approved: boolean;
+  /** Gone live (listed), verified or not. */
   submitted: boolean;
   gaps: string[];
+  /** The setup checklist and percentage, as last saved. */
+  setup: SetupProgress;
+  /** Earnings kept back until the vendor is verified. */
+  heldMinor: number;
   profile: Profile;
   catalogue: CatalogueItem[];
   /** The categories an admin has left visible, in their order. */
@@ -290,9 +298,8 @@ export function OnboardingWizard(props: {
       case "storefront":
         if (slugState === "checking") return "Checking your link — one moment.";
         if (slugState !== "free") return "Choose an available storefront link.";
-        return bioShort > 0
-          ? `Your bio needs ${bioShort} more ${bioShort === 1 ? "character" : "characters"} (at least 20).`
-          : null;
+        // A bio counts towards being verified, but doesn't stop going live.
+        return null;
       default:
         return null;
     }
@@ -396,7 +403,10 @@ export function OnboardingWizard(props: {
             {props.approved ? "Your storefront" : "Claim your free storefront"}
           </span>
           <span data-numeric>
-            Step {index + 1} of {STEPS.length}
+            Step {index + 1} of {STEPS.length} ·{" "}
+            <span className={props.setup.verified ? "font-semibold text-normal-ink" : "font-semibold text-accent-700"}>
+              {props.setup.percent}% set up
+            </span>
           </span>
         </div>
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sunken" aria-hidden>
@@ -1072,19 +1082,13 @@ export function OnboardingWizard(props: {
               <div className="max-w-lg space-y-5">
                 {/* Each unfinished item is a shortcut straight to the step that
                     finishes it. */}
+                <SetupMeter setup={props.setup} heldMinor={props.heldMinor} live={props.submitted} />
+                {/* Each unfinished item is a shortcut straight to the step that
+                    finishes it. The basics come first: they're what going
+                    live needs. */}
                 <ul className="space-y-2">
-                  {(
-                    [
-                      ["Profile photo", Boolean(profile.avatar), "profile"],
-                      ["Specialties chosen", done.specialties, "specialties"],
-                      ["Menu with at least one service", done.menu, "menu"],
-                      ["Storefront link and bio", done.storefront, "storefront"],
-                      ["Workspace", done.workspace, "workspace"],
-                      ["Working hours set", done.hours, "hours"],
-                      ["Insurance, licence or certificate (optional)", done.compliance, "compliance"],
-                      ["Bank linked for payouts (needed before you're paid)", done.payouts, "payouts"],
-                    ] as const
-                  ).map(([label, finished, target], at) => {
+                  {props.setup.items.map((item, at) => {
+                    const finished = item.done;
                     const row = (
                       <>
                         {finished ? (
@@ -1092,8 +1096,13 @@ export function OnboardingWizard(props: {
                         ) : (
                           <Circle size={20} className="shrink-0 text-accent-500" aria-hidden />
                         )}
-                        <span className={`flex-1 ${finished ? "text-ink" : "text-ink-muted"}`}>{label}</span>
-                        {finished ? null : (
+                        <span className={`flex-1 ${finished ? "text-ink" : "text-ink-muted"}`}>
+                          {item.label}
+                          {!finished && item.requiredToList ? (
+                            <span className="ml-2 rounded-full bg-accent-100 px-2 py-0.5 text-[11px] font-semibold text-accent-700">Needed to go live</span>
+                          ) : null}
+                        </span>
+                        {finished || item.key === "approval" ? null : (
                           <span className="flex items-center gap-1 text-xs font-semibold text-accent-700 transition duration-[180ms] ease-glam group-hover:translate-x-0.5">
                             Finish <ArrowRight size={12} weight="bold" aria-hidden />
                           </span>
@@ -1102,13 +1111,13 @@ export function OnboardingWizard(props: {
                     );
                     const base = "rise-in flex w-full items-center gap-3 rounded-glam border bg-surface p-3.5 text-left text-sm";
                     return (
-                      <li key={label} style={{ animationDelay: `${at * 70}ms` }}>
-                        {finished ? (
+                      <li key={item.key} style={{ animationDelay: `${at * 50}ms` }}>
+                        {finished || item.key === "approval" ? (
                           <div className={`${base} border-line`}>{row}</div>
                         ) : (
                           <button
                             type="button"
-                            onClick={() => go(STEPS.findIndex((candidate) => candidate.key === target))}
+                            onClick={() => go(STEPS.findIndex((candidate) => candidate.key === item.step))}
                             className={`group ${base} border-accent-500/40 transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:border-accent-500 hover:shadow-card`}
                           >
                             {row}
@@ -1118,10 +1127,10 @@ export function OnboardingWizard(props: {
                     );
                   })}
                 </ul>
-                {props.gaps.length > 0 && !props.approved ? (
+                {props.gaps.length > 0 && !props.submitted ? (
                   <p className="text-sm text-warning">
                     {props.gaps.length === 1 ? "One thing" : `${props.gaps.length} things`} left before you can
-                    submit — tap an item above to finish it.
+                    go live — tap an item marked &ldquo;Needed to go live&rdquo;.
                   </p>
                 ) : null}
                 {profile.slug ? <BioLink
@@ -1132,10 +1141,12 @@ export function OnboardingWizard(props: {
                   /> : null}
                 <p className="text-sm text-ink-muted">
                   {props.approved
-                    ? "You're live. Changes you save here show on your storefront straight away."
+                    ? "You're live and verified. Changes you save here show on your storefront straight away."
                     : props.submitted
-                      ? "Submitted — we're checking your documents. Your link goes live the moment you're verified."
-                      : "Submit for review. Once your documents are checked you're verified and your storefront goes live."}
+                      ? props.setup.readyForApproval
+                        ? "You're live. Everything's done — we're checking your details, and you'll get your verified badge and your payouts once we approve you."
+                        : "You're live, marked “Not verified”. Clients can book you now; finish the items above and we'll check you for your verified badge."
+                      : "Go live now and clients can book you straight away, shown as “Not verified”. Your earnings are kept safe and paid out once you reach 100% and we've approved you."}
                 </p>
               </div>
             ) : null}
@@ -1181,8 +1192,8 @@ export function OnboardingWizard(props: {
                 ) : null}
                 {step.key === "review"
                   ? busy
-                    ? "Submitting…"
-                    : "Submit for review"
+                    ? "Going live…"
+                    : "Go live"
                   : step.key === "lookbook" && looks.every((look) => look === null)
                     ? "Skip for now"
                     : busy
@@ -1224,7 +1235,7 @@ export function OnboardingWizard(props: {
             </span>
             <p className="flex items-center gap-1.5 font-display text-xl font-bold text-ink">
               <span className="truncate">{profile.name || "Your name"}</span>
-              <SealCheck size={18} weight="fill" className={props.approved ? "text-accent-500" : "text-ink-muted/40"} aria-label={props.approved ? "Verified" : "Verification pending"} />
+              <VerifiedBadge verified={props.approved} size={18} />
             </p>
             <p className="mt-1 truncate font-mono text-xs text-accent-700">
               {props.siteOrigin}/pro/{profile.slug || "your-link"}

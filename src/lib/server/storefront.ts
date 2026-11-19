@@ -168,6 +168,7 @@ export async function getStorefront(slug: string) {
     select: {
       id: true,
       isAcceptingWork: true,
+      isVerified: true,
       slug: true,
       name: true,
       bio: true,
@@ -667,6 +668,8 @@ export interface DirectoryVendor {
   lookbook: string[];
   /** Promoted by an admin: listed first, with a badge. */
   isFeatured: boolean;
+  /** Approved by GLAMNET; unverified vendors are listed too, marked as such. */
+  isVerified: boolean;
   /** Paid for a "Featured in your city" placement: listed first, marked Sponsored. */
   sponsored: boolean;
   /** The centre of the vendor's outward code — public and approximate. */
@@ -723,6 +726,7 @@ export async function listDirectory(input: {
       workspaceType: true,
       workspaceSector: true,
       isFeatured: true,
+      isVerified: true,
       latitude: true,
       longitude: true,
       hub: { select: { sector: true, city: true, latitude: true, longitude: true } },
@@ -779,6 +783,7 @@ export async function listDirectory(input: {
         hubs: [...new Set(menu.map((service) => service.category))],
         lookbook: provider.lookbook.map((image) => image.url),
         isFeatured: provider.isFeatured,
+        isVerified: provider.isVerified,
         // A city placement, so it only lifts a vendor in a local listing,
         // not on the UK-wide page where every city's buyers would pile up.
         sponsored: (Boolean(input.city) || Boolean(input.near)) && promoted.has(provider.id),
@@ -792,6 +797,8 @@ export async function listDirectory(input: {
       (a, b) =>
         Number(b.sponsored) - Number(a.sponsored) ||
         Number(b.isFeatured) - Number(a.isFeatured) ||
+        // Verified vendors before ones still finishing their set-up.
+        Number(b.isVerified) - Number(a.isVerified) ||
         (input.near ? byDistance(a.distanceKm, b.distanceKm) : 0) ||
         b.rating - a.rating ||
         b.completedBookings - a.completedBookings,

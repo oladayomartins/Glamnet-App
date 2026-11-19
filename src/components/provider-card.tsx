@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { VerifiedBadge } from "@/components/verified-badge";
 import {
   Lightning,
   MapPin,
-  ShieldCheck,
   Star,
 } from "@phosphor-icons/react/dist/ssr";
 import { GlamImage } from "@/components/glam-image";
@@ -78,18 +78,16 @@ export function ProviderCard({ provider }: { provider: ProviderCardData }) {
               <Lightning size={11} weight="fill" aria-hidden />
               Free tonight
             </span>
-          ) : provider.vetted ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-surface/95 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-normal-ink">
-              <ShieldCheck size={11} weight="fill" className="text-normal" aria-hidden />
-              Vetted
-            </span>
           ) : null}
         </span>
       </div>
 
       <div className="flex flex-1 flex-col p-3.5">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="truncate text-sm font-bold text-ink">{provider.name}</h3>
+          <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-ink">
+            <span className="truncate">{provider.name}</span>
+            <VerifiedBadge verified={provider.vetted} size={14} />
+          </h3>
           {/* Same rule as the storefront: no rating until someone has given
               one. "5.0 (0)" reads as a default dressed up as an achievement,
               and a customer who notices stops believing the 4.8s too. */}

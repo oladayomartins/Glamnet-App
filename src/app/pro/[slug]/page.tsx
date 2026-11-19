@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { StorefrontViewBeacon } from "./view-beacon";
+import { VerifiedBadge } from "@/components/verified-badge";
 import { currentFeeRates } from "@/lib/server/fee-config";
 import Link from "next/link";
 import { citySlug } from "@/lib/domain/postcode";
@@ -8,7 +9,6 @@ import {
   Clock,
   InstagramLogo,
   MapPin,
-  SealCheck,
   ShieldCheck,
   Star,
   TiktokLogo,
@@ -169,7 +169,7 @@ export default async function StorefrontPage({
           ) : null}
           <h1 className="flex items-center gap-2 font-display text-3xl font-bold tracking-[-0.02em] text-ink">
             {store.name}
-            <SealCheck size={24} weight="fill" className="text-accent-500" aria-label="Verified" />
+            <VerifiedBadge verified={store.isVerified} size={24} />
           </h1>
         </div>
         <p className="mt-2 flex items-center gap-1 text-sm text-ink-muted">
@@ -177,6 +177,12 @@ export default async function StorefrontPage({
           {workspaceLabel(store.workspaceType)} · {store.sector}, {store.hub.city}
           {store.workspaceType !== "MOBILE" && store.travelsToClients ? " · Also travels to you" : ""}
         </p>
+        {store.isVerified ? null : (
+          <p className="mt-2 max-w-xl text-xs text-ink-muted">
+            Not verified yet: {store.name} is new to GLAMNET and still finishing our checks. Your card is only held,
+            and paid when you give them your PIN at the end.
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {reviewAverage === null ? (
             <span className="rounded-full bg-sunken px-3 py-1 text-xs font-bold text-accent-700 ring-1 ring-accent-500/40">
@@ -439,7 +445,9 @@ export default async function StorefrontPage({
               {/* Facts about how Glamnet works, plus the two that come from
                   this vendor's own record. Nothing that needs a field they
                   have not filled in. */}
-              <TrustPoint>Identity and insurance checked before approval</TrustPoint>
+              <TrustPoint>
+                {store.isVerified ? "Verified: identity and insurance checked by GLAMNET" : "Not verified yet — still finishing GLAMNET's checks"}
+              </TrustPoint>
               <TrustPoint>
                 {store.workspaceType === "MOBILE"
                   ? `Travels to clients across ${store.sector}`

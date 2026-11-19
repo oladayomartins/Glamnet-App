@@ -1,7 +1,8 @@
 import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import Link from "next/link";
+import { VerifiedBadge } from "@/components/verified-badge";
 import { redirect } from "next/navigation";
-import { CalendarBlank, CalendarCheck, LockKey, MagnifyingGlass, SealCheck, Star } from "@phosphor-icons/react/dist/ssr";
+import { CalendarBlank, CalendarCheck, LockKey, MagnifyingGlass, Star } from "@phosphor-icons/react/dist/ssr";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/server/prisma";
 import { listCategories } from "@/lib/server/categories";
@@ -220,7 +221,7 @@ export default async function AccountPage({
                   <div className="p-3">
                     <p className="flex items-center gap-1.5 font-display font-bold text-ink">
                       {vendor.name}
-                      <SealCheck size={14} weight="fill" className="text-accent-500" aria-label="Verified" />
+                      <VerifiedBadge verified={vendor.isVerified} size={14} />
                     </p>
                     <p className="mt-0.5 flex items-center justify-between text-xs text-ink-muted">
                       <span className="flex items-center gap-1" data-numeric>

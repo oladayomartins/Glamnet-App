@@ -31,7 +31,7 @@ export default async function SignUpPage({
           ? `Your own booking page, your prices, and ${ownLinkCommission} commission on clients from your link.`
           : "Book verified Black and Asian beauty vendors across the UK — at their studio or at your door."
       }
-      reassurance="Every vendor is checked before their storefront goes live."
+      reassurance="Verified vendors have had their ID and insurance checked — look for the badge."
       footer={
         <>
           Already have an account?{" "}

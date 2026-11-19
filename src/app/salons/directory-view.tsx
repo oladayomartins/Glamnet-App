@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { MapPin, SealCheck, Star, Storefront } from "@phosphor-icons/react/dist/ssr";
+import { VerifiedBadge } from "@/components/verified-badge";
+import { MapPin, Star, Storefront } from "@phosphor-icons/react/dist/ssr";
 import { listDirectory, workspaceLabel } from "@/lib/server/storefront";
 import { listCategories } from "@/lib/server/categories";
 import { backfillHubCoordinates, lookupPlace } from "@/lib/server/geo";
@@ -99,7 +100,7 @@ export async function DirectoryView({
           {hub ? hub.name : "Every salon, chair and studio"}
         </h1>
         <p className="mt-2 max-w-2xl text-[15px] text-ink-muted">
-          Verified independents {where}. Choose a category, add your postcode, and book the person
+          Independent vendors {where} — look for the verified badge. Choose a category, add your postcode, and book the person
           you actually want.
         </p>
       </header>
@@ -173,8 +174,8 @@ export async function DirectoryView({
       {vendors.length === 0 ? (
         <EmptyState icon={<Storefront size={24} weight="light" />} title="Nobody here yet">
           {place
-            ? `No verified vendors within ${radiusMiles} miles of ${place.postcode ?? place.outcode} yet.`
-            : "No verified vendors here yet."}{" "}
+            ? `No vendors within ${radiusMiles} miles of ${place.postcode ?? place.outcode} yet.`
+            : "No vendors here yet."}{" "}
           {space ? (
             <Link href={hrefWith({ space: null })} className="font-semibold text-accent-700">
               Show every kind of space
@@ -238,7 +239,7 @@ export async function DirectoryView({
                   <div className="p-4">
                     <p className="flex items-center gap-1.5 font-display text-lg font-bold text-ink">
                       {vendor.name}
-                      <SealCheck size={16} weight="fill" className="text-accent-500" aria-label="Verified" />
+                      <VerifiedBadge verified={vendor.isVerified} />
                     </p>
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-ink-muted">
                       <span className="flex items-center gap-1" data-numeric>

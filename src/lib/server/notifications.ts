@@ -132,7 +132,7 @@ export async function deliverApprovalEmail(input: {
         input.name,
         input.decision,
         input.note,
-        bookingUrl(input.decision === "APPROVED" ? "/provider" : "/provider/pending"),
+        bookingUrl(input.decision === "REJECTED" ? "/provider/pending" : "/provider"),
       ),
     });
   } catch (cause) {

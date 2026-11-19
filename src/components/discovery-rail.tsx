@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkle, Star } from "@phosphor-icons/react/dist/ssr";
+import { VerifiedBadge } from "@/components/verified-badge";
 import { Rail } from "@/components/rail";
 import { GlamImage } from "@/components/glam-image";
 import type { DiscoveryVendor } from "@/lib/server/discovery";
@@ -38,8 +39,9 @@ export function DiscoveryRail({
               className="aspect-[4/3] w-full object-cover transition duration-[240ms] ease-glam group-hover:scale-[1.03]"
             />
           </span>
-          <span className="mt-2 block truncate font-display text-[15px] font-bold leading-tight text-ink">
-            {vendor.name}
+          <span className="mt-2 flex items-center gap-1.5 font-display text-[15px] font-bold leading-tight text-ink">
+            <span className="truncate">{vendor.name}</span>
+            <VerifiedBadge verified={vendor.isVerified} size={14} />
           </span>
           <span className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted">
             {vendor.rating === null ? (

@@ -141,7 +141,7 @@ export default async function TermsPage() {
           body: (
             <Bullets
               items={[
-                "Every vendor is checked before going live. You must hold the insurance, licences and qualifications your services need, and keep them current.",
+                "You can go live once your storefront has the basics, and you are shown to clients as \u201cNot verified\u201d until you have completed every step and we have checked your details. Until then we keep your earnings and pay them to you once you are verified. You must hold the insurance, licences and qualifications your services need, and keep them current.",
                 "You set your own prices and availability, and must honour bookings you accept. If you have to cancel, the client pays nothing, and you must give them a reason. Cancelling repeatedly, or at short notice, can lead to removal.",
                 <>
                   If a client cancels within {FREE_CANCELLATION_HOURS} hours or doesn&rsquo;t turn up, you receive your share of the
@@ -181,7 +181,7 @@ export default async function TermsPage() {
           body: (
             <>
               <p>
-                We run GLAMNET with reasonable care and skill, check vendors before they go live, and handle payments
+                We run GLAMNET with reasonable care and skill, check vendors before they are verified, and handle payments
                 securely. Vendors are responsible for the services they provide.
               </p>
               <p>
