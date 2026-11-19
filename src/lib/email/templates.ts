@@ -378,3 +378,65 @@ export function bookingNoticeEmail(input: {
   ]);
   return { subject: input.subject, html, text };
 }
+
+/**
+ * Nudge to a vendor who hasn't finished setting up: their percentage, what's
+ * left, and — the strongest reason to finish — any earnings held for them.
+ */
+export function vendorSetupReminderEmail(input: {
+  name: string;
+  percent: number;
+  live: boolean;
+  /** Labels of the unfinished steps, basics first. */
+  missing: string[];
+  /** Already formatted, e.g. "£84.00"; null when nothing is held. */
+  heldLabel: string | null;
+  url: string;
+}): EmailBody {
+  const left = input.missing.length;
+  const subject = input.heldLabel
+    ? `${input.heldLabel} is waiting for you — finish setting up GLAMNET`
+    : input.live
+      ? `Your GLAMNET storefront is ${input.percent}% set up`
+      : `You're ${input.percent}% of the way to going live on GLAMNET`;
+  const lead = input.live
+    ? `Your storefront is live and ${input.percent}% set up. Finish the ${left === 1 ? "last step" : `last ${left} steps`} and we'll check you for your verified badge — clients book verified vendors with more confidence, and that's when your payouts start.`
+    : `Your storefront is ${input.percent}% set up but not live yet. Finish the steps below and you're listed straight away, so clients can find and book you.`;
+  const held = input.heldLabel
+    ? `You've already earned ${input.heldLabel}. We're keeping it safe and pay it to your bank as soon as you're verified.`
+    : null;
+
+  const steps = `<ul style="margin:6px 0 4px;padding-left:20px;font-size:15px;line-height:1.7;color:${INK};">${input.missing
+    .map((label) => `<li>${escapeHtml(label)}</li>`)
+    .join("")}</ul>`;
+  const meter = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 16px;"><tr><td style="background:${BORDER};border-radius:999px;height:8px;line-height:8px;font-size:0;"><table role="presentation" width="${Math.max(4, Math.min(100, input.percent))}%" cellpadding="0" cellspacing="0"><tr><td style="background:${ROSE};border-radius:999px;height:8px;line-height:8px;font-size:0;">&nbsp;</td></tr></table></td></tr></table>`;
+
+  const html = shell({
+    preheader: held ?? lead,
+    tag: { label: `${input.percent}% SET UP`, color: ROSE_DEEP },
+    heading: input.live ? "A few steps from your verified badge" : "A few steps from going live",
+    body:
+      paragraph(`Hi ${input.name},`) +
+      meter +
+      paragraph(lead) +
+      (held ? paragraph(held) : "") +
+      paragraph("What's left:") +
+      steps,
+    cta: { label: "Finish setting up", url: input.url },
+    footerNote: "You're receiving this because your GLAMNET storefront isn't finished. These reminders stop once it is.",
+  });
+  const text = textBlock([
+    input.live ? "A few steps from your verified badge" : "A few steps from going live",
+    "",
+    `Hi ${input.name},`,
+    `${input.percent}% set up.`,
+    lead,
+    held,
+    "",
+    "What's left:",
+    ...input.missing.map((label) => `- ${label}`),
+    "",
+    `Finish setting up: ${input.url}`,
+  ]);
+  return { subject, html, text };
+}

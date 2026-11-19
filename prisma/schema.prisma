@@ -219,6 +219,10 @@ model Provider {
   longitude        Float?
   /// Set when the vendor finishes the onboarding wizard.
   onboardedAt      DateTime?
+  /// Setup reminders (lib/domain/setup-reminders.ts): when the last one went
+  /// out and how many have, so they stop instead of nagging forever.
+  setupReminderSentAt DateTime?
+  setupRemindersSent  Int       @default(0)
   /// is_verified: approved by an admin (documents are optional).
   /// Only verified vendors have a live storefront and booking calendar.
   isVerified       Boolean       @default(false)
