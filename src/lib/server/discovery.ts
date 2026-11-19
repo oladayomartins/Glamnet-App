@@ -84,15 +84,17 @@ function shape(
  * Recently joined vendors.
  *
  * This row exists for them rather than for the customer: a vendor with no
- * reviews has no other route to a first booking, and "newly vetted" is a true
- * thing to say. Ordered newest first, and bounded by a window so a quiet
- * marketplace does not describe a vendor approved last spring as new.
+ * reviews has no other route to a first booking. Verified or not — each card
+ * carries its badge. Ordered newest first, and bounded by a window so a quiet
+ * marketplace does not describe a vendor who joined last spring as new.
  */
 export async function newVendors(limit = 8): Promise<DiscoveryVendor[]> {
   const since = new Date(Date.now() - NEW_WINDOW_DAYS * 24 * 60 * 60 * 1_000);
   const providers = await prisma.provider.findMany({
-    where: { ...LIVE, approvedAt: { gte: since } },
-    orderBy: { approvedAt: "desc" },
+    // By when they went live, not when they were approved: unverified
+    // vendors are new too, and this row is how they get seen.
+    where: { ...LIVE, onboardedAt: { gte: since } },
+    orderBy: { onboardedAt: "desc" },
     take: limit,
     select: {
       ...CARD_SELECT,
