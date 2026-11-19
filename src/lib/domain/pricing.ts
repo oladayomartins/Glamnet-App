@@ -24,6 +24,13 @@ export interface PriceBreakdown {
   lines: PriceLine[];
   /** Base services + add-ons, before fees and surcharges. */
   subtotalMinor: number;
+  /**
+   * The vendor's asking price for the basket, before any accepted offer.
+   * Equal to {@link subtotalMinor} unless a "Make an Offer" price was agreed.
+   */
+  listedSubtotalMinor: number;
+  /** listedSubtotalMinor - subtotalMinor. Zero on an ordinary booking. */
+  negotiatedDiscountMinor: number;
   travelFeeMinor: number;
   /** Zero on a NORMAL booking. */
   emergencySurchargeMinor: number;
@@ -56,6 +63,17 @@ export interface PricingInput {
   providerEmergencyShareBps?: number;
   /** The platform trust fee. Default £0.50; zero on a direct-link booking. */
   trustFeeMinor?: number;
+  /**
+   * An accepted "Make an Offer" price for the service work, replacing the
+   * basket's listed subtotal (see `domain/offers.ts`).
+   *
+   * The vendor absorbs the whole discount: the platform's absolute cut of the
+   * service work stays exactly what it would have been at the listed price, so
+   * a vendor's decision to discount never quietly taxes the marketplace. The
+   * travel fee, trust fee and any emergency surcharge are unaffected — they are
+   * platform rules rather than part of the asking price.
+   */
+  negotiatedSubtotalMinor?: number;
 }
 
 /**
@@ -139,7 +157,27 @@ export function priceBooking(
     });
   }
 
-  const subtotalMinor = basket.reduce((sum, line) => sum + line.priceMinor, 0);
+  const listedSubtotalMinor = basket.reduce(
+    (sum, line) => sum + line.priceMinor,
+    0,
+  );
+
+  // An accepted offer replaces the asking price. Clamped to the listed price so
+  // a bad caller can never turn a negotiation into a surcharge.
+  const negotiated = input.negotiatedSubtotalMinor;
+  const subtotalMinor =
+    negotiated != null && negotiated < listedSubtotalMinor
+      ? negotiated
+      : listedSubtotalMinor;
+  const negotiatedDiscountMinor = listedSubtotalMinor - subtotalMinor;
+
+  if (negotiatedDiscountMinor > 0) {
+    lines.push({
+      key: "negotiated",
+      label: "Agreed offer discount",
+      amountMinor: -negotiatedDiscountMinor,
+    });
+  }
 
   lines.push({
     key: "travel",
@@ -193,8 +231,21 @@ export function priceBooking(
     surcharge,
     providerEmergencyShareBps,
   );
+
+  // On a negotiated price the platform keeps the cut it would have taken at the
+  // listed price, and the vendor takes what is left: the vendor funds its own
+  // discount. Floored at zero — `domain/offers.ts` refuses any offer below the
+  // platform's cut, so this clamp should never bind, but money code does not
+  // rely on a caller having validated first.
+  const platformServiceCut =
+    listedSubtotalMinor - applyBps(listedSubtotalMinor, providerCommissionBps);
+  const providerServiceEarningsMinor =
+    negotiatedDiscountMinor > 0
+      ? Math.max(0, subtotalMinor - platformServiceCut)
+      : applyBps(subtotalMinor, providerCommissionBps);
+
   const providerEarningsMinor =
-    applyBps(subtotalMinor, providerCommissionBps) +
+    providerServiceEarningsMinor +
     travelFeeMinor +
     providerEmergencyEarningsMinor;
 
@@ -202,6 +253,8 @@ export function priceBooking(
     bookingType,
     lines,
     subtotalMinor,
+    listedSubtotalMinor,
+    negotiatedDiscountMinor,
     travelFeeMinor,
     emergencySurchargeMinor: surcharge,
     otherSurchargesMinor,
