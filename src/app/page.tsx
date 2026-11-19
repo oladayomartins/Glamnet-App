@@ -710,7 +710,7 @@ export default async function MarketingPage() {
               <p className="mt-3 max-w-lg text-[15px] text-ink-muted">
                 Book a verified specialist in Black and Asian beauty, see the
                 full price upfront, and pay only when you&rsquo;re happy. Are you
-                a pro? List your business free, with {percent(feeRates.repeatCommissionBps)} commission on
+                a vendor? List your business free, with {percent(feeRates.repeatCommissionBps)} commission on
                 clients you bring.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">

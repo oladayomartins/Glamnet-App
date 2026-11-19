@@ -192,7 +192,7 @@ export async function DirectoryView({
             <span className="mt-4 block">
               Pros are joining {city} now.{" "}
               <Link href="/become-a-vendor" className="font-semibold text-accent-700">
-                Are you a pro here? Be one of the first
+                Are you a vendor here? Be one of the first
               </Link>
               {" · "}
               <Link href="/salons" className="font-semibold text-accent-700">
