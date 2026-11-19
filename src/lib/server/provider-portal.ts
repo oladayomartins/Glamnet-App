@@ -146,6 +146,7 @@ export async function updateStorefrontProfile(
   if (before?.avatarFileId && before.avatarFileId !== (input.avatar?.fileId ?? "")) {
     await deleteImageKitFiles([before.avatarFileId]);
   }
+  await autoListIfReady(providerId);
   return updated;
 }
 
@@ -178,6 +179,7 @@ export async function replaceMenu(
       })),
     }),
   ]);
+  await autoListIfReady(providerId);
 }
 
 export async function replaceLookbook(
@@ -323,6 +325,27 @@ export async function onboardingGaps(providerId: string): Promise<string[]> {
   // "Closed" every day and the availability engine offers nobody a slot.
   if (provider._count.availability === 0) gaps.push("Set the days and hours you work.");
   return gaps;
+}
+
+/**
+ * List a vendor the moment their bookable basics are done — no button to
+ * press. Called after every save that can complete them (profile, menu,
+ * working hours). They go live as "Not verified"; a vendor already live, or
+ * rejected or suspended, is left alone. Returns whether they were listed now.
+ */
+export async function autoListIfReady(providerId: string): Promise<boolean> {
+  const provider = await prisma.provider.findUnique({
+    where: { id: providerId },
+    select: { onboardedAt: true, approvalStatus: true },
+  });
+  if (!provider || provider.onboardedAt || provider.approvalStatus !== "PENDING") return false;
+  if ((await onboardingGaps(providerId)).length > 0) return false;
+  // Conditional, so two saves finishing together list the vendor once.
+  const listed = await prisma.provider.updateMany({
+    where: { id: providerId, onboardedAt: null, approvalStatus: "PENDING" },
+    data: { onboardedAt: new Date(), isAcceptingWork: true },
+  });
+  return listed.count > 0;
 }
 
 /** Go live: the vendor is listed straight away, unverified until approved. */
