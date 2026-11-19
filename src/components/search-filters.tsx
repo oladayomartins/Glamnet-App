@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { FunnelSimple, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui";
@@ -100,14 +100,38 @@ export function SearchFilters({
     router.push(`/search?${params.toString()}`);
   };
 
+  // Enter searches, as in any search box. It used to wait for the field to
+  // lose focus, so pressing Enter after a new search did nothing.
+  const submitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    apply(values);
+    event.currentTarget.blur();
+  };
+
+  // The home page searches by postcode area ("S1"), not by city. Without its
+  // own option the select fell back to "Anywhere" while the results were in
+  // fact filtered to S1 — so the page looked as if the search was ignored.
+  const isCity = cities.some((city) => city.toLowerCase() === values.location.toLowerCase());
+  const whereOptions = [
+    { value: "", label: "Anywhere" },
+    ...(values.location && !isCity ? [{ value: values.location, label: `Near ${values.location.toUpperCase()}` }] : []),
+    ...cities.map((city) => ({ value: city, label: city })),
+  ];
+
   const controls = (
     <>
-      <label className="flex-1">
+      {/* Wide enough to read the search back: a long service name squeezed
+          to two letters looked as if the search had been dropped. */}
+      <label className="min-w-[14rem] flex-1 basis-72">
         <span className="sr-only">Service</span>
         <input
+          type="search"
+          enterKeyHint="search"
           value={values.q}
           onChange={(event) => setValues({ ...values, q: event.target.value })}
-          onBlur={() => apply(values)}
+          onKeyDown={submitOnEnter}
+          onBlur={() => values.q !== initial.q && apply(values)}
           placeholder="Braids, bridal makeup, gele…"
           className="min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 text-[15px] text-ink outline-none transition duration-[180ms] focus:border-brand-400"
         />
@@ -129,10 +153,7 @@ export function SearchFilters({
         label="Where"
         value={values.location}
         onChange={(location) => apply({ ...values, location })}
-        options={[
-          { value: "", label: "Anywhere" },
-          ...cities.map((city) => ({ value: city, label: city })),
-        ]}
+        options={whereOptions}
       />
 
       <Select
@@ -202,9 +223,12 @@ export function SearchFilters({
         <label className="flex-1">
           <span className="sr-only">Service</span>
           <input
+            type="search"
+            enterKeyHint="search"
             value={values.q}
             onChange={(event) => setValues({ ...values, q: event.target.value })}
-            onBlur={() => apply(values)}
+            onKeyDown={submitOnEnter}
+            onBlur={() => values.q !== initial.q && apply(values)}
             placeholder="Braids, bridal makeup, gele…"
             className="min-h-11 w-full rounded-glam-input border border-line bg-surface px-3 text-[15px] text-ink outline-none focus:border-brand-400"
           />
