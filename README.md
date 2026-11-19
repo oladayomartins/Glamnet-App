@@ -243,7 +243,7 @@ How each feature in *GLAMNET Open Marketplace Directory v1.0* is covered.
 | Spec | Where |
 |---|---|
 | 5-category hub grid, querying on click | `src/app/[city]/salons/page.tsx`; hubs defined in `src/lib/domain/specialty-hubs.ts` and stored as `Service.category` |
-| Postcode sector filter, typed or geolocated, proximity sort | `sector-filter.tsx` + `src/lib/domain/postcode.ts` (Sheffield S-district centroids; coordinates never leave the browser) |
+| Postcode sector filter, typed or geolocated, proximity sort | `src/app/salons/directory-view.tsx` + `src/lib/domain/postcode.ts` (Sheffield S-district centroids; coordinates never leave the browser) |
 | Home salons / private rooms / chairs | `Provider.workspaceType`, `workspaceSector` |
 | In-basket cross-sell (MUA/Bridal → dry-treatment nail overlay) | `crossSellFor()`; shown in the storefront basket, falling back to nearby nail vendors |
 

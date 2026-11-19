@@ -596,9 +596,46 @@ class SimulatedGateway implements PaymentGateway {
 
 let gateway: PaymentGateway | null = null;
 
+/**
+ * Whether this deployment may run the simulated gateway.
+ *
+ * A production deployment with no Stripe key is the most dangerous state this
+ * codebase can reach. Every hold "succeeds" without a card, every booking looks
+ * paid, every PIN release settles — and no money moves in either direction. The
+ * customer is never charged, the vendor is never paid, and nothing separates it
+ * from a working marketplace but a small "test mode" hint on three screens.
+ *
+ * So in production it has to be asked for. A public demo or portfolio
+ * deployment sets `ALLOW_SIMULATED_PAYMENTS=1` and is honest about what it is;
+ * a real deployment that forgot its Stripe key fails loudly at the first call
+ * instead of quietly taking bookings nobody will ever be paid for.
+ */
+export function simulatedPaymentsAllowed(): boolean {
+  if (process.env.VERCEL_ENV !== "production") return true;
+  return process.env.ALLOW_SIMULATED_PAYMENTS?.trim() === "1";
+}
+
+/**
+ * True when this deployment can neither take a real payment nor legitimately
+ * simulate one. Reported by `/api/health` so a launch check catches it before
+ * a customer does.
+ */
+export function paymentsMisconfigured(): boolean {
+  return !process.env.STRIPE_SECRET_KEY?.trim() && !simulatedPaymentsAllowed();
+}
+
 export function paymentGateway(): PaymentGateway {
   if (!gateway) {
     const key = process.env.STRIPE_SECRET_KEY?.trim();
+    if (!key && !simulatedPaymentsAllowed()) {
+      throw new Error(
+        "STRIPE_SECRET_KEY is not set on this production deployment. Refusing " +
+          "to fall back to the simulated gateway: card holds would succeed " +
+          "without a card and PIN releases would settle without money moving. " +
+          "Set STRIPE_SECRET_KEY and redeploy — or set " +
+          "ALLOW_SIMULATED_PAYMENTS=1 if this deployment is a deliberate demo.",
+      );
+    }
     gateway = key ? new StripeGateway(key) : new SimulatedGateway();
   }
   return gateway;

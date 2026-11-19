@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isEmailConfigured } from "@/lib/server/email";
+import { paymentsMisconfigured, simulatedPaymentsAllowed } from "@/lib/server/payments";
 import { imageKitEndpoint, isImageKitConfigured } from "@/lib/imagekit";
 import { prisma } from "@/lib/server/prisma";
 
@@ -132,10 +133,37 @@ export async function GET() {
     imageKitPrivateKeyConfigured: Boolean(
       process.env.IMAGEKIT_PRIVATE_KEY?.trim(),
     ),
+    // The most dangerous misconfiguration this deployment can have. Without a
+    // Stripe key the gateway simulates: holds succeed without a card and PIN
+    // releases settle without money moving, which is indistinguishable from a
+    // working marketplace from the outside. Reported as booleans so a launch
+    // check catches it before a customer does.
+    stripeSecretKeyConfigured: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
+    stripePublishableKeyConfigured: Boolean(
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim(),
+    ),
+    stripeWebhookSecretConfigured: Boolean(
+      process.env.STRIPE_WEBHOOK_SECRET?.trim(),
+    ),
+    simulatedPaymentsAllowed: simulatedPaymentsAllowed(),
     datasource: describeDatasource(process.env.DATABASE_URL),
     vercelEnv: process.env.VERCEL_ENV ?? null,
     checkedAt: new Date().toISOString(),
   };
+
+  // A production deployment that can take bookings but not money is down, even
+  // though every page renders. 503 so an uptime check says so.
+  if (paymentsMisconfigured()) {
+    return NextResponse.json(
+      {
+        ...base,
+        status: "misconfigured",
+        canQuery: false,
+        hint: "STRIPE_SECRET_KEY is not set on this production deployment, so payments cannot be taken. Set it and redeploy, or set ALLOW_SIMULATED_PAYMENTS=1 if this is a deliberate demo deployment.",
+      },
+      { status: 503 },
+    );
+  }
 
   if (!databaseUrlConfigured) {
     return NextResponse.json(
