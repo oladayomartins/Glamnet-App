@@ -1,21 +1,6 @@
-import {
-  LoadingScreen,
-  PageHeadingSkeleton,
-  StatsSkeleton,
-  TableSkeleton,
-} from "@/components/skeletons";
+import { PageLoader } from "@/components/page-loader";
 
-/** A first visit to the admin console, arriving: heading, figures, then a list. */
+/** Shown while this page loads: a spinner, so the tap visibly worked. */
 export default function Loading() {
-  return (
-    <LoadingScreen
-      label="Loading the admin console"
-      pageWidth="wide"
-      className="space-y-8"
-    >
-      <PageHeadingSkeleton />
-      <StatsSkeleton count={3} />
-      <TableSkeleton rows={8} />
-    </LoadingScreen>
-  );
+  return <PageLoader label="Loading" />;
 }
