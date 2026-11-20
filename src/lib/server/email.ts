@@ -22,6 +22,8 @@ import type { EmailBody } from "@/lib/email/templates";
 
 export interface EmailMessage extends EmailBody {
   to: string;
+  /** Where a reply goes, e.g. the customer behind a support enquiry. */
+  replyTo?: string;
 }
 
 export type EmailResult =
@@ -85,6 +87,7 @@ export async function sendEmails(messages: EmailMessage[]): Promise<EmailResult>
     html: message.html,
     text: message.text,
     ...(message.headers ? { headers: message.headers } : {}),
+    ...(message.replyTo ? { replyTo: message.replyTo } : {}),
   }));
 
   // Resend takes at most 100 per batch, so a campaign to a bigger audience

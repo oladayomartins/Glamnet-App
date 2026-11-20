@@ -8,6 +8,7 @@ import {
   DeviceMobile,
   MagnifyingGlass,
   ShieldCheck,
+  Lifebuoy,
   SignOut,
   Storefront,
   UserCircle,
@@ -24,7 +25,11 @@ const ROLE_LABEL = { CUSTOMER: "Client", PROVIDER: "Beauty vendor", ADMIN: "Admi
 
 /** Each account type's own shortcuts, then installing the app. */
 function linksFor(role: UserMenuProps["role"]) {
-  return [...roleLinks(role), { href: "/install", label: "Get the app", icon: DeviceMobile }];
+  return [
+    ...roleLinks(role),
+    { href: "/install", label: "Get the app", icon: DeviceMobile },
+    { href: "/support", label: "Help & support", icon: Lifebuoy },
+  ];
 }
 
 function roleLinks(role: UserMenuProps["role"]) {

@@ -952,3 +952,30 @@ model Promotion {
   @@index([providerId])
   @@index([checkoutSessionId])
 }
+
+/// A message sent from the support contact form (/support/contact). Kept
+/// here as well as emailed to the support inbox, so nothing is lost if an
+/// email fails, and admins can work through them in /admin/support.
+model SupportEnquiry {
+  id         String    @id @default(cuid())
+  /// Short code quoted to the sender, e.g. "GN-7K3Q9P".
+  reference  String    @unique
+  createdAt  DateTime  @default(now())
+  /// "CUSTOMER" | "VENDOR" | "OTHER" — see lib/domain/support-enquiry.ts.
+  role       String
+  category   String
+  topic      String
+  bookingRef String    @default("")
+  name       String
+  email      String
+  message    String
+  /// Set when the sender was signed in.
+  appUserId  String?
+  /// "OPEN" | "RESOLVED".
+  status     String    @default("OPEN")
+  urgent     Boolean   @default(false)
+  resolvedAt DateTime?
+  resolvedBy String    @default("")
+
+  @@index([status, createdAt])
+}
