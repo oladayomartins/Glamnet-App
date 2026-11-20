@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { MapPinArea } from "@phosphor-icons/react/dist/ssr";
 import { nearestCoveredArea, searchableAreas } from "@/lib/server/search";
-import { searchOffers } from "@/lib/server/offers";
+import { searchOffers, searchUnverifiedVendors, type UnverifiedMatch } from "@/lib/server/offers";
+import { GlamImage } from "@/components/glam-image";
+import { VerifiedBadge } from "@/components/verified-badge";
+import { formatMoney } from "@/lib/format";
 import { promotedProviderIds } from "@/lib/server/promotions";
 import { rotate } from "@/lib/domain/promotions";
 import { EmptyState } from "@/components/ui";
@@ -55,7 +58,7 @@ export default async function SearchPage({
   // link someone can send.
   const tags = (params.tags ?? "").split(",").filter(Boolean);
 
-  const [offers, areas, promoted] = await Promise.all([
+  const [offers, areas, promoted, unverifiedAll] = await Promise.all([
     searchOffers({
       query: q,
       location,
@@ -68,7 +71,11 @@ export default async function SearchPage({
     }),
     searchableAreas(),
     promotedProviderIds("SEARCH_TOP"),
+    searchUnverifiedVendors({ query: q, location, amenities: tags }),
   ]);
+  // Prices are the vendor's "from" price, so the price cap still applies.
+  // Times aren't known here — they're picked on the vendor's own page.
+  const unverified = unverifiedAll.filter((vendor) => !maxPrice || vendor.fromMinor <= Number(maxPrice));
 
   // Paid top-of-search: up to three vendors who bought it AND genuinely
   // match this search, lifted to the top and labelled Sponsored. Buying it
@@ -160,7 +167,12 @@ export default async function SearchPage({
       />
 
       <div className="pt-5">
-        {rows.length === 0 ? (
+        {rows.length === 0 && unverified.length > 0 ? (
+          <p className="text-[15px] text-ink-muted">
+            No verified vendor matches{q ? ` “${q}”` : ""}
+            {location ? ` in ${location}` : ""} with these filters yet — but these vendors do this work.
+          </p>
+        ) : rows.length === 0 ? (
           <EmptyState
             icon={<MapPinArea size={24} weight="light" />}
             title="Nobody covers that yet"
@@ -189,7 +201,62 @@ export default async function SearchPage({
         ) : (
           <OfferList offers={rows} />
         )}
+
+        {unverified.length > 0 ? <MoreVendors vendors={unverified} /> : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * Vendors who match but aren't verified yet. They're kept out of the main
+ * results, which feed the verified-only broadcast, and booked directly on
+ * their own storefront instead — said plainly, with their badge.
+ */
+function MoreVendors({ vendors }: { vendors: UnverifiedMatch[] }) {
+  return (
+    <section aria-labelledby="more-vendors" className="mt-10">
+      <h2 id="more-vendors" className="font-display text-xl font-bold text-ink">
+        More vendors who do this
+      </h2>
+      <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+        New to GLAMNET and still finishing our checks. You book them directly on their page, and your card is
+        still only held until you give them your PIN.
+      </p>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {vendors.map((vendor) => (
+          <li key={vendor.providerId}>
+            <Link
+              href={`/pro/${vendor.slug}?via=directory`}
+              className="flex items-center gap-3 rounded-glam border border-line bg-surface p-3 transition duration-[180ms] ease-glam hover:-translate-y-0.5 hover:border-accent-500/60 hover:shadow-card"
+            >
+              {vendor.avatarUrl ? (
+                <GlamImage
+                  src={vendor.avatarUrl}
+                  alt=""
+                  width={112}
+                  height={112}
+                  className="h-14 w-14 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-sunken font-display text-lg font-bold text-ink-muted">
+                  {vendor.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 font-semibold text-ink">
+                  <span className="truncate">{vendor.name}</span>
+                  <VerifiedBadge verified={false} />
+                </span>
+                <span className="block truncate text-sm text-ink">{vendor.serviceName}</span>
+                <span className="block truncate text-xs text-ink-muted">
+                  {vendor.city} · {vendor.sector} · from <span data-numeric>{formatMoney(vendor.fromMinor)}</span>
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

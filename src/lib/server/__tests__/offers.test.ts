@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { uk, ukAt } from "@/lib/domain/__tests__/uk-clock";
-import { compareOffers, earliestStart } from "@/lib/server/offers";
+import { bestService, compareOffers, earliestStart } from "@/lib/server/offers";
 import type { ProviderSchedule, WorkingWindow } from "@/lib/domain/availability";
 
 const local = uk;
@@ -90,5 +90,36 @@ describe("compareOffers", () => {
     const c = offer("2026-04-01T10:00:00", 4.5, 9);
 
     expect([a, b, c].sort(compareOffers)).toEqual([b, c, a]);
+  });
+});
+
+describe("bestService", () => {
+  const menu = [
+    { id: "kb", name: "Knotless Braids", description: "Mid-back knotless", category: "Afro & Textured", priceMinor: 12_000 },
+    { id: "fb", name: "Fulani / Tribal Braids", description: "Cornrows and open braids", category: "Afro & Textured", priceMinor: 9_000 },
+    { id: "gm", name: "Gel Manicure", description: "Long-lasting gel polish", category: "Manicures & Pedicures", priceMinor: 3_000 },
+    { id: "gt", name: "Gele Tie", description: "Headwrap for occasions", category: "MUA Glam & Asian Bridal", priceMinor: 2_500 },
+  ];
+
+  it("understands plurals and everyday words, not only the exact phrase", () => {
+    expect(bestService("nails", menu, "Ada")?.id).toBe("gm");
+    expect(bestService("plaits", menu, "Ada")?.id).toBe("fb"); // braids, cheapest of the two
+    expect(bestService("I need knotless braids", menu, "Ada")?.id).toBe("kb");
+  });
+
+  it("still matches a literal phrase in a description", () => {
+    expect(bestService("headwrap", menu, "Ada")?.id).toBe("gt");
+  });
+
+  it("finds a vendor by name, offering their cheapest service", () => {
+    expect(bestService("folly", menu, "FollykHair")?.id).toBe("gt");
+  });
+
+  it("returns nothing when nothing answers the query", () => {
+    expect(bestService("tattoo", menu, "Ada")).toBeNull();
+  });
+
+  it("offers the cheapest service for an empty query", () => {
+    expect(bestService("", menu, "Ada")?.id).toBe("gt");
   });
 });
