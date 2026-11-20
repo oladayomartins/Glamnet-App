@@ -17,6 +17,8 @@ import { CALENDAR_HOLDING_STATUSES } from "./schedules";
 import { getActiveEmergencyConfig } from "./emergency-config";
 import { lookupPlace } from "./geo";
 import { BROADCAST_RADIUS_KM, boundingBox, distanceKm, outwardCode } from "@/lib/domain/postcode";
+import { matchServices } from "@/lib/domain/service-search";
+import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 
 /** How far ahead an offer will look for a vendor's first free slot. */
 const HORIZON_DAYS = 7;
@@ -101,7 +103,6 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
   const query = filters.query?.trim() ?? "";
   const location = filters.location?.trim() ?? "";
   const place = location && outwardCode(location) ? await lookupPlace(location) : null;
-  const box = place ? boundingBox(place, BROADCAST_RADIUS_KM) : null;
 
   const now = new Date();
   const from = startOfLocalDay(now);
@@ -124,30 +125,7 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
       where: {
         approvalStatus: "APPROVED",
         isAcceptingWork: true,
-        // A postcode (or outward code) searches by distance, anywhere in the
-        // UK; anything else is matched as a town name.
-        ...(box && place
-          ? {
-              OR: [
-                { latitude: { gte: box.minLat, lte: box.maxLat }, longitude: { gte: box.minLng, lte: box.maxLng } },
-                {
-                  latitude: null,
-                  hub: { latitude: { gte: box.minLat, lte: box.maxLat }, longitude: { gte: box.minLng, lte: box.maxLng } },
-                },
-                { hub: { sector: place.outcode } },
-              ],
-            }
-          : location
-            ? {
-                hub: {
-                  OR: [
-                    { city: { contains: location, mode: "insensitive" } },
-                    { sector: { contains: location, mode: "insensitive" } },
-                    { name: { contains: location, mode: "insensitive" } },
-                  ],
-                },
-              }
-            : {}),
+        ...locationWhere(location, place),
         ...(filters.minRating ? { rating: { gte: filters.minRating } } : {}),
         ...(wantedAmenities.length > 0
           ? { amenities: { hasEvery: wantedAmenities } }
@@ -197,20 +175,10 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
   ]);
 
   const thresholdMinutes = resolveThresholdMinutes(config, now);
-  const needle = query.toLowerCase();
   const offers: Offer[] = [];
 
   for (const provider of providers) {
-    // The box is square; the radius is round.
-    if (place) {
-      const lat = provider.latitude ?? provider.hub.latitude;
-      const lng = provider.longitude ?? provider.hub.longitude;
-      const inRange =
-        lat !== null && lng !== null
-          ? distanceKm(place, { lat, lng }) <= BROADCAST_RADIUS_KM
-          : provider.hub.sector === place.outcode;
-      if (!inRange) continue;
-    }
+    if (!withinReach(place, provider)) continue;
     const offered = provider.services
       .map((link) => link.service)
       .filter((service) => service.isActive && service.kind !== "ADDON");
@@ -218,21 +186,8 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
     // What the customer asked for, or — with no query — the cheapest thing
     // this vendor does, so a bare search still shows a real offer rather
     // than an arbitrary one.
-    const matched = needle
-      ? offered.filter(
-          (service) =>
-            service.name.toLowerCase().includes(needle) ||
-            service.description.toLowerCase().includes(needle) ||
-            service.category.toLowerCase().includes(needle) ||
-            provider.name.toLowerCase().includes(needle),
-        )
-      : offered;
-
-    if (matched.length === 0) continue;
-
-    const service = matched.reduce((cheapest, candidate) =>
-      candidate.priceMinor < cheapest.priceMinor ? candidate : cheapest,
-    );
+    const service = bestService(query, offered, provider.name);
+    if (!service) continue;
 
     const schedule: ProviderSchedule = {
       providerId: provider.id,
@@ -317,6 +272,170 @@ export async function searchOffers(filters: OfferQuery): Promise<Offer[]> {
       filters.availableToday ? offer.startAt < endOfToday : true,
     )
     .sort(compareOffers);
+}
+
+type Place = NonNullable<Awaited<ReturnType<typeof lookupPlace>>>;
+
+/**
+ * Where a search looks. A postcode (or outward code) searches by distance,
+ * anywhere in the UK; anything else is matched as a town name.
+ */
+function locationWhere(location: string, place: Place | null) {
+  if (place) {
+    const box = boundingBox(place, BROADCAST_RADIUS_KM);
+    return {
+      OR: [
+        { latitude: { gte: box.minLat, lte: box.maxLat }, longitude: { gte: box.minLng, lte: box.maxLng } },
+        {
+          latitude: null,
+          hub: { latitude: { gte: box.minLat, lte: box.maxLat }, longitude: { gte: box.minLng, lte: box.maxLng } },
+        },
+        { hub: { sector: place.outcode } },
+      ],
+    };
+  }
+  if (!location) return {};
+  return {
+    hub: {
+      OR: [
+        { city: { contains: location, mode: "insensitive" as const } },
+        { sector: { contains: location, mode: "insensitive" as const } },
+        { name: { contains: location, mode: "insensitive" as const } },
+      ],
+    },
+  };
+}
+
+/** The box is square; the radius is round. */
+function withinReach(
+  place: Place | null,
+  provider: { latitude: number | null; longitude: number | null; hub: { sector: string; latitude: number | null; longitude: number | null } },
+): boolean {
+  if (!place) return true;
+  const lat = provider.latitude ?? provider.hub.latitude;
+  const lng = provider.longitude ?? provider.hub.longitude;
+  return lat !== null && lng !== null
+    ? distanceKm(place, { lat, lng }) <= BROADCAST_RADIUS_KM
+    : provider.hub.sector === place.outcode;
+}
+
+interface SearchableService {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  priceMinor: number;
+}
+
+/**
+ * The service of this vendor's that best answers the query, or null.
+ *
+ * Uses the same understanding as the home page's suggestions
+ * (lib/domain/service-search.ts) — plurals, everyday words like "nails" or
+ * "plaits", filler like "I need" — so a search that offered a suggestion
+ * doesn't then come back empty. The literal phrase still counts too (in a
+ * description, or the vendor's own name). Best match first, cheapest on a
+ * tie; with no query, the cheapest thing they do.
+ */
+export function bestService<T extends SearchableService>(query: string, offered: T[], providerName: string): T | null {
+  if (offered.length === 0) return null;
+  const cheapest = (list: T[]) => list.reduce((best, next) => (next.priceMinor < best.priceMinor ? next : best));
+  const needle = query.trim().toLowerCase();
+  if (!needle) return cheapest(offered);
+
+  const scored = matchServices(needle, offered, offered.length);
+  if (scored.length > 0) {
+    const top = scored[0].score;
+    return cheapest(scored.filter((match) => match.score === top).map((match) => match.service));
+  }
+  const literal = offered.filter(
+    (service) =>
+      service.name.toLowerCase().includes(needle) ||
+      service.description.toLowerCase().includes(needle) ||
+      service.category.toLowerCase().includes(needle),
+  );
+  if (literal.length > 0) return cheapest(literal);
+  return providerName.toLowerCase().includes(needle) ? cheapest(offered) : null;
+}
+
+/** A listed vendor who isn't verified yet, matched to a search. */
+export interface UnverifiedMatch {
+  providerId: string;
+  name: string;
+  slug: string;
+  avatarUrl: string;
+  city: string;
+  sector: string;
+  serviceName: string;
+  fromMinor: number;
+}
+
+/**
+ * Vendors who match the search but aren't verified yet, for the "More
+ * vendors" section under the results.
+ *
+ * The main results feed the broadcast, which only ever goes to verified
+ * vendors. These are booked directly through their own storefront instead,
+ * shown with their "Not verified" badge — so a search in their area for
+ * what they do still finds them.
+ */
+export async function searchUnverifiedVendors(filters: Pick<OfferQuery, "query" | "location" | "amenities">): Promise<UnverifiedMatch[]> {
+  const query = filters.query?.trim() ?? "";
+  const location = filters.location?.trim() ?? "";
+  const place = location && outwardCode(location) ? await lookupPlace(location) : null;
+  const wantedAmenities = normaliseAmenities(filters.amenities ?? []);
+
+  const providers = await prisma.provider.findMany({
+    where: {
+      ...LISTED_VENDOR,
+      approvalStatus: "PENDING",
+      isAcceptingWork: true,
+      slug: { not: null },
+      ...locationWhere(location, place),
+      ...(wantedAmenities.length > 0 ? { amenities: { hasEvery: wantedAmenities } } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      avatarUrl: true,
+      workspaceSector: true,
+      latitude: true,
+      longitude: true,
+      hub: { select: { city: true, sector: true, latitude: true, longitude: true } },
+      services: {
+        select: {
+          priceMinor: true,
+          service: {
+            select: { id: true, name: true, description: true, category: true, kind: true, priceMinor: true, isActive: true },
+          },
+        },
+      },
+    },
+    take: 200,
+  });
+
+  const matches: UnverifiedMatch[] = [];
+  for (const provider of providers) {
+    if (!withinReach(place, provider)) continue;
+    // The vendor's own price where they set one: they're booked directly.
+    const offered = provider.services
+      .filter((link) => link.service.isActive && link.service.kind !== "ADDON")
+      .map((link) => ({ ...link.service, priceMinor: link.priceMinor ?? link.service.priceMinor }));
+    const service = bestService(query, offered, provider.name);
+    if (!service) continue;
+    matches.push({
+      providerId: provider.id,
+      name: provider.name,
+      slug: provider.slug!,
+      avatarUrl: provider.avatarUrl,
+      city: provider.hub.city,
+      sector: provider.workspaceSector || provider.hub.sector,
+      serviceName: service.name,
+      fromMinor: service.priceMinor,
+    });
+  }
+  return matches.sort((a, b) => a.fromMinor - b.fromMinor).slice(0, 12);
 }
 
 /**
