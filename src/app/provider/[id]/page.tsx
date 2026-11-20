@@ -163,6 +163,21 @@ export default async function ProviderPage({
       ) : null}
 
       <Link
+        href="/support#vendors"
+        className="flex min-h-14 items-center justify-between gap-3 rounded-glam border border-line bg-surface px-4 py-3 transition duration-[180ms] hover:bg-sunken"
+      >
+        <span>
+          <span className="block font-semibold text-ink">Help & support</span>
+          <span className="block text-sm text-ink-muted">
+            Answers on verification, payouts and bookings — or message our team
+          </span>
+        </span>
+        <span aria-hidden className="text-ink-muted">
+          →
+        </span>
+      </Link>
+
+      <Link
         href={`/provider/${provider.id}/settings`}
         className="flex min-h-14 items-center justify-between gap-3 rounded-glam border border-line bg-surface px-4 py-3 transition duration-[180ms] hover:bg-sunken"
       >

@@ -122,6 +122,18 @@ export default async function VendorSettingsPage({
       ) : null}
 
       <section>
+        <SectionTitle>Help</SectionTitle>
+        <Card className="divide-y divide-line overflow-hidden p-0">
+          <Link href="/support#vendors" className={`${ROW} font-semibold text-ink`}>
+            Help centre — going live, verification, payouts
+          </Link>
+          <Link href="/support/contact" className={`${ROW} font-semibold text-ink`}>
+            Contact support
+          </Link>
+        </Card>
+      </section>
+
+      <section>
         <SectionTitle>Account</SectionTitle>
         <Card className="divide-y divide-line overflow-hidden p-0">
           {gaMeasurementId() !== null ? (
