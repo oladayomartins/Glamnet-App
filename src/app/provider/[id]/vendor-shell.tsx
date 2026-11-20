@@ -8,6 +8,7 @@ import {
   CalendarBlank,
   CurrencyGbp,
   House,
+  Lifebuoy,
   Tray,
   UserCircle,
   UsersThree,
@@ -121,6 +122,14 @@ export function VendorShell({
 
       <nav aria-label="Vendor" className="mb-6 hidden flex-wrap gap-1 md:flex">
         {tabs("top")}
+        {/* Not a tab: help is a page away from the app, so it sits apart. */}
+        <Link
+          href="/support#vendors"
+          className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold text-ink-muted transition duration-[180ms] hover:bg-sunken hover:text-ink"
+        >
+          <Lifebuoy size={18} aria-hidden />
+          Help
+        </Link>
       </nav>
 
       {banner}
