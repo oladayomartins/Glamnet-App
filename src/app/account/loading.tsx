@@ -1,11 +1,6 @@
-import { LoadingScreen, PageHeadingSkeleton, RowsSkeleton } from "@/components/skeletons";
+import { PageLoader } from "@/components/page-loader";
 
-/** An account, arriving: who you are, then what you have booked. */
+/** Shown while this page loads: a spinner, so the tap visibly worked. */
 export default function Loading() {
-  return (
-    <LoadingScreen label="Loading your account" className="space-y-6">
-      <PageHeadingSkeleton />
-      <RowsSkeleton rows={3} />
-    </LoadingScreen>
-  );
+  return <PageLoader label="Loading your account" />;
 }

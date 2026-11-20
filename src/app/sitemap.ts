@@ -1,3 +1,4 @@
+import { HELP_ARTICLES } from "@/lib/domain/help-articles";
 import { LISTED_VENDOR } from "@/lib/domain/vendor-setup";
 import { citySlug } from "@/lib/domain/postcode";
 import type { MetadataRoute } from "next";
@@ -26,6 +27,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/book`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/sign-up`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/sign-in`, lastModified: now, changeFrequency: "monthly", priority: 0.3 },
+    { url: `${base}/support`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${base}/support/contact`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    ...HELP_ARTICLES.map((article) => ({
+      url: `${base}/support/${article.slug}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
+    })),
     ...["/terms", "/privacy", "/cookies", "/cancellations"].map((path) => ({
       url: `${base}${path}`,
       lastModified: now,

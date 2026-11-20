@@ -702,6 +702,20 @@ body:has([data-booking-bar]) {
   animation: glam-rise var(--glam-screen) var(--glam-ease) both;
 }
 
+/* The page loader fades in after a short pause, so a page that arrives
+   quickly never flashes a spinner (components/page-loader.tsx). */
+.loader-in {
+  animation: glam-loader-in 200ms ease-out 180ms both;
+}
+@keyframes glam-loader-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

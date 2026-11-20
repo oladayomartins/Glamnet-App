@@ -1,17 +1,6 @@
-import {
-  LoadingScreen,
-  PageHeadingSkeleton,
-  RowsSkeleton,
-  StatsSkeleton,
-} from "@/components/skeletons";
+import { PageLoader } from "@/components/page-loader";
 
-/** The vendor dashboard, arriving: today's figures, then the requests. */
+/** Shown while this page loads: a spinner, so the tap visibly worked. */
 export default function Loading() {
-  return (
-    <LoadingScreen label="Loading your day" className="space-y-6">
-      <PageHeadingSkeleton />
-      <StatsSkeleton count={3} />
-      <RowsSkeleton rows={3} />
-    </LoadingScreen>
-  );
+  return <PageLoader label="Loading your dashboard" />;
 }

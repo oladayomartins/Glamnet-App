@@ -6,7 +6,6 @@ import {
   Star,
 } from "@phosphor-icons/react/dist/ssr";
 import { GlamImage } from "@/components/glam-image";
-import { Skeleton } from "@/components/ui";
 import { formatMoney } from "@/lib/format";
 import { summariseReputation } from "@/lib/domain/reputation";
 
@@ -141,24 +140,5 @@ export function ProviderCard({ provider }: { provider: ProviderCardData }) {
         </div>
       </div>
     </Link>
-  );
-}
-
-/**
- * The loading state for a vendor card: the same footprint, shimmering.
- * Never a spinner.
- */
-export function ProviderCardSkeleton() {
-  return (
-    <div className="overflow-hidden rounded-glam border border-line bg-surface shadow-card">
-      <Skeleton className="aspect-[4/3] w-full rounded-none" />
-      <div className="space-y-2 p-3.5">
-        <Skeleton className="h-3.5 w-2/3" />
-        <Skeleton className="h-3 w-1/2" />
-        <div className="border-t border-line pt-3">
-          <Skeleton className="h-3 w-1/3" />
-        </div>
-      </div>
-    </div>
   );
 }

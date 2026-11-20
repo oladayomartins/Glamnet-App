@@ -1,11 +1,6 @@
-import { FormSkeleton, LoadingScreen, PageHeadingSkeleton } from "@/components/skeletons";
+import { PageLoader } from "@/components/page-loader";
 
-/** The booking flow, arriving. */
+/** Shown while this page loads: a spinner, so the tap visibly worked. */
 export default function Loading() {
-  return (
-    <LoadingScreen label="Loading the booking flow" className="space-y-6">
-      <PageHeadingSkeleton />
-      <FormSkeleton fields={3} />
-    </LoadingScreen>
-  );
+  return <PageLoader label="Loading" />;
 }

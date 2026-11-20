@@ -45,6 +45,8 @@ export function SiteFooter({
         { href: "/account", label: "Your bookings" },
         { href: "/how-it-works", label: "Short-notice bookings" },
         { href: "/install", label: "Get the app" },
+        { href: "/support", label: "Help & support" },
+        { href: "/support/contact", label: "Contact us" },
       ],
     },
   ];

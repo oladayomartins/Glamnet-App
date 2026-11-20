@@ -1,5 +1,6 @@
 "use client";
 
+import { InlineLoader } from "@/components/page-loader";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle, Clock, Lightning, Plus } from "@phosphor-icons/react";
@@ -14,7 +15,6 @@ import {
   EmergencyBanner,
   EmptyState,
   SectionTitle,
-  Skeleton,
 } from "@/components/ui";
 import { SearchingForProvider } from "./searching";
 import {
@@ -579,7 +579,7 @@ export function BookingFlow({
                 what you want above and the real times will appear here.
               </EmptyState>
             ) : slotsLoading ? (
-              <SlotGridSkeleton />
+              <InlineLoader label="Finding free times" />
             ) : slots.length === 0 ? (
               <EmptyState
                 icon={<Clock size={24} weight="light" />}
@@ -978,17 +978,6 @@ function SlotLegend() {
         <span className="line-through">No vendor free</span>
       </li>
     </ul>
-  );
-}
-
-/** The grid's loading state: the same footprint, shimmering. */
-function SlotGridSkeleton() {
-  return (
-    <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(84px,1fr))]">
-      {Array.from({ length: 12 }).map((_, index) => (
-        <Skeleton key={index} className="h-11" />
-      ))}
-    </div>
   );
 }
 

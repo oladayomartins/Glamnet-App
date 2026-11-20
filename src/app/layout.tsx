@@ -201,7 +201,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 <span className="hidden lg:inline-flex">
                   <ThemeToggle />
                 </span>
-                <MobileMenu links={[...NAV, ...roleLinks]} signedIn={Boolean(user)} />
+                <MobileMenu links={[...NAV, ...roleLinks, { href: "/support", label: "Help & support" }]} signedIn={Boolean(user)} />
               </nav>
             </div>
           </header>
