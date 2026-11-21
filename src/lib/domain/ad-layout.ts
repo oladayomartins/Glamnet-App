@@ -106,3 +106,38 @@ export function adImageSrc(imageUrl: string, layout: Pick<AdLayout, "width" | "h
 export function deviceClass(device: AdDevice): string {
   return device === "MOBILE" ? "lg:hidden" : device === "DESKTOP" ? "hidden lg:block" : "";
 }
+
+/** Seconds each ad stays on screen when a spot slides between several. */
+export const AD_SLIDE_SECONDS = { min: 2, max: 60, default: 6 } as const;
+
+/** Quick choices for how long an ad runs from its start date. */
+export const AD_RUN_DAYS = [1, 3, 7, 14, 30, 60, 90] as const;
+
+/** The end date for an ad that starts at `startsAt` and runs for `days`. */
+export function runEnd(startsAt: Date, days: number): Date {
+  return new Date(startsAt.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+/** Whole days between two dates, when it is a whole number of days; else null. */
+export function runDays(startsAt: Date, endsAt: Date | null): number | null {
+  if (!endsAt) return null;
+  const days = (endsAt.getTime() - startsAt.getTime()) / (24 * 60 * 60 * 1000);
+  return Number.isInteger(days) && days > 0 ? days : null;
+}
+
+/**
+ * The slideshows a spot shows for its live ads, in order: one for every
+ * device when phones and computers get the same ads, otherwise one for
+ * phones and one for computers. Each is hidden on the other kind of screen,
+ * so a computers-only ad never sits in the phones' rotation.
+ */
+export function slideshows<T extends { id: string; device: AdDevice }>(ads: T[]): Array<{ device: AdDevice; ads: T[] }> {
+  const mobile = ads.filter((ad) => ad.device !== "DESKTOP");
+  const desktop = ads.filter((ad) => ad.device !== "MOBILE");
+  const same = mobile.length === desktop.length && mobile.every((ad, index) => ad.id === desktop[index].id);
+  if (same) return mobile.length > 0 ? [{ device: "ALL", ads: mobile }] : [];
+  return [
+    { device: "MOBILE" as const, ads: mobile },
+    { device: "DESKTOP" as const, ads: desktop },
+  ].filter((show) => show.ads.length > 0);
+}

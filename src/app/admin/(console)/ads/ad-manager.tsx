@@ -11,9 +11,13 @@ import {
   AD_FITS,
   AD_HEIGHT,
   AD_LIST_POSITION,
+  AD_RUN_DAYS,
   AD_SIZES,
+  AD_SLIDE_SECONDS,
   AD_TEXT_POSITIONS,
   AD_WIDTH,
+  runDays,
+  runEnd,
   sizeDimensions,
   type AdAlign,
   type AdDevice,
@@ -59,6 +63,7 @@ export interface Ad {
   device: AdDevice;
   listPosition: number;
   targetCity: string;
+  slideSeconds: number;
   schedule: Schedule;
 }
 
@@ -134,7 +139,7 @@ export function AdManager({ slots, ads, cities }: { slots: Slot[]; ads: Ad[]; ci
       {shownSlots.map((slot) => {
         const inSlot = ads.filter((ad) => ad.slot === slot.key);
         const visible = inSlot.filter((ad) => status === "ALL" || ad.schedule === status);
-        const showingNow = inSlot.find((ad) => ad.schedule === "LIVE");
+        const liveCount = inSlot.filter((ad) => ad.schedule === "LIVE").length;
         const newKey = `new:${slot.key}`;
         return (
           <section key={slot.key}>
@@ -145,7 +150,7 @@ export function AdManager({ slots, ads, cities }: { slots: Slot[]; ads: Ad[]; ci
                   onClick={() => setEditing(newKey)}
                   className="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-accent-700 hover:underline"
                 >
-                  <Plus size={14} weight="bold" aria-hidden /> Add ad
+                  <Plus size={14} weight="bold" aria-hidden /> {inSlot.length > 0 ? "Add another slide" : "Add ad"}
                 </button>
               }
             >
@@ -154,7 +159,13 @@ export function AdManager({ slots, ads, cities }: { slots: Slot[]; ads: Ad[]; ci
             <p className="-mt-2 mb-3 text-xs text-ink-muted">
               {slot.hint}
               {inSlot.length > 0
-                ? ` · ${showingNow ? `top of the queue: “${showingNow.title}”` : "nothing live right now, so the slot is hidden"}`
+                ? ` · ${
+                    liveCount > 1
+                      ? `${liveCount} live ads sliding in turn, highest priority first`
+                      : liveCount === 1
+                        ? "1 live ad. Add another to make this spot a slideshow"
+                        : "nothing live right now, so the slot is hidden"
+                  }`
                 : ""}
             </p>
 
@@ -274,6 +285,7 @@ function AdRow({
     ad.slot === "DIRECTORY_INLINE" ? `after vendor ${ad.listPosition}` : null,
     ad.targetCity ? `${ad.targetCity} only` : null,
     `priority ${ad.priority}`,
+    `${ad.slideSeconds}s per slide`,
   ].filter(Boolean);
 
   return (
@@ -296,6 +308,10 @@ function AdRow({
         <p className="mt-0.5 text-xs text-ink-muted">
           {ad.advertiser ? `${ad.advertiser} · ` : ""}
           {shortDate(ad.startsAt)} → {ad.endsAt ? shortDate(ad.endsAt) : "no end date"}
+          {(() => {
+            const days = runDays(new Date(ad.startsAt), ad.endsAt ? new Date(ad.endsAt) : null);
+            return days ? ` (${days} ${days === 1 ? "day" : "days"})` : "";
+          })()}
           {ad.linkUrl ? ` · links to ${ad.linkUrl}` : " · no link"}
         </p>
         <p data-numeric className="mt-1 font-mono text-xs text-ink">
@@ -383,6 +399,21 @@ function AdForm({
   const [device, setDevice] = useState<AdDevice>(initial?.device ?? "ALL");
   const [listPosition, setListPosition] = useState(String(initial?.listPosition ?? 4));
   const [targetCity, setTargetCity] = useState(initial?.targetCity ?? "");
+  const [slideSeconds, setSlideSeconds] = useState(String(initial?.slideSeconds ?? AD_SLIDE_SECONDS.default));
+  // How long the ad runs: a number of days from the start, no end, or the
+  // dates typed in by hand.
+  const [runFor, setRunFor] = useState<string>(() => {
+    if (!initial) return "NONE";
+    if (!initial.endsAt) return "NONE";
+    const days = runDays(new Date(initial.startsAt), new Date(initial.endsAt));
+    return days && (AD_RUN_DAYS as readonly number[]).includes(days) ? String(days) : "CUSTOM";
+  });
+
+  const applyRun = (choice: string, start: string) => {
+    setRunFor(choice);
+    if (choice === "NONE") setEndsAt("");
+    else if (choice !== "CUSTOM" && start) setEndsAt(toLocalInput(runEnd(new Date(start), Number(choice)).toISOString()));
+  };
 
   const slotInfo = slots.find((option) => option.key === slot);
   const { width, height } = sizeDimensions(size, { width: Number(customWidth), height: Number(customHeight) });
@@ -390,6 +421,8 @@ function AdForm({
   const heightOk = Number.isInteger(height) && height >= AD_HEIGHT.min && height <= AD_HEIGHT.max;
   const listOk = slot !== "DIRECTORY_INLINE" || (Number(listPosition) >= AD_LIST_POSITION.min && Number(listPosition) <= AD_LIST_POSITION.max);
   const hiddenWithoutImage = textPosition === "HIDDEN" && !image;
+  const secondsValue = Number(slideSeconds);
+  const secondsOk = Number.isInteger(secondsValue) && secondsValue >= AD_SLIDE_SECONDS.min && secondsValue <= AD_SLIDE_SECONDS.max;
   const problem =
     title.trim().length < 2
       ? "Give the ad a headline (at least 2 characters) — it is also the image's description for screen readers."
@@ -403,7 +436,9 @@ function AdForm({
               ? "Add a banner image, or show the headline: with neither the ad would be an empty box."
               : endsAt && startsAt && new Date(endsAt) <= new Date(startsAt)
                 ? "The end date must be after the start date."
-                : null;
+                : !secondsOk
+                  ? `Seconds on screen must be a whole number from ${AD_SLIDE_SECONDS.min} to ${AD_SLIDE_SECONDS.max}.`
+                  : null;
 
   return (
     <Card className="rise-in mb-3 space-y-5 border-accent-500/50 p-4">
@@ -428,7 +463,7 @@ function AdForm({
           value={image}
           onChange={setImage}
           label="Banner image"
-          hint={`Upload at least ${width} × ${height} pixels for a sharp result at this size.`}
+          hint={`Upload at least ${width} × ${height} pixels for a sharp result at this size. To show more images in this spot, add another ad to it: each one becomes a slide. Give them all the same size so the slideshow does not jump.`}
         />
       </fieldset>
 
@@ -572,15 +607,58 @@ function AdForm({
 
       <fieldset className="space-y-3">
         <legend className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-accent-700">Schedule</legend>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Starts">
-            <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className={fieldClass} />
+            <input
+              type="datetime-local"
+              value={startsAt}
+              onChange={(e) => {
+                setStartsAt(e.target.value);
+                // A run of so many days moves with its start.
+                if (runFor !== "NONE" && runFor !== "CUSTOM") applyRun(runFor, e.target.value);
+              }}
+              className={fieldClass}
+            />
           </Field>
-          <Field label="Ends (optional)">
-            <input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className={fieldClass} />
+          <Field label="Run for" hint="The ad stops showing by itself when its time is up.">
+            <select value={runFor} onChange={(e) => applyRun(e.target.value, startsAt)} className={fieldClass}>
+              <option value="NONE">Until I pause it (no end date)</option>
+              {AD_RUN_DAYS.map((days) => (
+                <option key={days} value={String(days)}>
+                  {days === 1 ? "1 day" : `${days} days`}
+                </option>
+              ))}
+              <option value="CUSTOM">Choose an end date…</option>
+            </select>
           </Field>
-          <Field label="Priority (0–100)" hint="Higher shows first; equal priorities take turns.">
+          <Field label="Ends" hint={runFor === "NONE" ? "No end date." : undefined}>
+            <input
+              type="datetime-local"
+              value={endsAt}
+              disabled={runFor === "NONE"}
+              onChange={(e) => {
+                setEndsAt(e.target.value);
+                setRunFor(e.target.value ? "CUSTOM" : "NONE");
+              }}
+              className={`${fieldClass} disabled:opacity-60`}
+            />
+          </Field>
+          <Field label="Priority (0–100)" hint="Higher slides in first; equal priorities share the first slide.">
             <input type="number" min={0} max={100} step={1} value={priority} onChange={(e) => setPriority(e.target.value)} className={fieldClass} />
+          </Field>
+          <Field
+            label="Seconds on screen"
+            hint={`${AD_SLIDE_SECONDS.min}–${AD_SLIDE_SECONDS.max}. When this spot has more than one live ad they slide in turn; this is how long this one stays.`}
+          >
+            <input
+              type="number"
+              min={AD_SLIDE_SECONDS.min}
+              max={AD_SLIDE_SECONDS.max}
+              step={1}
+              value={slideSeconds}
+              onChange={(e) => setSlideSeconds(e.target.value)}
+              className={fieldClass}
+            />
           </Field>
         </div>
         <label className="flex items-center gap-2 text-sm text-ink">
@@ -615,6 +693,7 @@ function AdForm({
               device,
               listPosition: Math.round(Number(listPosition)) || 4,
               targetCity,
+              slideSeconds: secondsValue,
             })
           }
         >

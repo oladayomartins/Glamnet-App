@@ -13,6 +13,7 @@ import {
   AD_HEIGHT,
   AD_LIST_POSITION,
   AD_SIZE_KEYS,
+  AD_SLIDE_SECONDS,
   AD_SLOT_KEYS,
   AD_TEXT_POSITION_KEYS,
   AD_WIDTH,
@@ -235,6 +236,7 @@ const adInput = z.object({
   device: z.enum(AD_DEVICE_KEYS).default("ALL"),
   listPosition: z.number().int().min(AD_LIST_POSITION.min).max(AD_LIST_POSITION.max).default(4),
   targetCity: z.string().trim().max(80).default(""),
+  slideSeconds: z.number().int().min(AD_SLIDE_SECONDS.min).max(AD_SLIDE_SECONDS.max).default(AD_SLIDE_SECONDS.default),
 });
 
 /**
@@ -344,12 +346,18 @@ export interface LiveAd {
   imageFit: AdFit;
   device: AdDevice;
   listPosition: number;
+  slideSeconds: number;
 }
 
+/** The most ads a spot slides between; past this the rest wait their turn. */
+const MAX_SLIDES = 10;
+
 /**
- * What to show in a slot right now: one ad for phones and one for computers,
- * which are usually the same ad. Ads aimed at one kind of device compete only
- * there, so a computers-only ad never leaves phones with an empty slot.
+ * Every ad live in a slot right now, in the order they slide: highest
+ * priority first, a city's own ad before a UK-wide one at the same priority,
+ * then the least-seen first so equal ads share the first slide. The spot
+ * slides between them (see AdList); ads aimed at one kind of device only join
+ * that device's slideshow.
  *
  * Views are not counted here: the ad counts itself once it is actually on
  * screen (see AdView), which keeps a write off every page render and means an
@@ -378,14 +386,9 @@ export async function adsForSlot(slot: AdSlot, options: { city?: string | null }
     });
     const live = rows
       .filter((ad) => isLive(ad, now))
-      .sort((a, b) => b.priority - a.priority || Number(Boolean(b.targetCity)) - Number(Boolean(a.targetCity)));
-    const mobile = live.find((ad) => ad.device !== "DESKTOP");
-    const desktop = live.find((ad) => ad.device !== "MOBILE");
-    const picked = mobile && desktop && mobile.id === desktop.id ? [{ ...mobile, device: "ALL" }] : [
-      ...(mobile ? [{ ...mobile, device: desktop ? "MOBILE" : mobile.device }] : []),
-      ...(desktop ? [{ ...desktop, device: mobile ? "DESKTOP" : desktop.device }] : []),
-    ];
-    return picked.map((ad) => ({
+      .sort((a, b) => b.priority - a.priority || Number(Boolean(b.targetCity)) - Number(Boolean(a.targetCity)))
+      .slice(0, MAX_SLIDES);
+    return live.map((ad) => ({
       id: ad.id,
       title: ad.title,
       subtitle: ad.subtitle,
@@ -398,6 +401,7 @@ export async function adsForSlot(slot: AdSlot, options: { city?: string | null }
       imageFit: ad.imageFit as AdFit,
       device: ad.device as AdDevice,
       listPosition: ad.listPosition,
+      slideSeconds: ad.slideSeconds,
     }));
   } catch (cause) {
     console.error("[ads] slot lookup failed", cause);

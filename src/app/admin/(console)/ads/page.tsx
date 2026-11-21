@@ -26,7 +26,7 @@ export default async function AdminAdsPage() {
     <div>
       <AdminHeader
         title="Ad placements"
-        lede="Sell or give away sponsored space. Choose where each ad goes, its size and layout, and who sees it. A slot shows its highest-priority live ad; ads of equal priority take turns. Views are counted when an ad is actually on screen."
+        lede="Sell or give away sponsored space. Choose where each ad goes, its size and layout, and who sees it. Add several ads to one spot and they slide in turn, highest priority first, each for the seconds you set. Set how long each ad runs and it stops by itself. Views are counted when an ad is actually on screen."
       />
       <AdManager
         slots={Object.entries(AD_SLOTS).map(([key, value]) => ({ key, ...value }))}
@@ -56,6 +56,7 @@ export default async function AdminAdsPage() {
             device: ad.device as Ad["device"],
             listPosition: ad.listPosition,
             targetCity: ad.targetCity,
+            slideSeconds: ad.slideSeconds,
             schedule: scheduleOf(ad),
           }),
         )}
