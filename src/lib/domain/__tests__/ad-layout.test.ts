@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AD_SLOTS, adBoxStyle, adImageSrc, deviceClass, sizeDimensions } from "../ad-layout";
+import { AD_SLOTS, adBoxStyle, adImageSrc, deviceClass, runDays, runEnd, sizeDimensions, slideshows } from "../ad-layout";
 
 describe("ad layout", () => {
   it("uses a preset's dimensions and ignores typed ones", () => {
@@ -43,5 +43,43 @@ describe("ad layout", () => {
 
   it("keeps the slots that were already in use", () => {
     expect(Object.keys(AD_SLOTS)).toEqual(expect.arrayContaining(["HOME_BANNER", "DIRECTORY_TOP", "STOREFRONT_FOOTER"]));
+  });
+});
+
+describe("slideshows", () => {
+  const ad = (id: string, device: "ALL" | "MOBILE" | "DESKTOP") => ({ id, device });
+
+  it("is one slideshow for every device when phones and computers get the same ads", () => {
+    expect(slideshows([ad("a", "ALL"), ad("b", "ALL")])).toEqual([{ device: "ALL", ads: [ad("a", "ALL"), ad("b", "ALL")] }]);
+  });
+
+  it("splits phones and computers when an ad targets only one", () => {
+    const shows = slideshows([ad("a", "ALL"), ad("m", "MOBILE"), ad("d", "DESKTOP")]);
+    expect(shows.map((show) => [show.device, show.ads.map((item) => item.id)])).toEqual([
+      ["MOBILE", ["a", "m"]],
+      ["DESKTOP", ["a", "d"]],
+    ]);
+  });
+
+  it("keeps a one-device spot hidden on the other device", () => {
+    expect(slideshows([ad("d", "DESKTOP")])).toEqual([{ device: "DESKTOP", ads: [ad("d", "DESKTOP")] }]);
+  });
+
+  it("is nothing for no ads", () => {
+    expect(slideshows([])).toEqual([]);
+  });
+});
+
+describe("run length", () => {
+  it("ends an ad the chosen number of days after it starts", () => {
+    const start = new Date("2026-11-21T09:00:00Z");
+    expect(runEnd(start, 7).toISOString()).toBe("2026-11-28T09:00:00.000Z");
+    expect(runDays(start, runEnd(start, 7))).toBe(7);
+  });
+
+  it("is not a whole number of days for an odd end time or no end", () => {
+    const start = new Date("2026-11-21T09:00:00Z");
+    expect(runDays(start, new Date("2026-11-22T10:30:00Z"))).toBeNull();
+    expect(runDays(start, null)).toBeNull();
   });
 });

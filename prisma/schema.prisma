@@ -828,6 +828,9 @@ model AdPlacement {
   /// A city name to show only there (directory and storefront slots), or ""
   /// for everywhere.
   targetCity   String    @default("")
+  /// When a spot has several live ads they slide in turn; this is how many
+  /// seconds this one stays on screen before the next slides in.
+  slideSeconds Int       @default(6)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
