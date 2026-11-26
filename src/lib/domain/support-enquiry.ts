@@ -8,8 +8,8 @@ import type { HelpTopic } from "./help-articles";
 export type EnquirerRole = "CUSTOMER" | "VENDOR" | "OTHER";
 
 export const ENQUIRER_ROLES: { value: EnquirerRole; label: string }[] = [
-  { value: "CUSTOMER", label: "I book appointments (customer)" },
-  { value: "VENDOR", label: "I'm a vendor on GLAMNET" },
+  { value: "CUSTOMER", label: "I am a customer" },
+  { value: "VENDOR", label: "I am a vendor" },
   { value: "OTHER", label: "Something else / not signed up" },
 ];
 
