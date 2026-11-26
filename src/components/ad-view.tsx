@@ -28,11 +28,16 @@ export interface AdViewProps {
   className?: string;
 }
 
-const TEXT_PLACEMENT: Record<Exclude<AdTextPosition, "HIDDEN">, { box: string; shade: string }> = {
-  BOTTOM_LEFT: { box: "items-end justify-start text-left", shade: "bg-gradient-to-t from-obsidian/85 via-obsidian/40 to-transparent" },
-  BOTTOM_CENTER: { box: "items-end justify-center text-center", shade: "bg-gradient-to-t from-obsidian/85 via-obsidian/40 to-transparent" },
-  CENTER: { box: "items-center justify-center text-center", shade: "bg-obsidian/45" },
-  TOP_LEFT: { box: "items-start justify-start text-left", shade: "bg-gradient-to-b from-obsidian/85 via-obsidian/40 to-transparent" },
+/**
+ * Where the caption sits. It is kept small so it never covers the artwork —
+ * most ads carry their own words in the image — and the "Sponsored" label
+ * always shows.
+ */
+const TEXT_PLACEMENT: Record<Exclude<AdTextPosition, "HIDDEN">, string> = {
+  BOTTOM_LEFT: "items-end justify-start text-left",
+  BOTTOM_CENTER: "items-end justify-center text-center",
+  CENTER: "items-center justify-center text-center",
+  TOP_LEFT: "items-start justify-start text-left",
 };
 
 /**
@@ -64,12 +69,16 @@ export function AdView(props: AdViewProps) {
   }, [id, preview]);
 
   // Words over nothing need to be shown, whatever was chosen.
-  const placement = textPosition === "HIDDEN" && imageUrl ? null : TEXT_PLACEMENT[textPosition === "HIDDEN" ? "BOTTOM_LEFT" : textPosition];
+  const shown = textPosition === "HIDDEN" ? "BOTTOM_LEFT" : textPosition;
+  // Over an image the caption is always tucked into the bottom-left corner,
+  // out of the artwork's way.
+  const placement =
+    textPosition === "HIDDEN" && imageUrl ? null : TEXT_PLACEMENT[imageUrl ? "BOTTOM_LEFT" : shown];
 
   const body = (
     <div
       style={adBoxStyle(props)}
-      className={`relative flex overflow-hidden rounded-glam-lg bg-metal ${placement ? "min-h-28" : ""} ${placement?.box ?? ""}`}
+      className={`relative flex overflow-hidden rounded-glam-lg bg-metal ${placement && !imageUrl ? "min-h-28" : ""} ${placement ?? ""}`}
     >
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- ImageKit transform URL
@@ -79,11 +88,17 @@ export function AdView(props: AdViewProps) {
           className={`absolute inset-0 h-full w-full ${imageFit === "CONTAIN" ? "object-contain" : "object-cover"}`}
         />
       ) : null}
-      {/* The shade covers the whole ad, under the words, so a centred
-          headline is not left sitting on a stripe. */}
-      {placement && imageUrl ? <div aria-hidden className={`absolute inset-0 ${placement.shade}`} /> : null}
-      {placement ? (
-        <div className={`relative w-full p-5 ${imageUrl ? "text-on-obsidian" : "text-metal-ink"}`}>
+      {placement && imageUrl ? (
+        // A small caption chip over the artwork, not a headline across it.
+        <div className="relative mb-1.5 ml-3 max-w-[70%] rounded-full bg-obsidian/70 px-2 py-0.5 text-on-obsidian backdrop-blur-sm">
+          <p className="truncate text-[9px] leading-tight">
+            <span className="font-mono uppercase tracking-[0.14em] opacity-75">Sponsored</span>
+            {title ? <span className="font-semibold"> · {title}</span> : null}
+          </p>
+        </div>
+      ) : placement ? (
+        // No image: the words are the ad, so they stay readable.
+        <div className="relative w-full p-5 text-metal-ink">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] opacity-75">Sponsored</span>
           <p className="font-display text-xl font-bold leading-tight">{title}</p>
           {subtitle ? <p className="mt-0.5 text-sm opacity-85">{subtitle}</p> : null}
