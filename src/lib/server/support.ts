@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
 import { sendEmail } from "./email";
-import { bookingNoticeEmail } from "@/lib/email/templates";
+import { AdminError, audit } from "./admin/core";
+import { bookingNoticeEmail, supportReplyEmail } from "@/lib/email/templates";
 import { LEGAL } from "@/lib/legal";
 import { siteUrl } from "@/lib/site";
 import {
@@ -138,4 +139,50 @@ export async function submitEnquiry(raw: unknown, appUserId: string | null): Pro
  */
 export function web3FormsAccessKey(): string {
   return process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY?.trim() ?? "";
+}
+
+export const replySchema = z.object({
+  message: z.string().trim().min(2, "Write a reply first.").max(10_000),
+  /** Mark the enquiry resolved once the reply is sent. */
+  resolve: z.boolean().optional().default(false),
+});
+
+export type ReplyResult = { emailed: boolean; resolved: boolean };
+
+/**
+ * An admin replies to an enquiry: email the sender (replies to that email
+ * come back to the support inbox), keep the reply on the enquiry, and
+ * optionally mark it resolved.
+ *
+ * The reply is saved even when the email can't be sent, marked as not
+ * emailed, so the inbox shows it went nowhere instead of losing the text —
+ * and the enquiry is only resolved if the email actually went.
+ */
+export async function replyToEnquiry(actorEmail: string, id: string, raw: unknown): Promise<ReplyResult> {
+  const { message, resolve } = replySchema.parse(raw);
+  const enquiry = await prisma.supportEnquiry.findUnique({ where: { id } });
+  if (!enquiry) throw new AdminError("That enquiry no longer exists.", 404, "NOT_FOUND");
+
+  const sent = await sendEmail({
+    to: enquiry.email,
+    replyTo: LEGAL.contactEmail,
+    ...supportReplyEmail({
+      name: enquiry.name.split(/\s+/)[0] || enquiry.name,
+      reference: enquiry.reference,
+      topic: enquiry.topic,
+      reply: message,
+      original: enquiry.message,
+    }),
+  });
+  const emailed = sent.ok;
+  const resolved = emailed && resolve && enquiry.status === "OPEN";
+
+  await prisma.$transaction([
+    prisma.supportReply.create({ data: { enquiryId: id, message, sentBy: actorEmail, emailed } }),
+    ...(resolved
+      ? [prisma.supportEnquiry.update({ where: { id }, data: { status: "RESOLVED", resolvedAt: new Date(), resolvedBy: actorEmail } })]
+      : []),
+  ]);
+  await audit(actorEmail, emailed ? "support.reply" : "support.reply_failed", { type: "SupportEnquiry", id }, enquiry.reference);
+  return { emailed, resolved };
 }

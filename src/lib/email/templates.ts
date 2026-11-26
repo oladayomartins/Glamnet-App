@@ -380,6 +380,50 @@ export function bookingNoticeEmail(input: {
 }
 
 /**
+ * An admin's reply to a support enquiry. Written by a person, so it keeps
+ * their paragraphs and line breaks, and quotes what the sender asked so the
+ * thread makes sense on its own. Replying to it reaches the support inbox.
+ */
+export function supportReplyEmail(input: {
+  name: string;
+  reference: string;
+  topic: string;
+  reply: string;
+  original: string;
+}): EmailBody {
+  const paragraphs = input.reply
+    .trim()
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+  const html = shell({
+    preheader: input.reply.trim().slice(0, 140),
+    heading: `About your message (${input.reference})`,
+    body:
+      paragraph(`Hi ${input.name},`) +
+      paragraphs
+        .map(
+          (block) =>
+            `<p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:${INK};">${escapeHtml(block).replace(/\n/g, "<br>")}</p>`,
+        )
+        .join("") +
+      `<div style="margin:22px 0 4px;padding:12px 14px;border-left:3px solid ${BORDER};font-size:13px;line-height:1.6;color:${INK_MUTED};"><strong>You wrote</strong> · ${escapeHtml(input.topic)}<br>${escapeHtml(input.original.trim()).replace(/\n/g, "<br>")}</div>`,
+    footerNote: `Reply to this email to carry on the conversation. Your reference is ${input.reference}.`,
+  });
+  const text = textBlock([
+    `Hi ${input.name},`,
+    "",
+    input.reply.trim(),
+    "",
+    `— You wrote (${input.topic}):`,
+    ...input.original.trim().split("\n").map((line) => `> ${line}`),
+    "",
+    `Reply to this email to carry on the conversation. Your reference is ${input.reference}.`,
+  ]);
+  return { subject: `Re: ${input.reference} · ${input.topic}`, html, text };
+}
+
+/**
  * Nudge to a vendor who hasn't finished setting up: their percentage, what's
  * left, and — the strongest reason to finish — any earnings held for them.
  */

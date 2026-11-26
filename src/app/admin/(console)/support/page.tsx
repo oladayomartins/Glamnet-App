@@ -5,6 +5,7 @@ import { AdminHeader } from "../_components/bits";
 import { PAGE_SIZE, Pager, pageFrom } from "../_components/pager";
 import { ENQUIRER_ROLES, categoryByValue } from "@/lib/domain/support-enquiry";
 import { ResolveButton } from "./resolve-button";
+import { ReplyBox } from "./reply-box";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function AdminSupportPage({
       orderBy: status === "OPEN" ? [{ urgent: "desc" }, { createdAt: "asc" }] : [{ resolvedAt: "desc" }],
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
+      include: { replies: { orderBy: { createdAt: "asc" } } },
     }),
     prisma.supportEnquiry.count({ where: { status } }),
     prisma.supportEnquiry.count({ where: { status: "OPEN" } }),
@@ -43,7 +45,7 @@ export default async function AdminSupportPage({
     <div>
       <AdminHeader
         title="Support inbox"
-        lede="Messages from the contact form. Reply by email — each one's sender is the reply-to — then mark it resolved."
+        lede="Messages from the contact form. Press Reply to email the sender from here — their answers come back to the support inbox — and tick “Mark resolved” to close it in one go."
       />
 
       <nav aria-label="Status" className="mb-5 flex gap-1.5">
@@ -113,6 +115,22 @@ export default async function AdminSupportPage({
                   <ResolveButton id={enquiry.id} status={enquiry.status} />
                 </div>
                 <p className="mt-3 whitespace-pre-wrap rounded-glam bg-sunken p-3 text-sm text-ink">{enquiry.message}</p>
+                {enquiry.replies.length > 0 ? (
+                  <ol className="mt-2 space-y-2" aria-label="Replies">
+                    {enquiry.replies.map((reply) => (
+                      <li key={reply.id} className="ml-6 rounded-glam border border-line p-3">
+                        <p className="text-xs text-ink-muted">
+                          Reply by {reply.sentBy} · {when.format(reply.createdAt)}
+                          {reply.emailed ? "" : <span className="font-semibold text-warning"> · not emailed</span>}
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{reply.message}</p>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+                <div className="mt-3">
+                  <ReplyBox id={enquiry.id} name={enquiry.name} email={enquiry.email} open={enquiry.status === "OPEN"} />
+                </div>
               </li>
             );
           })}
