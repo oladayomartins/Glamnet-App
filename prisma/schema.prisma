@@ -831,10 +831,26 @@ model AdPlacement {
   /// When a spot has several live ads they slide in turn; this is how many
   /// seconds this one stays on screen before the next slides in.
   slideSeconds Int       @default(6)
+  /// Secret in the shareable performance report link (/ad-report/<token>),
+  /// so an advertiser can see their numbers without an account.
+  reportToken  String    @unique @default(uuid())
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  daily        AdDailyStat[]
 
   @@index([slot, isActive])
+}
+
+/// Views and clicks of one ad on one UK calendar day, for its report.
+model AdDailyStat {
+  adId        String
+  ad          AdPlacement @relation(fields: [adId], references: [id], onDelete: Cascade)
+  /// The UK date, stored as midnight UTC of that date.
+  day         DateTime    @db.Date
+  impressions Int         @default(0)
+  clicks      Int         @default(0)
+
+  @@id([adId, day])
 }
 
 /// Every admin action, for accountability.
@@ -964,7 +980,7 @@ model SupportEnquiry {
   /// Short code quoted to the sender, e.g. "GN-7K3Q9P".
   reference  String    @unique
   createdAt  DateTime  @default(now())
-  /// "CUSTOMER" | "VENDOR" | "OTHER" — see lib/domain/support-enquiry.ts.
+  /// "CUSTOMER" | "VENDOR" | "MEMBER" | "OTHER" — see lib/domain/support-enquiry.ts.
   role       String
   category   String
   topic      String

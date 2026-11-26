@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Copy, Plus, Television } from "@phosphor-icons/react";
+import { ChartBar, Copy, Link as LinkIcon, Plus, Television } from "@phosphor-icons/react";
 import { ImageUpload, type UploadedImage } from "@/components/image-upload";
 import { AdView } from "@/components/ad-view";
 import { Button, Card, EmptyState, SectionTitle } from "@/components/ui";
@@ -64,6 +64,8 @@ export interface Ad {
   listPosition: number;
   targetCity: string;
   slideSeconds: number;
+  /** Secret for the shareable report at /ad-report/<token>. */
+  reportToken: string;
   schedule: Schedule;
 }
 
@@ -288,6 +290,20 @@ function AdRow({
     `${ad.slideSeconds}s per slide`,
   ].filter(Boolean);
 
+  const [copied, setCopied] = useState(false);
+  // The link an advertiser can open without an account to see this ad's views
+  // and clicks, day by day.
+  const copyReport = async () => {
+    const url = `${window.location.origin}/ad-report/${ad.reportToken}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      window.prompt("Copy this report link to share it:", url);
+    }
+  };
+
   return (
     <Card className="flex flex-wrap gap-4 p-4">
       {ad.imageUrl ? (
@@ -320,6 +336,17 @@ function AdRow({
         </p>
       </div>
       <div className="flex flex-wrap items-start gap-2">
+        <a
+          href={`/ad-report/${ad.reportToken}`}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-ink ring-1 ring-line hover:bg-sunken"
+        >
+          <ChartBar size={14} aria-hidden /> Report
+        </a>
+        <Button variant="ghost" onClick={copyReport} aria-label={`Copy the report link for ${ad.title}`}>
+          <LinkIcon size={14} aria-hidden /> {copied ? "Link copied" : "Share report"}
+        </Button>
         {ad.schedule !== "ENDED" ? (
           <Button variant="secondary" disabled={busy} onClick={onToggle}>
             {busy ? "Saving…" : ad.isActive ? "Pause" : "Resume"}
@@ -425,7 +452,9 @@ function AdForm({
   const secondsOk = Number.isInteger(secondsValue) && secondsValue >= AD_SLIDE_SECONDS.min && secondsValue <= AD_SLIDE_SECONDS.max;
   const problem =
     title.trim().length < 2
-      ? "Give the ad a headline (at least 2 characters) — it is also the image's description for screen readers."
+      ? image
+        ? "Give the ad a name (at least 2 characters) — it labels the report and describes the image for screen readers."
+        : "Give the ad a headline (at least 2 characters)."
       : !widthOk
         ? `Width must be a whole number from ${AD_WIDTH.min} to ${AD_WIDTH.max} pixels.`
         : !heightOk
@@ -445,14 +474,26 @@ function AdForm({
       <fieldset className="space-y-3">
         <legend className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-accent-700">Content</legend>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Headline">
+          <Field
+            label={image ? "Ad name" : "Headline"}
+            hint={
+              image
+                ? "Not shown on the banner — the image carries its own words. Used in reports and read out by screen readers."
+                : "Shown on the ad, since it has no image."
+            }
+          >
             <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldClass} maxLength={80} />
           </Field>
-          <Field label="Sub-line (optional)">
-            <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={fieldClass} maxLength={160} />
-          </Field>
-          <Field label="Link (a page on GLAMNET like /pro/name, or https://…)">
-            <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} className={fieldClass} placeholder="/pro/vendor-name" />
+          {image ? null : (
+            <Field label="Sub-line (optional)">
+              <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={fieldClass} maxLength={160} />
+            </Field>
+          )}
+          <Field
+            label="Click-through link"
+            hint="A page on GLAMNET like /pro/name, or a full https:// web address. Every click is counted for the report before the visitor is sent there. Leave empty and the ad can't be clicked."
+          >
+            <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} className={fieldClass} placeholder="https://… or /pro/vendor-name" />
           </Field>
           <Field label="Advertiser (only admins see this)">
             <input value={advertiser} onChange={(e) => setAdvertiser(e.target.value)} className={fieldClass} />
@@ -566,11 +607,13 @@ function AdForm({
               className={`${fieldClass} disabled:opacity-60`}
             />
           </Field>
-          <Field label="Headline position">
-            <select value={textPosition} onChange={(e) => setTextPosition(e.target.value as AdTextPosition)} className={fieldClass}>
-              <Options options={AD_TEXT_POSITIONS} />
-            </select>
-          </Field>
+          {image ? null : (
+            <Field label="Headline position">
+              <select value={textPosition} onChange={(e) => setTextPosition(e.target.value as AdTextPosition)} className={fieldClass}>
+                <Options options={AD_TEXT_POSITIONS} />
+              </select>
+            </Field>
+          )}
           <Field label="Image fit">
             <select value={imageFit} onChange={(e) => setImageFit(e.target.value as AdFit)} className={fieldClass}>
               <Options options={AD_FITS} />
@@ -587,7 +630,7 @@ function AdForm({
               <AdView
                 preview
                 id="preview"
-                title={title || "Your headline"}
+                title={title || (image ? "Your ad" : "Your headline")}
                 subtitle={subtitle}
                 imageUrl={image?.url ?? ""}
                 hasLink={false}

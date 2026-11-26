@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/server/prisma";
+import { countAd } from "@/lib/server/ad-tracking";
 
 export const dynamic = "force-dynamic";
 
@@ -13,14 +13,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const home = new URL("/", request.url);
   try {
-    const ad = await prisma.adPlacement.update({
-      where: { id },
-      data: { clicks: { increment: 1 } },
-      select: { linkUrl: true },
-    });
-    if (!ad.linkUrl) return NextResponse.redirect(home, 303);
+    const ad = await countAd(id, "clicks");
+    if (!ad?.linkUrl) return NextResponse.redirect(home, 303);
     return NextResponse.redirect(new URL(ad.linkUrl, request.url), 303);
-  } catch {
+  } catch (cause) {
+    console.error("[ads] click count failed", cause);
     return NextResponse.redirect(home, 303);
   }
 }

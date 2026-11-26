@@ -311,7 +311,7 @@ export async function duplicateAd(actorEmail: string, id: string) {
   const current = await prisma.adPlacement.findUnique({ where: { id } });
   if (!current) throw new AdminError("That ad no longer exists.", 404, "NOT_FOUND");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- dropped on purpose
-  const { id: _id, createdAt, updatedAt, impressions, clicks, imageFileId, ...copy } = current;
+  const { id: _id, createdAt, updatedAt, impressions, clicks, imageFileId, reportToken, ...copy } = current;
   const ad = await prisma.adPlacement.create({
     // The image file stays owned by the original: deleting either ad must not
     // delete the other's picture, so the copy shares the URL but not the file id.

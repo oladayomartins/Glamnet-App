@@ -57,6 +57,7 @@ export default async function AdminAdsPage() {
             listPosition: ad.listPosition,
             targetCity: ad.targetCity,
             slideSeconds: ad.slideSeconds,
+            reportToken: ad.reportToken,
             schedule: scheduleOf(ad),
           }),
         )}

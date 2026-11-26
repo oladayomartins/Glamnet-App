@@ -28,11 +28,12 @@ export interface AdViewProps {
   className?: string;
 }
 
-const TEXT_PLACEMENT: Record<Exclude<AdTextPosition, "HIDDEN">, { box: string; shade: string }> = {
-  BOTTOM_LEFT: { box: "items-end justify-start text-left", shade: "bg-gradient-to-t from-obsidian/85 via-obsidian/40 to-transparent" },
-  BOTTOM_CENTER: { box: "items-end justify-center text-center", shade: "bg-gradient-to-t from-obsidian/85 via-obsidian/40 to-transparent" },
-  CENTER: { box: "items-center justify-center text-center", shade: "bg-obsidian/45" },
-  TOP_LEFT: { box: "items-start justify-start text-left", shade: "bg-gradient-to-b from-obsidian/85 via-obsidian/40 to-transparent" },
+/** Where a text-only ad's headline sits. */
+const TEXT_PLACEMENT: Record<Exclude<AdTextPosition, "HIDDEN">, string> = {
+  BOTTOM_LEFT: "items-end justify-start text-left",
+  BOTTOM_CENTER: "items-end justify-center text-center",
+  CENTER: "items-center justify-center text-center",
+  TOP_LEFT: "items-start justify-start text-left",
 };
 
 /**
@@ -63,33 +64,34 @@ export function AdView(props: AdViewProps) {
     return () => observer.disconnect();
   }, [id, preview]);
 
-  // Words over nothing need to be shown, whatever was chosen.
-  const placement = textPosition === "HIDDEN" && imageUrl ? null : TEXT_PLACEMENT[textPosition === "HIDDEN" ? "BOTTOM_LEFT" : textPosition];
+  // An image ad is the picture alone: its words are in the artwork. The ad's
+  // name is only its description for screen readers. Text appears on the ad
+  // itself only when there is no image, since then the words are the ad.
+  const placement = imageUrl ? null : TEXT_PLACEMENT[textPosition === "HIDDEN" ? "BOTTOM_LEFT" : textPosition];
 
   const body = (
     <div
       style={adBoxStyle(props)}
-      className={`relative flex overflow-hidden rounded-glam-lg bg-metal ${placement ? "min-h-28" : ""} ${placement?.box ?? ""}`}
+      className={`relative flex overflow-hidden rounded-glam-lg bg-metal ${placement ? `min-h-28 ${placement}` : ""}`}
     >
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- ImageKit transform URL
         <img
           src={adImageSrc(imageUrl, props)}
-          alt={placement ? "" : title}
+          alt={title}
           className={`absolute inset-0 h-full w-full ${imageFit === "CONTAIN" ? "object-contain" : "object-cover"}`}
         />
       ) : null}
-      {/* The shade covers the whole ad, under the words, so a centred
-          headline is not left sitting on a stripe. */}
-      {placement && imageUrl ? <div aria-hidden className={`absolute inset-0 ${placement.shade}`} /> : null}
       {placement ? (
-        <div className={`relative w-full p-5 ${imageUrl ? "text-on-obsidian" : "text-metal-ink"}`}>
+        <div className="relative w-full p-5 text-metal-ink">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] opacity-75">Sponsored</span>
           <p className="font-display text-xl font-bold leading-tight">{title}</p>
           {subtitle ? <p className="mt-0.5 text-sm opacity-85">{subtitle}</p> : null}
         </div>
       ) : (
-        <span className="absolute right-2 top-2 rounded-full bg-obsidian/70 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-on-obsidian">
+        // Ads must be recognisable as ads (CAP Code 2.1), so even a picture-only
+        // ad carries a small label, tucked into the corner.
+        <span className="absolute bottom-1.5 left-3 rounded-full bg-obsidian/70 px-2 py-0.5 font-mono text-[9px] uppercase leading-tight tracking-[0.14em] text-on-obsidian backdrop-blur-sm">
           Sponsored
         </span>
       )}
