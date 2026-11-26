@@ -4,6 +4,7 @@ import {
   escapeHtml,
   providerApprovalEmail,
   providerBroadcastEmail,
+  supportReplyEmail,
   type BookingEmailFacts,
 } from "@/lib/email/templates";
 
@@ -109,5 +110,30 @@ describe("escapeHtml", () => {
     expect(email.html).not.toContain("<b>Amara</b>");
     expect(email.html).not.toContain("<img src=x>");
     expect(email.html).toContain("&lt;b&gt;Amara&lt;/b&gt;");
+  });
+});
+
+describe("supportReplyEmail", () => {
+  const email = supportReplyEmail({
+    name: "Ayo",
+    reference: "GN-D7FQXY",
+    topic: "General question",
+    reply: "Yes — emergency booking is on.\nTap Same-day on the home page.\n\nThanks, <GLAMNET team>",
+    original: "Can you allow emergency booking",
+  });
+
+  it("threads under the enquiry's reference", () => {
+    expect(email.subject).toBe("Re: GN-D7FQXY · General question");
+  });
+
+  it("keeps the admin's paragraphs and line breaks, escaped", () => {
+    expect(email.html).toContain("Yes — emergency booking is on.<br>Tap Same-day on the home page.");
+    expect(email.html).toContain("Thanks, &lt;GLAMNET team&gt;");
+    expect(email.html).not.toContain("<GLAMNET team>");
+  });
+
+  it("quotes what they asked, in both versions", () => {
+    expect(email.html).toContain("Can you allow emergency booking");
+    expect(email.text).toContain("> Can you allow emergency booking");
   });
 });

@@ -995,6 +995,23 @@ model SupportEnquiry {
   urgent     Boolean   @default(false)
   resolvedAt DateTime?
   resolvedBy String    @default("")
+  replies    SupportReply[]
 
   @@index([status, createdAt])
+}
+
+/// An admin's emailed reply to a support enquiry, kept so the inbox shows
+/// the whole conversation.
+model SupportReply {
+  id        String         @id @default(cuid())
+  enquiryId String
+  enquiry   SupportEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+  message   String
+  /// The admin who sent it.
+  sentBy    String
+  /// False when saving worked but the email could not be sent.
+  emailed   Boolean        @default(false)
+
+  @@index([enquiryId, createdAt])
 }

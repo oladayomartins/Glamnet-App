@@ -11,7 +11,7 @@ export function ResolveButton({ id, status }: { id: string; status: string }) {
   const next = status === "OPEN" ? "RESOLVED" : "OPEN";
   return (
     <Button
-      variant={status === "OPEN" ? "primary" : "secondary"}
+      variant="secondary"
       disabled={busy}
       onClick={async () => {
         setBusy(true);
