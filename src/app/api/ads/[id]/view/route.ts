@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/server/prisma";
+import { countAd } from "@/lib/server/ad-tracking";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,6 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await prisma.adPlacement
-    .updateMany({ where: { id }, data: { impressions: { increment: 1 } } })
-    .catch((cause) => console.error("[ads] view count failed", cause));
+  await countAd(id, "impressions").catch((cause) => console.error("[ads] view count failed", cause));
   return new NextResponse(null, { status: 204 });
 }

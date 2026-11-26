@@ -28,11 +28,7 @@ export interface AdViewProps {
   className?: string;
 }
 
-/**
- * Where the caption sits. It is kept small so it never covers the artwork —
- * most ads carry their own words in the image — and the "Sponsored" label
- * always shows.
- */
+/** Where a text-only ad's headline sits. */
 const TEXT_PLACEMENT: Record<Exclude<AdTextPosition, "HIDDEN">, string> = {
   BOTTOM_LEFT: "items-end justify-start text-left",
   BOTTOM_CENTER: "items-end justify-center text-center",
@@ -68,43 +64,34 @@ export function AdView(props: AdViewProps) {
     return () => observer.disconnect();
   }, [id, preview]);
 
-  // Words over nothing need to be shown, whatever was chosen.
-  const shown = textPosition === "HIDDEN" ? "BOTTOM_LEFT" : textPosition;
-  // Over an image the caption is always tucked into the bottom-left corner,
-  // out of the artwork's way.
-  const placement =
-    textPosition === "HIDDEN" && imageUrl ? null : TEXT_PLACEMENT[imageUrl ? "BOTTOM_LEFT" : shown];
+  // An image ad is the picture alone: its words are in the artwork. The ad's
+  // name is only its description for screen readers. Text appears on the ad
+  // itself only when there is no image, since then the words are the ad.
+  const placement = imageUrl ? null : TEXT_PLACEMENT[textPosition === "HIDDEN" ? "BOTTOM_LEFT" : textPosition];
 
   const body = (
     <div
       style={adBoxStyle(props)}
-      className={`relative flex overflow-hidden rounded-glam-lg bg-metal ${placement && !imageUrl ? "min-h-28" : ""} ${placement ?? ""}`}
+      className={`relative flex overflow-hidden rounded-glam-lg bg-metal ${placement ? `min-h-28 ${placement}` : ""}`}
     >
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- ImageKit transform URL
         <img
           src={adImageSrc(imageUrl, props)}
-          alt={placement ? "" : title}
+          alt={title}
           className={`absolute inset-0 h-full w-full ${imageFit === "CONTAIN" ? "object-contain" : "object-cover"}`}
         />
       ) : null}
-      {placement && imageUrl ? (
-        // A small caption chip over the artwork, not a headline across it.
-        <div className="relative mb-1.5 ml-3 max-w-[70%] rounded-full bg-obsidian/70 px-2 py-0.5 text-on-obsidian backdrop-blur-sm">
-          <p className="truncate text-[9px] leading-tight">
-            <span className="font-mono uppercase tracking-[0.14em] opacity-75">Sponsored</span>
-            {title ? <span className="font-semibold"> · {title}</span> : null}
-          </p>
-        </div>
-      ) : placement ? (
-        // No image: the words are the ad, so they stay readable.
+      {placement ? (
         <div className="relative w-full p-5 text-metal-ink">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] opacity-75">Sponsored</span>
           <p className="font-display text-xl font-bold leading-tight">{title}</p>
           {subtitle ? <p className="mt-0.5 text-sm opacity-85">{subtitle}</p> : null}
         </div>
       ) : (
-        <span className="absolute right-2 top-2 rounded-full bg-obsidian/70 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-on-obsidian">
+        // Ads must be recognisable as ads (CAP Code 2.1), so even a picture-only
+        // ad carries a small label, tucked into the corner.
+        <span className="absolute bottom-1.5 left-3 rounded-full bg-obsidian/70 px-2 py-0.5 font-mono text-[9px] uppercase leading-tight tracking-[0.14em] text-on-obsidian backdrop-blur-sm">
           Sponsored
         </span>
       )}
