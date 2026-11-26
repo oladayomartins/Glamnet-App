@@ -33,7 +33,7 @@ describe("help articles", () => {
 
 describe("support enquiry options", () => {
   it("give every role a category, and every category a topic", () => {
-    for (const role of ["CUSTOMER", "VENDOR", "OTHER"] as const) {
+    for (const role of ["CUSTOMER", "VENDOR", "MEMBER", "OTHER"] as const) {
       expect(categoriesFor(role).length).toBeGreaterThan(0);
     }
     for (const category of ENQUIRY_CATEGORIES) expect(category.topics.length).toBeGreaterThan(0);
@@ -42,6 +42,12 @@ describe("support enquiry options", () => {
   it("keep vendor-only topics away from customers", () => {
     expect(categoriesFor("CUSTOMER").map((category) => category.value)).not.toContain("PAYOUTS");
     expect(categoriesFor("VENDOR").map((category) => category.value)).toContain("PAYOUTS");
+  });
+
+  it("show customers-or-vendors both sets of topics", () => {
+    const member = categoriesFor("MEMBER").map((category) => category.value);
+    expect(member).toContain("PAYOUTS");
+    expect(member).toContain("PAYMENT");
   });
 
   it("make references easy to read out", () => {

@@ -5,13 +5,28 @@ import type { HelpTopic } from "./help-articles";
  * from this, and the API validates against it, so the two can't disagree.
  */
 
-export type EnquirerRole = "CUSTOMER" | "VENDOR" | "OTHER";
+/**
+ * CUSTOMER and VENDOR are filled in for signed-in people from their account;
+ * MEMBER is what someone picks from the dropdown ("customer or vendor") and
+ * sees both sets of categories.
+ */
+export type EnquirerRole = "CUSTOMER" | "VENDOR" | "MEMBER" | "OTHER";
 
+/** Every role, with the label shown to admins and in emails. */
 export const ENQUIRER_ROLES: { value: EnquirerRole; label: string }[] = [
-  { value: "CUSTOMER", label: "I am a customer" },
-  { value: "VENDOR", label: "I am a vendor" },
+  { value: "CUSTOMER", label: "Customer" },
+  { value: "VENDOR", label: "Vendor" },
+  { value: "MEMBER", label: "I am a customer or vendor" },
   { value: "OTHER", label: "Something else / not signed up" },
 ];
+
+/** The "Who are you?" dropdown. */
+export const ENQUIRER_CHOICES = ENQUIRER_ROLES.filter((role) => role.value === "MEMBER" || role.value === "OTHER");
+
+/** The dropdown option a role shows as: customers and vendors both pick MEMBER. */
+export function choiceFor(role: EnquirerRole): EnquirerRole {
+  return role === "OTHER" ? "OTHER" : "MEMBER";
+}
 
 export interface EnquiryCategory {
   value: string;
@@ -117,6 +132,9 @@ export const ENQUIRY_CATEGORIES: EnquiryCategory[] = [
 ];
 
 export function categoriesFor(role: EnquirerRole): EnquiryCategory[] {
+  if (role === "MEMBER") {
+    return ENQUIRY_CATEGORIES.filter((category) => category.roles.includes("CUSTOMER") || category.roles.includes("VENDOR"));
+  }
   return ENQUIRY_CATEGORIES.filter((category) => category.roles.includes(role));
 }
 

@@ -6,6 +6,7 @@ import { LEGAL } from "@/lib/legal";
 import { siteUrl } from "@/lib/site";
 import {
   ENQUIRER_ROLES,
+  categoriesFor,
   categoryByValue,
   enquiryReference,
   type EnquirerRole,
@@ -41,7 +42,7 @@ export async function submitEnquiry(raw: unknown, appUserId: string | null): Pro
   const input = enquirySchema.parse(raw);
 
   const category = categoryByValue(input.category);
-  if (!category || !category.roles.includes(input.role) || !category.topics.includes(input.topic)) {
+  if (!category || !categoriesFor(input.role).includes(category) || !category.topics.includes(input.topic)) {
     return { ok: false, status: 422, message: "Choose what your enquiry is about from the lists." };
   }
 

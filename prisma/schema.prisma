@@ -964,7 +964,7 @@ model SupportEnquiry {
   /// Short code quoted to the sender, e.g. "GN-7K3Q9P".
   reference  String    @unique
   createdAt  DateTime  @default(now())
-  /// "CUSTOMER" | "VENDOR" | "OTHER" — see lib/domain/support-enquiry.ts.
+  /// "CUSTOMER" | "VENDOR" | "MEMBER" | "OTHER" — see lib/domain/support-enquiry.ts.
   role       String
   category   String
   topic      String

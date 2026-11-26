@@ -7,8 +7,10 @@ import { Button } from "@/components/ui";
 import { Spinner } from "@/components/page-loader";
 import { HELP_ARTICLES } from "@/lib/domain/help-articles";
 import {
+  ENQUIRER_CHOICES,
   ENQUIRER_ROLES,
   categoriesFor,
+  choiceFor,
   categoryByValue,
   type EnquirerRole,
 } from "@/lib/domain/support-enquiry";
@@ -141,8 +143,8 @@ export function ContactForm({ initial, signedIn, web3FormsKey }: { initial: Init
       className="space-y-5 rounded-glam border border-line bg-surface p-5 sm:p-6"
     >
       <Field label="Who are you?">
-        <select value={role} onChange={(event) => changeRole(event.target.value as EnquirerRole)} className={fieldClass}>
-          {ENQUIRER_ROLES.map((entry) => (
+        <select value={choiceFor(role)} onChange={(event) => changeRole(event.target.value as EnquirerRole)} className={fieldClass}>
+          {ENQUIRER_CHOICES.map((entry) => (
             <option key={entry.value} value={entry.value}>
               {entry.label}
             </option>
